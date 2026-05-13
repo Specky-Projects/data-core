@@ -42,6 +42,13 @@ API:
 - `POST /api/v1/collectors/{collector_name}/run`
 - `GET /api/v1/runs`
 - `GET /api/v1/records`
+- `GET /api/v1/poupi-baby`
+- `GET /api/v1/poupi-baby/modules`
+- `GET /api/v1/poupi-baby/endpoints`
+
+Collector crypto migrado:
+
+- `POST /api/v1/collectors/crypto.crypto_coin_ohlcv/run`
 
 ## Adicionando um collector
 
@@ -56,3 +63,22 @@ O collector retorna `CollectedItem` com `external_id`, `source_url`, `payload` e
 
 - Frontend: Next.js/React separado, sem scraping, deploy independente.
 - Backend/Data Core: collectors, scheduler, banco, logs, retries, API e analytics futuros.
+
+## Dominio Crypto Coin
+
+O backend do projeto `bot-crypto-coin` foi migrado para `domains/crypto_coin`.
+
+- A logica do bot, indicadores, strategies, analytics, backtesting e autotune fica isolada nesse dominio.
+- A integracao com o Data Core acontece por adaptadores em `collectors/` e `workers/`.
+- A camada antiga `src` foi preservada em `domains/crypto_coin/legacy` apenas para compatibilidade.
+
+Contexto para evolucao assistida por IA: `docs/AI_CONTEXT.md`.
+
+## Dominio Poupi Baby
+
+A interface backend do projeto `poupi` foi migrada para `domains/poupi_baby`.
+
+- `backend/`: NestJS backend original, incluindo controllers, services, modules e Prisma.
+- `worker/`: worker BullMQ original.
+- `interface.py`: manifest Python usado pelo FastAPI para expor o contrato do dominio.
+- Frontend do Poupi nao foi migrado.

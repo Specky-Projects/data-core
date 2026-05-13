@@ -1,4 +1,5 @@
 from collectors.base import BaseCollector
+from collectors.crypto.crypto_coin_ohlcv import CryptoCoinOHLCVCollector
 from collectors.crypto.generic_price import GenericCryptoPriceCollector
 from collectors.ecommerce.generic_product import GenericProductCollector
 from collectors.real_estate.generic_listing import GenericRealEstateCollector
@@ -31,4 +32,5 @@ registry = CollectorRegistry()
 registry.register(GenericRealEstateCollector)
 registry.register(GenericProductCollector)
 registry.register(GenericCryptoPriceCollector)
+registry.register(CryptoCoinOHLCVCollector)
 registry.register(GenericSportsOddsCollector)

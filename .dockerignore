@@ -4,6 +4,9 @@
 .ruff_cache
 __pycache__
 *.pyc
+node_modules
+dist
+coverage
 runtime-logs
+runtime-data
 postgres-data
-

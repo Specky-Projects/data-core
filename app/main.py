@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 from api.routes import router as api_router
+from api.poupi_baby_routes import router as poupi_baby_router
 from api.schemas import HealthResponse
 from core.config import settings
 from database.models import Base
@@ -41,4 +42,5 @@ def create_app() -> FastAPI:
         return HealthResponse(status="ok", app=settings.app_name, environment=settings.app_env)
 
     app.include_router(api_router)
+    app.include_router(poupi_baby_router)
     return app
