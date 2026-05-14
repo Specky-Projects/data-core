@@ -32,7 +32,14 @@ from app.data_quality.models import DataQualityRun
 from app.documentation.models import DataLineage, DataSla
 from app.documentation.services import DocumentationService
 from database.models import CollectionRun, CollectionTarget, CollectorError, RunStatus
-from scheduler.jobs import MODULE_COLLECTORS, analytics_job, ensure_default_collection_targets, normalize_job, run_collection_targets_job
+from scheduler.jobs import (
+    MODULE_COLLECTORS,
+    analytics_job,
+    ensure_default_collection_targets,
+    normalize_job,
+    run_collection_target_by_id,
+    run_collection_targets_job,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["pipeline"])
 
@@ -345,6 +352,41 @@ def source_quality(
     }
 
 
+@router.get("/operations/candidate-targets")
+def candidate_targets(
+    db: Session = Depends(db_session),
+    module: str | None = None,
+    source_name: str | None = None,
+    collector_name: str | None = None,
+    limit: int = Query(default=500, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    coverage = _collection_coverage_payload(
+        db,
+        module=module,
+        source_name=source_name,
+        collector_name=collector_name,
+        active=False,
+        limit=limit,
+        offset=offset,
+    )
+    candidates = []
+    for row in coverage["targets"]:
+        recommendation = _candidate_recommendation(row)
+        candidates.append({**row, "recommendation": recommendation})
+    summary: dict[str, int] = {}
+    for row in candidates:
+        action = row["recommendation"]["action"]
+        summary[action] = summary.get(action, 0) + 1
+    return {
+        "summary": {
+            "candidate_target_count": len(candidates),
+            "recommendations": summary,
+        },
+        "candidates": candidates,
+    }
+
+
 def _collection_coverage_payload(
     db: Session,
     *,
@@ -575,6 +617,24 @@ def _coverage_issues(readiness_checks: dict[str, bool]) -> list[str]:
     return [labels[key] for key, value in readiness_checks.items() if not value]
 
 
+def _candidate_recommendation(row: dict[str, Any]) -> dict[str, str]:
+    latest_raw = row.get("latest_raw")
+    issues = row.get("issues") or []
+    if latest_raw is None:
+        return {"action": "test_candidate", "reason": "candidate has no RAW yet"}
+    if latest_raw.get("error_message"):
+        return {"action": "fix_collector", "reason": str(latest_raw["error_message"])}
+    if latest_raw.get("processing_status") == "normalization_failed":
+        return {"action": "fix_normalizer", "reason": "latest RAW failed normalization"}
+    if row.get("normalized_count", 0) <= 0:
+        return {"action": "fix_parser", "reason": "RAW exists but no normalized product was generated"}
+    if row.get("analytics_count", 0) <= 0:
+        return {"action": "run_analytics", "reason": "normalized product exists but analytics is missing"}
+    if latest_raw.get("processing_status") == "normalized":
+        return {"action": "promote", "reason": "candidate has RAW, normalized product and analytics"}
+    return {"action": "keep_standby", "reason": "; ".join(issues) or "candidate is not ready for promotion"}
+
+
 @router.delete("/collection-targets/{target_id}")
 def disable_collection_target(target_id: UUID, db: Session = Depends(db_session)) -> dict[str, Any]:
     target = db.get(CollectionTarget, target_id)
@@ -608,6 +668,21 @@ def run_collection_targets(
         timeout_seconds=timeout_seconds,
         dry_run=dry_run,
         list_only=list_only,
+    )
+
+
+@router.post("/collection-targets/{target_id}/run")
+def run_single_collection_target(
+    target_id: UUID,
+    include_inactive: bool = False,
+    timeout_seconds: int | None = Query(default=None, ge=5, le=600),
+    delay_seconds: float = Query(default=0, ge=0, le=60),
+) -> dict[str, object]:
+    return run_collection_target_by_id(
+        str(target_id),
+        include_inactive=include_inactive,
+        timeout_seconds=timeout_seconds,
+        delay_seconds=delay_seconds,
     )
 
 

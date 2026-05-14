@@ -117,6 +117,21 @@ Alertas cobrem:
 - analytics pendente antigo;
 - erros de collector nao resolvidos.
 
+## Avaliar Targets Candidatos
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\candidate-targets.ps1 -Module ecommerce
+```
+
+Recomendacoes possiveis:
+
+- `test_candidate`: candidato ainda nao tem RAW.
+- `fix_collector`: coleta falhou.
+- `fix_parser`: RAW existe, mas nao virou produto normalizado.
+- `run_analytics`: produto normalizado existe, mas analytics ainda falta.
+- `promote`: candidato tem RAW, produto normalizado e analytics.
+- `keep_standby`: manter parado ate investigacao.
+
 ## Exportar Relatorios
 
 ```powershell

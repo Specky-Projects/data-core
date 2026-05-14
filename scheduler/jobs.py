@@ -230,6 +230,58 @@ def run_collection_targets_job(
         db.close()
 
 
+def run_collection_target_by_id(
+    target_id: str,
+    *,
+    include_inactive: bool = False,
+    delay_seconds: float = 0.0,
+    timeout_seconds: int | None = None,
+) -> dict[str, object]:
+    db = SessionLocal()
+    try:
+        target = db.get(CollectionTarget, target_id)
+        if target is None:
+            return {
+                "targets": 0,
+                "raw_saved_count": 0,
+                "error_count": 1,
+                "skipped_locked": 0,
+                "error_message": "collection target not found",
+            }
+        if not target.active and not include_inactive:
+            return {
+                "targets": 1,
+                "raw_saved_count": 0,
+                "error_count": 1,
+                "skipped_locked": 0,
+                "error_message": "collection target is inactive",
+            }
+        if _has_running_target_lock(db, target):
+            return {
+                "targets": 1,
+                "raw_saved_count": 0,
+                "error_count": 0,
+                "skipped_locked": 1,
+            }
+        if target.collector_name == "poupi_legacy_raw_collector":
+            raw_saved = _run_poupi_legacy_targets(
+                db,
+                [target],
+                delay_seconds=delay_seconds,
+                timeout_seconds=timeout_seconds,
+            )
+            return {"targets": 1, "raw_saved_count": raw_saved, "error_count": 0, "skipped_locked": 0}
+        return {
+            "targets": 1,
+            "raw_saved_count": 0,
+            "error_count": 1,
+            "skipped_locked": 0,
+            "error_message": f"collector {target.collector_name} is not supported by target runner",
+        }
+    finally:
+        db.close()
+
+
 def run_poupi_legacy_targets_job(source: str | None = None, limit: int = 100) -> dict[str, object]:
     result = run_collection_targets_job(
         module="ecommerce",

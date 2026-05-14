@@ -53,7 +53,7 @@ if (-not $SkipCollect) {
   if ($DelaySeconds -gt 0) { $collectArgs += @("-DelaySeconds", $DelaySeconds) }
   if ($TimeoutSeconds -gt 0) { $collectArgs += @("-TimeoutSeconds", $TimeoutSeconds) }
   $collectArgs += @("-ApiUrl", $ApiUrl)
-  powershell @collectArgs
+  powershell @collectArgs | Out-Null
 }
 
 Write-Host "Running normalization and analytics worker once..."

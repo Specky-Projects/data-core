@@ -729,6 +729,28 @@ def test_collection_target_runner_dry_run_lists_limited_targets(db_session):
     assert len(result["targets_detail"]) == 2
 
 
+def test_candidate_targets_endpoint_recommends_next_action(db_session, api_client):
+    source = f"pytest-candidate-report-{uuid4()}"
+    db_session.add(
+        CollectionTarget(
+            module="ecommerce",
+            source_name=source,
+            collector_name="poupi_legacy_raw_collector",
+            target_url=f"https://example.test/{uuid4()}",
+            active=False,
+            metadata_json={"kind": "candidate_target", "pytest": True},
+        )
+    )
+    db_session.commit()
+
+    response = api_client.get(f"/api/v1/operations/candidate-targets?source_name={source}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["candidate_target_count"] == 1
+    assert payload["candidates"][0]["recommendation"]["action"] == "test_candidate"
+
+
 def test_ecommerce_module_job_uses_collection_targets_runner(db_session, monkeypatch):
     source = f"pytest-module-job-{uuid4()}"
     db_session.add(
