@@ -8,6 +8,8 @@ services:
         required: false
     ports:
       - "8000:8000"
+    environment:
+      SCHEDULER_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -16,6 +18,50 @@ services:
       - ./runtime-logs:/app/runtime-logs
       - ./runtime-data:/app/runtime-data
     command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+
+  scheduler:
+    image: data-core-api
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    environment:
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_COLLECTORS_ENABLED: "true"
+      SCHEDULER_PIPELINE_ENABLED: "false"
+      SCHEDULER_DOMAIN_JOBS_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - ./:/app
+      - ./runtime-logs:/app/runtime-logs
+      - ./runtime-data:/app/runtime-data
+    command: sh -c "alembic upgrade head && python -m app.jobs.scheduler_runner"
+
+  worker:
+    image: data-core-api
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    environment:
+      SCHEDULER_ENABLED: "false"
+      WORKER_PIPELINE_INTERVAL_SECONDS: "300"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - ./:/app
+      - ./runtime-logs:/app/runtime-logs
+      - ./runtime-data:/app/runtime-data
+    command: sh -c "alembic upgrade head && python -m app.jobs.worker --interval $${WORKER_PIPELINE_INTERVAL_SECONDS}"
 
   tests:
     image: data-core-api

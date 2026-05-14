@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +15,8 @@ TEST_DATABASE_URL = os.getenv(
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.main import create_app
 
 
 @pytest.fixture()
@@ -32,3 +35,9 @@ def db_session():
     finally:
         session.close()
         engine.dispose()
+
+
+@pytest.fixture()
+def api_client():
+    with TestClient(create_app()) as client:
+        yield client

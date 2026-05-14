@@ -19,8 +19,12 @@ class Settings(BaseSettings):
     auto_create_tables: bool = False
 
     scheduler_enabled: bool = True
+    scheduler_collectors_enabled: bool = True
+    scheduler_pipeline_enabled: bool = True
+    scheduler_domain_jobs_enabled: bool = True
     scheduler_timezone: str = "America/Sao_Paulo"
     worker_concurrency: int = 2
+    worker_pipeline_interval_seconds: int = 300
 
     collector_default_max_retries: int = 3
     collector_default_retry_delay_seconds: int = 10

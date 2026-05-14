@@ -40,13 +40,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     if settings.auto_create_tables:
         Base.metadata.create_all(bind=engine)
-    scheduler = create_scheduler()
-    app.state.scheduler = scheduler
-    start_scheduler(scheduler)
+    scheduler = None
+    if settings.scheduler_enabled:
+        scheduler = create_scheduler()
+        app.state.scheduler = scheduler
+        start_scheduler(scheduler)
     try:
         yield
     finally:
-        stop_scheduler(scheduler)
+        if scheduler is not None:
+            stop_scheduler(scheduler)
 
 
 def create_app() -> FastAPI:

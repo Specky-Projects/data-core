@@ -103,6 +103,29 @@ class DocumentationService:
                         metadata_json={"seeded": True},
                     )
                 )
+        for sla_default in _source_sla_defaults():
+            source_sla = (
+                self.db.query(DataSla)
+                .filter(
+                    DataSla.module == sla_default["module"],
+                    DataSla.source_name == sla_default["source_name"],
+                )
+                .one_or_none()
+            )
+            if source_sla is None:
+                self.db.add(
+                    DataSla(
+                        module=sla_default["module"],
+                        source_name=sla_default["source_name"],
+                        freshness_sla=sla_default["freshness_sla"],
+                        availability_sla=sla_default.get("availability_sla", "not_defined"),
+                        quality_sla=sla_default.get("quality_sla", "not_defined"),
+                        metadata_json={
+                            "seeded": True,
+                            "reason": "initial operational freshness default",
+                        },
+                    )
+                )
         self.db.flush()
 
     def schemas(
@@ -735,3 +758,15 @@ def _apply_updates(row: object, payload: dict[str, Any], fields: set[str]) -> No
 
 def _pipeline_modules() -> list[str]:
     return ["ecommerce", "real_estate", "crypto", "trading", "sports_odds"]
+
+
+def _source_sla_defaults() -> list[dict[str, str]]:
+    return [
+        {"module": "ecommerce", "source_name": "drogasil", "freshness_sla": "daily", "quality_sla": "0.95"},
+        {"module": "ecommerce", "source_name": "poupi_legacy", "freshness_sla": "daily", "quality_sla": "0.95"},
+        {"module": "ecommerce", "source_name": "generic_marketplace", "freshness_sla": "daily", "quality_sla": "0.95"},
+        {"module": "real_estate", "source_name": "generic_real_estate", "freshness_sla": "daily", "quality_sla": "0.90"},
+        {"module": "crypto", "source_name": "crypto_coin_exchange", "freshness_sla": "1h", "quality_sla": "0.98"},
+        {"module": "crypto", "source_name": "generic_exchange", "freshness_sla": "1h", "quality_sla": "0.95"},
+        {"module": "sports_odds", "source_name": "generic_bookmaker", "freshness_sla": "15m", "quality_sla": "0.95"},
+    ]

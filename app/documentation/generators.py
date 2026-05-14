@@ -220,7 +220,7 @@ class DocumentationGenerator:
             return "trading"
         if "product" in table_name or "ecommerce" in table_name:
             return "ecommerce"
-        if table_name in {"raw_collections", "collection_runs", "collector_versions", "collector_documentation"}:
+        if table_name in {"raw_collections", "collection_runs", "collection_targets", "collector_versions", "collector_documentation"}:
             return "raw"
         if "normalizer" in table_name or table_name.startswith("normalized_"):
             return "normalization"

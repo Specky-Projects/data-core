@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -123,6 +123,27 @@ class CollectorError(Base):
     message: Mapped[str] = mapped_column(Text)
     traceback: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     run: Mapped[CollectionRun | None] = relationship(back_populates="errors")
+
+
+class CollectionTarget(Base):
+    __tablename__ = "collection_targets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    module: Mapped[str] = mapped_column(String(80), index=True)
+    source_name: Mapped[str] = mapped_column(String(160), index=True)
+    collector_name: Mapped[str] = mapped_column(String(160), index=True)
+    target_url: Mapped[str] = mapped_column(Text)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("module", "source_name", "collector_name", "target_url", name="uq_collection_target_identity"),
+        Index("ix_collection_targets_active_module", "active", "module"),
+    )

@@ -30,7 +30,7 @@ class DataQualityService:
                 source_field = self._source_field(model)
                 if source_field is not None:
                     query = query.filter(source_field == source_name)
-            records = query.limit(limit).all()
+            records = self._latest_records_by_raw(query.limit(limit * 3).all())[:limit]
             checked = len(records)
             passed = 0
             rule_stats = {
@@ -116,6 +116,7 @@ class DataQualityService:
                     required("store_name"),
                     positive("price"),
                     allowed_values("currency", {"BRL", "USD", "EUR"}, allow_empty=True),
+                    metadata_not_false("raw_success", allow_missing=True),
                 ],
             ),
             "real_estate": (
@@ -178,6 +179,20 @@ class DataQualityService:
         if record is None:
             return None
         return getattr(record, "store_name", None) or getattr(record, "source", None) or getattr(record, "sportsbook", None)
+
+    @staticmethod
+    def _latest_records_by_raw(records: list[object]) -> list[object]:
+        latest: dict[object, object] = {}
+        passthrough: list[object] = []
+        for record in records:
+            raw_id = getattr(record, "raw_collection_id", None)
+            if raw_id is None:
+                passthrough.append(record)
+                continue
+            current = latest.get(raw_id)
+            if current is None or _record_sort_key(record) > _record_sort_key(current):
+                latest[raw_id] = record
+        return list(latest.values()) + passthrough
 
 
 @dataclass(frozen=True)
@@ -256,12 +271,28 @@ def ohlc_consistency() -> QualityRule:
     )
 
 
+def metadata_not_false(field: str, *, allow_missing: bool = False) -> QualityRule:
+    return QualityRule(
+        name=f"{field}_not_false",
+        description=f"normalization metadata field {field} must not be false.",
+        check=lambda record: _metadata_value(record, field) is not False
+        and (allow_missing or _metadata_value(record, field) is not None),
+    )
+
+
 def _empty_allowed(record: object, field: str, allow_empty: bool) -> bool:
     return allow_empty and _value(record, field) in (None, "")
 
 
 def _value(record: object, field: str) -> Any:
     return getattr(record, field, None)
+
+
+def _metadata_value(record: object, field: str) -> Any:
+    metadata = getattr(record, "normalization_metadata_json", None)
+    if not isinstance(metadata, dict):
+        return None
+    return metadata.get(field)
 
 
 def _decimal_value(record: object, field: str) -> Decimal | None:
@@ -274,3 +305,10 @@ def _decimal_value(record: object, field: str) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError):
         return None
+
+
+def _record_sort_key(record: object) -> tuple[str, str]:
+    normalized_at = getattr(record, "normalized_at", None)
+    collected_at = getattr(record, "collected_at", None)
+    timestamp = normalized_at or collected_at or ""
+    return (str(timestamp), str(getattr(record, "id", "")))

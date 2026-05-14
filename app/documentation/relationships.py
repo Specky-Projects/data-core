@@ -1,5 +1,19 @@
 DEFAULT_ENTITY_RELATIONSHIPS = [
     {
+        "module": "raw",
+        "source_entity": "collection_targets",
+        "target_entity": "collection_runs",
+        "relationship_type": "triggers",
+        "description": "Active collection targets define URLs/endpoints used by operational collection runs.",
+    },
+    {
+        "module": "raw",
+        "source_entity": "collection_targets",
+        "target_entity": "raw_collections",
+        "relationship_type": "produces",
+        "description": "Collection targets can produce RAW payloads through their configured collector.",
+    },
+    {
         "module": "ecommerce",
         "source_entity": "raw_collections:scrapedProduct",
         "target_entity": "normalized_products",

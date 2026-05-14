@@ -6,7 +6,7 @@ from collectors.registry import registry
 from core.config import settings
 from app.modules.real_estate.scheduler import run_real_estate_daily_collection
 from app.modules.sports_odds.scheduler import run_sports_odds_recurring_collection
-from scheduler.jobs import analytics_job, collect_raw_job, normalize_job
+from scheduler.jobs import analytics_job, collect_raw_job, normalize_job, run_poupi_legacy_targets_job
 
 logger = logging.getLogger(__name__)
 
@@ -14,58 +14,71 @@ logger = logging.getLogger(__name__)
 def create_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler(timezone=settings.scheduler_timezone)
 
-    for collector_type in registry.all():
-        metadata = collector_type.metadata
+    if settings.scheduler_collectors_enabled:
+        for collector_type in registry.all():
+            metadata = collector_type.metadata
+            scheduler.add_job(
+                collect_raw_job,
+                "interval",
+                minutes=metadata.default_interval_minutes,
+                args=[metadata.name],
+                id=f"collector:{metadata.name}",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+
+    if settings.scheduler_pipeline_enabled:
         scheduler.add_job(
-            collect_raw_job,
+            normalize_job,
             "interval",
-            minutes=metadata.default_interval_minutes,
-            args=[metadata.name],
-            id=f"collector:{metadata.name}",
+            minutes=15,
+            id="pipeline:normalize",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            analytics_job,
+            "interval",
+            minutes=60,
+            id="pipeline:analytics",
             replace_existing=True,
             max_instances=1,
             coalesce=True,
         )
 
-    scheduler.add_job(
-        normalize_job,
-        "interval",
-        minutes=15,
-        id="pipeline:normalize",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    scheduler.add_job(
-        analytics_job,
-        "interval",
-        minutes=60,
-        id="pipeline:analytics",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
+    if settings.scheduler_domain_jobs_enabled:
+        scheduler.add_job(
+            run_poupi_legacy_targets_job,
+            "interval",
+            hours=8,
+            id="ecommerce:poupi_legacy_targets",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
-    scheduler.add_job(
-        run_real_estate_daily_collection,
-        "cron",
-        hour=3,
-        minute=30,
-        id="real_estate:daily",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
+        scheduler.add_job(
+            run_real_estate_daily_collection,
+            "cron",
+            hour=3,
+            minute=30,
+            id="real_estate:daily",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
-    scheduler.add_job(
-        run_sports_odds_recurring_collection,
-        "interval",
-        minutes=30,
-        id="sports_odds:recurring",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
+        scheduler.add_job(
+            run_sports_odds_recurring_collection,
+            "interval",
+            minutes=30,
+            id="sports_odds:recurring",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
     return scheduler
 

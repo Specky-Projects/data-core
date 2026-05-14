@@ -93,7 +93,7 @@ class BaseNormalizer(ABC):
                 if raw_saved:
                     self.stamp_normalized(raw)
                     self.ensure_normalizer_version(raw)
-                raw.processing_status = "normalized"
+                raw.processing_status = "normalized" if raw_saved else "ignored"
                 self.db.commit()
             except Exception as exc:
                 self.db.rollback()

@@ -9,9 +9,12 @@ from app.data_quality.models import DataQualityRun
 from app.data_quality.services import DataQualityService
 from app.documentation.models import DataContract, DataLineage, DataOwner, DataSla
 from app.documentation.services import DocumentationService
+from app.modules.ecommerce.normalizers.poupi_legacy_scraped_product_v1_normalizer import PoupiLegacyScrapedProductV1Normalizer
 from app.normalization.models import NormalizedProduct
 from app.raw.models import CollectorVersion, RawCollection
 from app.raw.service import RawCollectionService
+from database.models import CollectionRun, CollectionTarget, CollectorError, RunStatus
+from scheduler.jobs import run_collection_targets_job
 
 
 @pytest.fixture(autouse=True)
@@ -137,7 +140,10 @@ def test_documentation_governance_defaults_are_persisted(db_session):
     assert contracts[0]["module"] == "ecommerce"
     assert contracts[0]["raw_required"] is True
     assert owners[0]["owner"] == "data-platform"
-    assert slas[0]["freshness_sla"] == "not_defined"
+    module_sla = next(item for item in slas if item["source_name"] is None)
+    drogasil_sla = next(item for item in slas if item["source_name"] == "drogasil")
+    assert module_sla["freshness_sla"] == "not_defined"
+    assert drogasil_sla["freshness_sla"] == "daily"
     assert db_session.query(DataContract).filter(DataContract.module == "ecommerce").count() >= 1
     assert db_session.query(DataOwner).filter(DataOwner.module == "ecommerce").count() >= 1
     assert db_session.query(DataSla).filter(DataSla.module == "ecommerce").count() >= 1
@@ -238,6 +244,242 @@ def test_lineage_backfill_links_raw_normalized_and_analytics(db_session):
     assert lineage["analytics"][0]["analytics_name"] == "ProductPriceAnalyticsProcessor"
 
 
+def test_poupi_legacy_normalizer_ignores_failed_payload(db_session):
+    source = f"pytest-poupi-failed-{uuid4()}"
+    raw = RawCollectionService(db_session).save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="poupi_legacy_raw_collector",
+        raw_schema_name="scrapedProduct",
+        raw_schema_version="1.0.0",
+        raw_json={
+            "success": False,
+            "scrapedProduct": {
+                "success": False,
+                "name": None,
+                "price": None,
+                "store": source,
+                "error": "Todas as estratégias falharam",
+            },
+        },
+    )
+
+    result = PoupiLegacyScrapedProductV1Normalizer(db_session).run(limit=10)
+
+    assert result.loaded_raw >= 1
+    db_session.refresh(raw)
+    assert raw.processing_status == "ignored"
+    assert db_session.query(NormalizedProduct).filter(NormalizedProduct.store_name == source).count() == 0
+
+
+def test_poupi_legacy_normalizer_stamps_success_metadata_for_quality(db_session):
+    source = f"pytest-poupi-ok-{uuid4()}"
+    RawCollectionService(db_session).save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="poupi_legacy_raw_collector",
+        raw_schema_name="scrapedProduct",
+        raw_schema_version="1.0.0",
+        target_url="https://example.test/produto",
+        raw_json={
+            "success": True,
+            "scrapedProduct": {
+                "success": True,
+                "name": "Produto Poupi",
+                "price": "R$ 12,90",
+                "store": source,
+                "availability": True,
+            },
+        },
+    )
+    PoupiLegacyScrapedProductV1Normalizer(db_session).run(limit=10)
+    quality = DataQualityService(db_session).run(module="ecommerce", source_name=source, limit=10)
+
+    product = db_session.query(NormalizedProduct).filter(NormalizedProduct.store_name == source).one()
+    assert product.price == Decimal("12.90")
+    assert product.normalization_metadata_json["raw_success"] is True
+    assert quality["runs"][0]["passed_count"] == 1
+
+
+def test_operations_freshness_endpoint(api_client):
+    response = api_client.get("/api/v1/operations/freshness")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "summary" in payload
+    assert "items" in payload
+    assert set(payload["summary"]).issuperset({"ok", "violated", "unknown_sla"})
+
+
+def test_collector_error_resolution_endpoint(db_session, api_client):
+    error = CollectorError(
+        collector_name=f"pytest-collector-{uuid4()}",
+        error_type="RuntimeError",
+        message="pytest collector error",
+        context={"pytest": True},
+    )
+    db_session.add(error)
+    db_session.commit()
+    db_session.refresh(error)
+
+    listed = api_client.get(f"/api/v1/operations/collector-errors?collector_name={error.collector_name}").json()
+    assert len(listed) == 1
+
+    resolved = api_client.post(
+        f"/api/v1/operations/collector-errors/{error.id}/resolve",
+        json={"resolution_note": "pytest resolved"},
+    )
+    assert resolved.status_code == 200
+    assert resolved.json()["resolved_at"] is not None
+
+    hidden = api_client.get(f"/api/v1/operations/collector-errors?collector_name={error.collector_name}").json()
+    visible = api_client.get(
+        f"/api/v1/operations/collector-errors?collector_name={error.collector_name}&include_resolved=true"
+    ).json()
+    assert hidden == []
+    assert len(visible) == 1
+
+
+def test_collection_targets_endpoint_upserts_target(db_session, api_client):
+    source = f"pytest-target-{uuid4()}"
+    payload = {
+        "module": "ecommerce",
+        "source_name": source,
+        "collector_name": "poupi_legacy_raw_collector",
+        "target_url": f"https://example.test/{uuid4()}",
+        "metadata_json": {"pytest": True},
+    }
+
+    created = api_client.post("/api/v1/collection-targets", json=payload)
+    assert created.status_code == 200
+    assert created.json()["source_name"] == source
+
+    listed = api_client.get(f"/api/v1/collection-targets?source_name={source}").json()
+    assert len(listed) == 1
+    assert listed[0]["collector_name"] == "poupi_legacy_raw_collector"
+
+    status = api_client.get(f"/api/v1/collection-targets/{listed[0]['id']}/status")
+    assert status.status_code == 200
+    assert status.json()["target"]["source_name"] == source
+
+    patched = api_client.patch(f"/api/v1/collection-targets/{listed[0]['id']}", json={"metadata_json": {"patched": True}})
+    assert patched.status_code == 200
+    assert patched.json()["metadata_json"]["patched"] is True
+
+    deleted = api_client.delete(f"/api/v1/collection-targets/{listed[0]['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json()["active"] is False
+
+
+def test_collection_targets_import_and_source_status(db_session, api_client):
+    source = f"pytest-import-source-{uuid4()}"
+    payload = {
+        "targets": [
+            {
+                "module": "ecommerce",
+                "source_name": source,
+                "collector_name": "poupi_legacy_raw_collector",
+                "target_url": f"https://example.test/{uuid4()}",
+                "metadata_json": {"category": "baby"},
+            }
+        ],
+        "default_metadata_json": {"kind": "production_target", "owner": "pytest"},
+    }
+
+    imported = api_client.post("/api/v1/collection-targets/import", json=payload)
+    assert imported.status_code == 200
+    assert imported.json()["created"] == 1
+    assert imported.json()["targets"][0]["metadata_json"]["kind"] == "production_target"
+
+    status = api_client.get(f"/api/v1/sources/ecommerce/{source}/status")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["targets"]["total"] == 1
+    assert body["targets"]["active"] == 1
+    assert body["analytics_pending"] == 0
+
+
+def test_collection_target_runner_skips_locked_target(db_session):
+    source = f"pytest-target-lock-{uuid4()}"
+    target = CollectionTarget(
+        module="ecommerce",
+        source_name=source,
+        collector_name="poupi_legacy_raw_collector",
+        target_url=f"https://example.test/{uuid4()}",
+        active=True,
+        metadata_json={"pytest": True},
+    )
+    db_session.add(target)
+    db_session.flush()
+    db_session.add(
+        CollectionRun(
+            module="ecommerce",
+            source_name=source,
+            collector_name="poupi_legacy_raw_collector",
+            status=RunStatus.running,
+            started_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    result = run_collection_targets_job(
+        module="ecommerce",
+        source=source,
+        collector_name="poupi_legacy_raw_collector",
+        limit=10,
+    )
+
+    assert result["targets"] == 1
+    assert result["skipped_locked"] == 1
+    assert result["raw_saved_count"] == 0
+
+
+def test_product_lineage_endpoint_returns_raw_and_analytics(db_session, api_client):
+    source = f"pytest-product-lineage-{uuid4()}"
+    raw = RawCollectionService(db_session).save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        raw_schema_name="pytestProduct",
+        raw_json={"title": "Produto endpoint lineage", "price": 25},
+    )
+    product = NormalizedProduct(
+        raw_collection_id=raw.id,
+        title="Produto endpoint lineage",
+        price=Decimal("25.00"),
+        store_name=source,
+        collected_at=datetime.now(timezone.utc),
+        normalizer_name="pytest_normalizer",
+        normalizer_version="1.0.0",
+        source_raw_schema_name="pytestProduct",
+        source_raw_schema_version="1.0.0",
+        source_collector_name="pytest_collector",
+        source_collector_version="1.0.0",
+    )
+    db_session.add(product)
+    db_session.flush()
+    db_session.add(
+        ProductPriceAnalytics(
+            product_id=product.id,
+            avg_price_7d=Decimal("25.00"),
+            price_score=Decimal("1.0000"),
+            source_normalizer_name="pytest_normalizer",
+            source_normalizer_version="1.0.0",
+        )
+    )
+    db_session.flush()
+    DocumentationService(db_session).backfill_lineage(module="ecommerce", limit=10000)
+
+    response = api_client.get(f"/api/v1/lineage/products/{product.id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["product"]["id"] == str(product.id)
+    assert payload["raw_collection"]["id"] == str(raw.id)
+    assert payload["normalization"]["normalizer_name"] == "pytest_normalizer"
+    assert len(payload["analytics"]) == 1
+
+
 def _cleanup_pytest_records(db_session) -> None:
     product_ids = [
         row[0]
@@ -263,6 +505,9 @@ def _cleanup_pytest_records(db_session) -> None:
             synchronize_session=False
         )
     db_session.query(DataQualityRun).filter(DataQualityRun.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(CollectorError).filter(CollectorError.collector_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(CollectionTarget).filter(CollectionTarget.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(CollectionRun).filter(CollectionRun.source_name.like("pytest-%")).delete(synchronize_session=False)
     db_session.query(DataContract).filter(DataContract.source_name.like("pytest-%")).delete(synchronize_session=False)
     db_session.query(DataOwner).filter(DataOwner.owner_name.like("pytest-%")).delete(synchronize_session=False)
     db_session.query(DataSla).filter(DataSla.source_name.like("pytest-%")).delete(synchronize_session=False)
