@@ -4,7 +4,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from collectors.registry import registry
 from core.config import settings
-from scheduler.jobs import run_collector_job
+from app.modules.real_estate.scheduler import run_real_estate_daily_collection
+from app.modules.sports_odds.scheduler import run_sports_odds_recurring_collection
+from scheduler.jobs import analytics_job, collect_raw_job, normalize_job
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ def create_scheduler() -> BackgroundScheduler:
     for collector_type in registry.all():
         metadata = collector_type.metadata
         scheduler.add_job(
-            run_collector_job,
+            collect_raw_job,
             "interval",
             minutes=metadata.default_interval_minutes,
             args=[metadata.name],
@@ -24,6 +26,46 @@ def create_scheduler() -> BackgroundScheduler:
             max_instances=1,
             coalesce=True,
         )
+
+    scheduler.add_job(
+        normalize_job,
+        "interval",
+        minutes=15,
+        id="pipeline:normalize",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        analytics_job,
+        "interval",
+        minutes=60,
+        id="pipeline:analytics",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
+    scheduler.add_job(
+        run_real_estate_daily_collection,
+        "cron",
+        hour=3,
+        minute=30,
+        id="real_estate:daily",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
+    scheduler.add_job(
+        run_sports_odds_recurring_collection,
+        "interval",
+        minutes=30,
+        id="sports_odds:recurring",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
 
     return scheduler
 

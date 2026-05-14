@@ -1,0 +1,177 @@
+import json
+import logging
+import shutil
+import subprocess
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.raw.service import RawCollectionService
+from database.models import RunStatus
+
+logger = logging.getLogger(__name__)
+
+
+POUPI_LEGACY_SCRAPERS = [
+    "amazon",
+    "mercadolivre",
+    "kabum",
+    "magalu",
+    "drogasil",
+    "drogaraia",
+    "paguemenos",
+    "nissei",
+    "ultrafarma",
+    "drogariaspacheco",
+    "drogariasaopaulo",
+    "consultaremedios",
+    "farma22",
+    "panvel",
+]
+
+
+@dataclass(frozen=True)
+class LegacyPoupiTarget:
+    url: str
+    source_name: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+class PoupiLegacyRawCollector:
+    """Thin adapter around Poupi's existing TypeScript scrapers.
+
+    This class intentionally does not inherit a collector base class. Its only
+    Data Core contract is saving the raw scraper output through RawCollectionService.
+    """
+
+    module = "ecommerce"
+    collector_name = "poupi_legacy_raw_collector"
+    collector_version = "1.0.0"
+    raw_schema_name = "scrapedProduct"
+    raw_schema_version = "1.0.0"
+
+    def __init__(
+        self,
+        db: Session,
+        *,
+        backend_dir: Path | None = None,
+        timeout_seconds: int = 45,
+    ) -> None:
+        self.db = db
+        self.raw = RawCollectionService(db)
+        self.backend_dir = backend_dir or self._default_backend_dir()
+        self.timeout_seconds = timeout_seconds
+
+    def collect_targets(self, targets: list[LegacyPoupiTarget]) -> dict[str, int]:
+        run = self.raw.start_run(
+            module=self.module,
+            source_name="poupi_legacy",
+            collector_name=self.collector_name,
+            collector_version=self.collector_version,
+            raw_schema_name=self.raw_schema_name,
+            raw_schema_version=self.raw_schema_version,
+            metadata={"target_count": len(targets)},
+        )
+        raw_saved = 0
+        errors = 0
+        error_message: str | None = None
+
+        for target in targets:
+            source_name = target.source_name or self._guess_source_name(target.url)
+            try:
+                payload = self._run_legacy_scraper(target.url, source_name)
+                raw = self.raw.save_json(
+                    module=self.module,
+                    source_name=source_name,
+                    collector_name=self.collector_name,
+                    collector_version=self.collector_version,
+                    raw_schema_name=self.raw_schema_name,
+                    raw_schema_version=self.raw_schema_version,
+                    source_type="legacy_ts_scraper",
+                    target_url=target.url,
+                    endpoint=target.url,
+                    raw_json=payload,
+                    metadata={
+                        "legacy_backend_dir": str(self.backend_dir),
+                        **target.metadata,
+                    },
+                )
+                raw_saved += 1 if getattr(raw, "_raw_was_created", True) else 0
+            except Exception as exc:
+                errors += 1
+                error_message = str(exc)
+                self.raw.save_error(
+                    module=self.module,
+                    source_name=source_name,
+                    collector_name=self.collector_name,
+                    collector_version=self.collector_version,
+                    raw_schema_name="collectionError",
+                    raw_schema_version="1.0.0",
+                    source_type="legacy_ts_scraper",
+                    target_url=target.url,
+                    endpoint=target.url,
+                    error_message=str(exc),
+                    metadata=target.metadata,
+                )
+                logger.exception("Poupi legacy scraper failed", extra={"collector": self.collector_name, "url": target.url})
+
+        status = RunStatus.success if errors == 0 else RunStatus.partial if raw_saved else RunStatus.failed
+        self.raw.finish_run(
+            run,
+            status=status,
+            raw_saved_count=raw_saved,
+            error_count=errors,
+            error_message=error_message,
+        )
+        run.metadata_json = {
+            **(run.metadata_json or {}),
+            "duplicate_raw_count": max(len(targets) - raw_saved - errors, 0),
+            "collector_version": self.collector_version,
+            "raw_schema_name": self.raw_schema_name,
+            "raw_schema_version": self.raw_schema_version,
+        }
+        self.db.commit()
+        return {"raw_saved_count": raw_saved, "error_count": errors}
+
+    def _run_legacy_scraper(self, url: str, source_name: str) -> dict[str, Any]:
+        command = [
+            shutil.which("npx.cmd") or shutil.which("npx") or "npx",
+            "ts-node",
+            "-r",
+            "tsconfig-paths/register",
+            "src/crawler/scrapers/raw-bridge.ts",
+            url,
+            source_name,
+        ]
+        completed = subprocess.run(
+            command,
+            cwd=self.backend_dir,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=self.timeout_seconds,
+            check=False,
+        )
+        if completed.returncode != 0 and not completed.stdout.strip():
+            raise RuntimeError(completed.stderr.strip() or f"legacy scraper exited with {completed.returncode}")
+        try:
+            payload = json.loads(completed.stdout.strip())
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"legacy scraper returned invalid JSON: {completed.stdout[:500]}") from exc
+        if completed.returncode != 0:
+            raise RuntimeError(payload.get("error") or completed.stderr.strip() or "legacy scraper failed")
+        return payload
+
+    @staticmethod
+    def _guess_source_name(url: str) -> str:
+        from urllib.parse import urlparse
+
+        host = urlparse(url).hostname or "unknown"
+        return host.replace("www.", "").split(".")[0]
+
+    @staticmethod
+    def _default_backend_dir() -> Path:
+        return Path(__file__).resolve().parents[4] / "domains" / "poupi_baby" / "backend"

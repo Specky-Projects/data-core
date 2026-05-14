@@ -1,6 +1,6 @@
 import logging
 import traceback
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -25,19 +25,23 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
     metadata = collector_type.metadata
 
     definition = _ensure_collector_definition(db, collector_type)
+    collector = collector_type(config=definition.config)
     run = CollectionRun(
         collector_id=definition.id,
         collector_name=metadata.name,
+        collector_version=metadata.collector_version,
+        raw_schema_name=metadata.raw_schema_name,
+        raw_schema_version=metadata.raw_schema_version,
+        module=collector.raw_module,
         domain=metadata.domain,
         source=metadata.source,
+        source_name=metadata.source,
         status=RunStatus.running,
-        started_at=datetime.now(UTC),
+        started_at=datetime.now(timezone.utc),
     )
     db.add(run)
     db.commit()
     db.refresh(run)
-
-    collector = collector_type(config=definition.config)
 
     try:
         items = await retry_async(
@@ -47,7 +51,9 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
         )
 
         saved = 0
+        raw_saved = 0
         for item in items:
+            raw_saved += collector.save_raw(db, [item])
             payload_hash = stable_payload_hash(item.payload)
             record = CollectedRecord(
                 run_id=run.id,
@@ -68,7 +74,15 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
 
         run.status = RunStatus.success
         run.items_collected = saved
-        run.finished_at = datetime.now(UTC)
+        run.raw_saved_count = raw_saved
+        run.metadata_json = {
+            **(run.metadata_json or {}),
+            "duplicate_raw_count": max(len(items) - raw_saved, 0),
+            "collector_version": metadata.collector_version,
+            "raw_schema_name": metadata.raw_schema_name,
+            "raw_schema_version": metadata.raw_schema_version,
+        }
+        run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(run)
         return run
@@ -78,7 +92,8 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
         run = db.merge(run)
         run.status = RunStatus.failed
         run.error_message = str(exc)
-        run.finished_at = datetime.now(UTC)
+        run.error_count = 1
+        run.finished_at = datetime.now(timezone.utc)
         db.add(
             CollectorError(
                 run_id=run.id,

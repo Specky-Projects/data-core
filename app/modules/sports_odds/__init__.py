@@ -1,0 +1,1 @@
+"""Sports odds collection module."""

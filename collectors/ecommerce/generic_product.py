@@ -9,6 +9,8 @@ class GenericProductCollector(BaseCollector):
         source="generic_marketplace",
         description="Example ecommerce collector prepared for product payloads.",
         default_interval_minutes=60,
+        raw_schema_name="genericProduct",
+        raw_schema_version="1.0.0",
     )
 
     async def collect(self) -> list[CollectedItem]:

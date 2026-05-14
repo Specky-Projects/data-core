@@ -22,6 +22,7 @@ collector_domain = postgresql.ENUM(
     "crypto",
     "sports_betting",
     name="collectordomain",
+    create_type=False,
 )
 run_status = postgresql.ENUM(
     "pending",
@@ -30,6 +31,7 @@ run_status = postgresql.ENUM(
     "failed",
     "partial",
     name="runstatus",
+    create_type=False,
 )
 
 
@@ -149,4 +151,3 @@ def downgrade() -> None:
 
     run_status.drop(op.get_bind(), checkfirst=True)
     collector_domain.drop(op.get_bind(), checkfirst=True)
-

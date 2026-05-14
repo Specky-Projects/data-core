@@ -53,14 +53,22 @@ class CollectionRun(Base):
         UUID(as_uuid=True), ForeignKey("collector_definitions.id"), nullable=True
     )
     collector_name: Mapped[str] = mapped_column(String(160), index=True)
-    domain: Mapped[CollectorDomain] = mapped_column(Enum(CollectorDomain), index=True)
-    source: Mapped[str] = mapped_column(String(160), index=True)
+    collector_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    raw_schema_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    raw_schema_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    module: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    domain: Mapped[CollectorDomain | None] = mapped_column(Enum(CollectorDomain), nullable=True, index=True)
+    source: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    source_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     status: Mapped[RunStatus] = mapped_column(Enum(RunStatus), default=RunStatus.pending, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     items_collected: Mapped[int] = mapped_column(Integer, default=0)
+    raw_saved_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     collector: Mapped[CollectorDefinition | None] = relationship(back_populates="runs")
@@ -69,6 +77,7 @@ class CollectionRun(Base):
 
     __table_args__ = (
         Index("ix_collection_runs_collector_started", "collector_name", "started_at"),
+        Index("ix_collection_runs_schema", "module", "raw_schema_name", "raw_schema_version"),
     )
 
 
@@ -117,4 +126,3 @@ class CollectorError(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     run: Mapped[CollectionRun | None] = relationship(back_populates="errors")
-

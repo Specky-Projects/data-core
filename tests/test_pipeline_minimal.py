@@ -1,0 +1,272 @@
+from datetime import datetime, timezone
+from decimal import Decimal
+from uuid import uuid4
+
+import pytest
+
+from app.analytics.models import ProductPriceAnalytics
+from app.data_quality.models import DataQualityRun
+from app.data_quality.services import DataQualityService
+from app.documentation.models import DataContract, DataLineage, DataOwner, DataSla
+from app.documentation.services import DocumentationService
+from app.normalization.models import NormalizedProduct
+from app.raw.models import CollectorVersion, RawCollection
+from app.raw.service import RawCollectionService
+
+
+@pytest.fixture(autouse=True)
+def clean_pytest_pipeline_records(db_session):
+    _cleanup_pytest_records(db_session)
+    yield
+    _cleanup_pytest_records(db_session)
+
+
+def test_raw_service_saves_versioned_json_and_deduplicates(db_session):
+    source = f"pytest-raw-{uuid4()}"
+    service = RawCollectionService(db_session)
+
+    raw = service.save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        collector_version="1.2.3",
+        raw_schema_name="pytestProduct",
+        raw_schema_version="1.0.0",
+        raw_json={"title": "Produto teste", "price": 10.9},
+        metadata={"test": True},
+    )
+    raw_was_created = getattr(raw, "_raw_was_created")
+    duplicate = service.save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        collector_version="1.2.3",
+        raw_schema_name="pytestProduct",
+        raw_schema_version="1.0.0",
+        raw_json={"title": "Produto teste", "price": 10.9},
+        metadata={"test": True},
+    )
+
+    assert raw.id == duplicate.id
+    assert raw.processing_status == "normalization_pending"
+    assert raw.collector_version == "1.2.3"
+    assert raw.raw_schema_name == "pytestProduct"
+    assert raw_was_created is True
+    assert getattr(duplicate, "_raw_was_created") is False
+    assert (
+        db_session.query(CollectorVersion)
+        .filter(
+            CollectorVersion.source_name == source,
+            CollectorVersion.collector_name == "pytest_collector",
+            CollectorVersion.collector_version == "1.2.3",
+        )
+        .count()
+        == 1
+    )
+
+
+def test_data_quality_can_run_for_one_source(db_session):
+    source = f"pytest-quality-{uuid4()}"
+    raw_service = RawCollectionService(db_session)
+    raw_ok = raw_service.save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        raw_schema_name="pytestProduct",
+        raw_json={"title": "Produto com preço", "price": 10},
+    )
+    raw_bad = raw_service.save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        raw_schema_name="pytestProduct",
+        raw_json={"title": "Produto sem preço"},
+        target_url=f"https://example.test/{uuid4()}",
+    )
+    db_session.add_all(
+        [
+            NormalizedProduct(
+                raw_collection_id=raw_ok.id,
+                title="Produto com preço",
+                price=Decimal("10.00"),
+                store_name=source,
+                collected_at=datetime.now(timezone.utc),
+                normalizer_name="pytest_normalizer",
+                normalizer_version="1.0.0",
+                source_raw_schema_name="pytestProduct",
+                source_raw_schema_version="1.0.0",
+                source_collector_name="pytest_collector",
+                source_collector_version="1.0.0",
+            ),
+            NormalizedProduct(
+                raw_collection_id=raw_bad.id,
+                title="Produto sem preço",
+                price=None,
+                store_name=source,
+                collected_at=datetime.now(timezone.utc),
+                normalizer_name="pytest_normalizer",
+                normalizer_version="1.0.0",
+                source_raw_schema_name="pytestProduct",
+                source_raw_schema_version="1.0.0",
+                source_collector_name="pytest_collector",
+                source_collector_version="1.0.0",
+            ),
+        ]
+    )
+    db_session.flush()
+
+    result = DataQualityService(db_session).run(module="ecommerce", source_name=source, limit=10)
+
+    assert result["runs"][0]["checked_count"] == 2
+    assert result["runs"][0]["passed_count"] == 1
+    assert result["runs"][0]["failed_count"] == 1
+    assert result["runs"][0]["quality_score"] == 0.5
+    run = db_session.query(DataQualityRun).filter(DataQualityRun.source_name == source).one()
+    assert run.metadata_json["rule_stats"]["price_gt_0"]["failed"] == 1
+    assert run.metadata_json["failure_samples"][0]["failed_rules"] == ["price_gt_0"]
+
+
+def test_documentation_governance_defaults_are_persisted(db_session):
+    service = DocumentationService(db_session)
+
+    contracts = service.data_contracts(module="ecommerce")
+    owners = service.owners(module="ecommerce")
+    slas = service.slas(module="ecommerce")
+    db_session.commit()
+
+    assert contracts[0]["module"] == "ecommerce"
+    assert contracts[0]["raw_required"] is True
+    assert owners[0]["owner"] == "data-platform"
+    assert slas[0]["freshness_sla"] == "not_defined"
+    assert db_session.query(DataContract).filter(DataContract.module == "ecommerce").count() >= 1
+    assert db_session.query(DataOwner).filter(DataOwner.module == "ecommerce").count() >= 1
+    assert db_session.query(DataSla).filter(DataSla.module == "ecommerce").count() >= 1
+
+
+def test_documentation_governance_crud(db_session):
+    service = DocumentationService(db_session)
+    source = f"pytest-governance-{uuid4()}"
+    owner_name = f"pytest-owner-{uuid4()}"
+
+    owner = service.upsert_owner(
+        {
+            "module": "ecommerce",
+            "owner_name": owner_name,
+            "technical_contact": "tech@example.test",
+        }
+    )
+    assert owner["owner"] == owner_name
+    updated_owner = service.update_owner(
+        owner["id"],
+        {"business_contact": "biz@example.test"},
+    )
+    assert updated_owner["business_contact"] == "biz@example.test"
+
+    sla = service.upsert_sla(
+        {
+            "module": "ecommerce",
+            "source_name": source,
+            "freshness_sla": "daily",
+            "quality_sla": "0.95",
+        }
+    )
+    assert sla["freshness_sla"] == "daily"
+    updated_sla = service.update_sla(sla["id"], {"freshness_sla": "hourly"})
+    assert updated_sla["freshness_sla"] == "hourly"
+
+    contract = service.upsert_contract(
+        {
+            "module": "ecommerce",
+            "source_name": source,
+            "contract_name": "pytest_contract",
+            "owner_name": owner_name,
+            "freshness_sla": "hourly",
+            "quality_rules_json": {"price_gt_0": True},
+        }
+    )
+    assert contract["owner"] == owner_name
+    updated_contract = service.update_contract(contract["id"], {"criticality": "high"})
+    assert updated_contract["criticality"] == "high"
+
+    assert service.delete_contract(contract["id"]) is True
+    assert service.delete_owner(owner["id"]) is True
+    assert service.delete_sla(sla["id"]) is True
+
+
+def test_lineage_backfill_links_raw_normalized_and_analytics(db_session):
+    source = f"pytest-lineage-{uuid4()}"
+    raw = RawCollectionService(db_session).save_json(
+        module="ecommerce",
+        source_name=source,
+        collector_name="pytest_collector",
+        raw_schema_name="pytestProduct",
+        raw_json={"title": "Produto lineage", "price": 25},
+    )
+    product = NormalizedProduct(
+        raw_collection_id=raw.id,
+        title="Produto lineage",
+        price=Decimal("25.00"),
+        store_name=source,
+        collected_at=datetime.now(timezone.utc),
+        normalizer_name="pytest_normalizer",
+        normalizer_version="1.0.0",
+        source_raw_schema_name="pytestProduct",
+        source_raw_schema_version="1.0.0",
+        source_collector_name="pytest_collector",
+        source_collector_version="1.0.0",
+    )
+    db_session.add(product)
+    db_session.flush()
+    db_session.add(
+        ProductPriceAnalytics(
+            product_id=product.id,
+            avg_price_7d=Decimal("25.00"),
+            price_score=Decimal("1.0000"),
+            source_normalizer_name="pytest_normalizer",
+            source_normalizer_version="1.0.0",
+        )
+    )
+    db_session.flush()
+
+    result = DocumentationService(db_session).backfill_lineage(module="ecommerce", limit=10000)
+    lineage = DocumentationService(db_session).lineage(raw.id)
+
+    assert result["normalized_lineage"] >= 1
+    assert result["analytics_links"] >= 1
+    assert lineage["raw_collection"]["id"] == str(raw.id)
+    assert lineage["normalized_records"][0]["normalizer_name"] == "pytest_normalizer"
+    assert lineage["analytics"][0]["analytics_name"] == "ProductPriceAnalyticsProcessor"
+
+
+def _cleanup_pytest_records(db_session) -> None:
+    product_ids = [
+        row[0]
+        for row in db_session.query(NormalizedProduct.id)
+        .filter(NormalizedProduct.store_name.like("pytest-%"))
+        .all()
+    ]
+    raw_ids = [
+        row[0]
+        for row in db_session.query(RawCollection.id)
+        .filter(RawCollection.source_name.like("pytest-%"))
+        .all()
+    ]
+    if product_ids:
+        db_session.query(ProductPriceAnalytics).filter(ProductPriceAnalytics.product_id.in_(product_ids)).delete(
+            synchronize_session=False
+        )
+        db_session.query(DataLineage).filter(DataLineage.normalized_record_id.in_(product_ids)).delete(
+            synchronize_session=False
+        )
+    if raw_ids:
+        db_session.query(DataLineage).filter(DataLineage.raw_collection_id.in_(raw_ids)).delete(
+            synchronize_session=False
+        )
+    db_session.query(DataQualityRun).filter(DataQualityRun.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(DataContract).filter(DataContract.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(DataOwner).filter(DataOwner.owner_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(DataSla).filter(DataSla.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(NormalizedProduct).filter(NormalizedProduct.store_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(RawCollection).filter(RawCollection.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.query(CollectorVersion).filter(CollectorVersion.source_name.like("pytest-%")).delete(synchronize_session=False)
+    db_session.commit()

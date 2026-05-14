@@ -1,28 +1,58 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from api.deps import db_session
 from api.schemas import CollectedRecordResponse, CollectorResponse, RunCollectorResponse
 from collectors.registry import registry
 from database.models import CollectedRecord, CollectionRun
+from app.raw.models import CollectorVersion
 from workers.collector_worker import run_collector_by_name
 
 router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/collectors", response_model=list[CollectorResponse])
-def list_collectors() -> list[CollectorResponse]:
-    return [
-        CollectorResponse(
-            name=collector.metadata.name,
-            domain=collector.metadata.domain,
-            source=collector.metadata.source,
-            description=collector.metadata.description,
-            default_interval_minutes=collector.metadata.default_interval_minutes,
+def list_collectors(db: Session = Depends(db_session)) -> list[CollectorResponse]:
+    version_counts = {
+        name: count
+        for name, count in db.query(CollectorVersion.collector_name, func.count(CollectorVersion.id))
+        .group_by(CollectorVersion.collector_name)
+        .all()
+    }
+    responses = []
+    for collector in registry.all():
+        metadata = collector.metadata
+        module = "sports_odds" if metadata.domain.value == "sports_betting" else metadata.domain.value
+        responses.append(
+            CollectorResponse(
+                name=metadata.name,
+                domain=metadata.domain,
+                source=metadata.source,
+                description=metadata.description,
+                default_interval_minutes=metadata.default_interval_minutes,
+                module=module,
+                collector_version=metadata.collector_version,
+                raw_schema_name=metadata.raw_schema_name,
+                raw_schema_version=metadata.raw_schema_version,
+                registered_versions=version_counts.get(metadata.name, 0),
+            )
         )
-        for collector in registry.all()
-    ]
+    responses.append(
+        CollectorResponse(
+            name="poupi_legacy_raw_collector",
+            domain="ecommerce",
+            source="poupi_legacy",
+            description="Temporary bridge for Poupi Baby legacy TypeScript scrapers.",
+            default_interval_minutes=0,
+            module="ecommerce",
+            collector_version="1.0.0",
+            raw_schema_name="scrapedProduct",
+            raw_schema_version="1.0.0",
+            registered_versions=version_counts.get("poupi_legacy_raw_collector", 0),
+        )
+    )
+    return responses
 
 
 @router.post(

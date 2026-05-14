@@ -9,6 +9,8 @@ class GenericCryptoPriceCollector(BaseCollector):
         source="generic_exchange",
         description="Example crypto collector prepared for market price payloads.",
         default_interval_minutes=5,
+        raw_schema_name="cryptoPriceSnapshot",
+        raw_schema_version="1.0.0",
     )
 
     async def collect(self) -> list[CollectedItem]:

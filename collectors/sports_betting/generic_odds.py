@@ -9,6 +9,8 @@ class GenericSportsOddsCollector(BaseCollector):
         source="generic_bookmaker",
         description="Example sports betting collector prepared for odds payloads.",
         default_interval_minutes=15,
+        raw_schema_name="genericOddsSnapshot",
+        raw_schema_version="1.0.0",
     )
 
     async def collect(self) -> list[CollectedItem]:

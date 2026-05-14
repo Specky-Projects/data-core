@@ -9,6 +9,8 @@ class GenericRealEstateCollector(BaseCollector):
         source="generic_real_estate",
         description="Example real estate collector prepared for listing payloads.",
         default_interval_minutes=120,
+        raw_schema_name="realEstateListing",
+        raw_schema_version="1.0.0",
     )
 
     async def collect(self) -> list[CollectedItem]:

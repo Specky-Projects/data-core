@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from sqlalchemy.orm import Session
+
+from app.raw.service import RawCollectionInput, RawService
 from database.models import CollectorDomain
 
 
@@ -12,6 +15,9 @@ class CollectorMetadata:
     source: str
     description: str
     default_interval_minutes: int = 60
+    collector_version: str = "1.0.0"
+    raw_schema_name: str = "genericJson"
+    raw_schema_version: str = "1.0.0"
 
 
 @dataclass(frozen=True)
@@ -30,4 +36,41 @@ class BaseCollector(ABC):
 
     @abstractmethod
     async def collect(self) -> list[CollectedItem]:
-        """Collect source data and return normalized raw payloads."""
+        """Collect source data and return raw payloads."""
+
+    def save_raw(self, db: Session, items: list[CollectedItem]) -> int:
+        raw_service = RawService(db)
+        saved = 0
+        for item in items:
+            raw = raw_service.save(
+                RawCollectionInput(
+                    module=self.raw_module,
+                    source_id=item.external_id,
+                    source_name=self.metadata.source,
+                    collector_name=self.metadata.name,
+                    collector_version=self.metadata.collector_version,
+                    raw_schema_name=self.metadata.raw_schema_name,
+                    raw_schema_version=self.metadata.raw_schema_version,
+                    target_url=item.source_url,
+                    endpoint=item.source_url,
+                    method="GET",
+                    content_type="application/json",
+                    raw_json=item.payload,
+                    metadata_json={
+                        "collector": self.metadata.name,
+                        **item.metadata,
+                    },
+                )
+            )
+            saved += 1 if getattr(raw, "_raw_was_created", True) else 0
+        return saved
+
+    async def run(self, db: Session) -> int:
+        items = await self.collect()
+        return self.save_raw(db, items)
+
+    @property
+    def raw_module(self) -> str:
+        if self.metadata.domain.value == "sports_betting":
+            return "sports_odds"
+        return self.metadata.domain.value

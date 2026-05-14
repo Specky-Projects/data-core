@@ -18,7 +18,7 @@ import {
   parsePrice,
   ScrapedProduct,
 } from './base.scraper';
-import { detectMarketplace, detectStoreName, ScraperEntry } from './registry';
+import { detectMarketplace, detectStoreName, ScraperEntry, SCRAPERS } from './registry';
 
 // ---------------------------------------------------------------------------
 // Scraper genérico — fallback para lojas sem scraper dedicado
@@ -94,7 +94,6 @@ export async function scrapeProduct(url: string, store?: string): Promise<Scrape
 
   if (store) {
     // Busca pelo nome forçado
-    const { SCRAPERS } = await import('./registry.js');
     entry = SCRAPERS.find((s) => s.name === store) ?? null;
   } else {
     entry = detectMarketplace(url);

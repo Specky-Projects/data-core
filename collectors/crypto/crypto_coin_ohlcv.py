@@ -16,6 +16,8 @@ class CryptoCoinOHLCVCollector(BaseCollector):
         source="crypto_coin_exchange",
         description="Collects OHLCV candles through the migrated crypto-coin exchange connector.",
         default_interval_minutes=15,
+        raw_schema_name="marketCandle",
+        raw_schema_version="1.0.0",
     )
 
     async def collect(self) -> list[CollectedItem]:
@@ -54,4 +56,3 @@ class CryptoCoinOHLCVCollector(BaseCollector):
             return items
         finally:
             await connector.close()
-

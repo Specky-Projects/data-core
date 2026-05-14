@@ -15,7 +15,23 @@ services:
       - ./:/app
       - ./runtime-logs:/app/runtime-logs
       - ./runtime-data:/app/runtime-data
-    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+
+  tests:
+    image: data-core-api
+    profiles:
+      - test
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    command: sh -c "python -m pip install pytest==8.3.3 && alembic upgrade head && pytest -q"
 
   postgres:
     image: postgres:16-alpine
@@ -24,7 +40,7 @@ services:
       POSTGRES_USER: data_core
       POSTGRES_PASSWORD: data_core
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
