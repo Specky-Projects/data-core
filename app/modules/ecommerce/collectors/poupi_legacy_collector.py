@@ -233,4 +233,11 @@ class PoupiLegacyRawCollector:
         configured = os.getenv("POUPI_LEGACY_BACKEND_DIR")
         if configured:
             return Path(configured)
-        return Path(__file__).resolve().parents[4] / "domains" / "poupi_baby" / "backend"
+        # Try sibling repo layout: data-core/ and poupi-baby/ side by side
+        sibling = Path(__file__).resolve().parents[4] / "poupi-baby" / "backend"
+        if sibling.exists():
+            return sibling
+        raise RuntimeError(
+            "Poupi-baby backend directory not found. "
+            "Set POUPI_LEGACY_BACKEND_DIR env var to the absolute path of poupi-baby/backend."
+        )
