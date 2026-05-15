@@ -22,8 +22,8 @@ def append_metric(logger, payload: Dict[str, Any]) -> None:
     if not metrics_enabled():
         return
     line = {"ts": datetime.now(timezone.utc).isoformat(), **payload}
-    Path("logs").mkdir(exist_ok=True)
-    path = Path("logs") / "bot_metrics.jsonl"
+    path = Path(os.getenv("BOT_METRICS_FILE", "logs/bot_metrics.jsonl"))
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(line, ensure_ascii=False) + "\n")
     logger.debug("metric:%s", json.dumps(line, ensure_ascii=False))

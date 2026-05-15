@@ -1,0 +1,59 @@
+name: multi-project-shared
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POUPI_BABY_DB: ${POUPI_BABY_DB}
+      POUPI_BABY_DB_USER: ${POUPI_BABY_DB_USER}
+      POUPI_BABY_DB_PASSWORD: ${POUPI_BABY_DB_PASSWORD}
+      DATA_CORE_DB: ${DATA_CORE_DB}
+      DATA_CORE_DB_USER: ${DATA_CORE_DB_USER}
+      DATA_CORE_DB_PASSWORD: ${DATA_CORE_DB_PASSWORD}
+      TRADING_BOT_DB: ${TRADING_BOT_DB}
+      TRADING_BOT_DB_USER: ${TRADING_BOT_DB_USER}
+      TRADING_BOT_DB_PASSWORD: ${TRADING_BOT_DB_PASSWORD}
+      ANALYTICS_DB: ${ANALYTICS_DB}
+      ANALYTICS_DB_USER: ${ANALYTICS_DB_USER}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./shared/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+networks:
+  internal:
+    name: infra_internal
+    internal: true
+
+volumes:
+  postgres-data:
+  redis-data:

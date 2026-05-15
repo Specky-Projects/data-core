@@ -1,0 +1,74 @@
+x-poupi-env: &poupi-env
+  NODE_ENV: ${NODE_ENV:-production}
+  PORT: ${PORT:-3001}
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL}
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+  FRONTEND_URL: ${FRONTEND_URL:-}
+  APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+  DATA_CORE_URL: ${DATA_CORE_URL:-http://data-core-api:8000}
+  DATA_CORE_API_KEY: ${DATA_CORE_API_KEY:-}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_ADMIN_CHAT_ID: ${TELEGRAM_ADMIN_CHAT_ID:-}
+  TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  GMAIL_USER: ${GMAIL_USER:-}
+  GMAIL_PASSWORD: ${GMAIL_PASSWORD:-}
+  GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+  MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+  MERCADOPAGO_TOKEN: ${MERCADOPAGO_TOKEN:-}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_SECRET: ${STRIPE_SECRET:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  AI_PROVIDER: ${AI_PROVIDER:-mock}
+  FEATURE_AI_OPS: ${FEATURE_AI_OPS:-false}
+  FEATURE_REVIEW_INTEL: ${FEATURE_REVIEW_INTEL:-false}
+  FEATURE_MARKET_INTEL: ${FEATURE_MARKET_INTEL:-false}
+
+services:
+  api:
+    build:
+      context: ${POUPI_BABY_REPO_PATH:-../../../../poupi-baby}/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *poupi-env
+    expose:
+      - "3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      app:
+      infra_internal:
+        aliases:
+          - poupi-baby-api
+
+  worker:
+    build:
+      context: ${POUPI_BABY_REPO_PATH:-../../../../poupi-baby}
+      dockerfile: worker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *poupi-env
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      app:
+      infra_internal:
+
+networks:
+  app:
+    name: poupi_baby_app
+  infra_internal:
+    external: true

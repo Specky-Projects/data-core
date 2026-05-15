@@ -56,6 +56,7 @@ class Config:
     telegram_chat_id: str = ""
 
     # Agendamento do auto-tuner
+    autotune_enabled: bool = False
     autotune_hour: int = 3
     autotune_interval_days: int = 7
 
@@ -120,6 +121,7 @@ def load_config(env_file: str = ".env") -> Config:
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
 
+        autotune_enabled=_bool(os.getenv("AUTOTUNE_ENABLED", "false")),
         autotune_hour=int(os.getenv("AUTOTUNE_HOUR", "3")),
         autotune_interval_days=int(os.getenv("AUTOTUNE_INTERVAL_DAYS", "7")),
 

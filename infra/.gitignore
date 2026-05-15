@@ -1,0 +1,10 @@
+.env
+*.env
+*.dump
+*.sql.gz
+*.tar.gz
+backups/
+runtime/
+secrets/
+!*.example
+!.gitkeep

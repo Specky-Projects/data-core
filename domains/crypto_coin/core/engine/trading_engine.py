@@ -132,7 +132,8 @@ class TradingBot:
                     self.running = False
                     break
                 try:
-                    await self.scheduler.maybe_run(bot=self)
+                    if self.cfg.autotune_enabled:
+                        await self.scheduler.maybe_run(bot=self)
                     await self._maybe_send_weekly_report()
                     await self._tick()
                 except Exception as e:

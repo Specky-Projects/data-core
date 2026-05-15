@@ -46,7 +46,13 @@ class ColorFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def setup_logger(name: str = "cryptobot", log_file: str = "logs/bot.log", level: str = "INFO") -> logging.Logger:
+def setup_logger(
+    name: str = "cryptobot",
+    log_file: str | None = None,
+    level: str | None = None,
+) -> logging.Logger:
+    log_file = log_file or os.getenv("LOG_FILE", "logs/bot.log")
+    level = level or os.getenv("LOG_LEVEL", "INFO")
     Path("logs").mkdir(exist_ok=True)
 
     logger = logging.getLogger(name)
