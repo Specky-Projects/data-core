@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+dist/
+coverage/
+runtime-logs/*
+!runtime-logs/.gitkeep
+runtime-data/*
+!runtime-data/.gitkeep

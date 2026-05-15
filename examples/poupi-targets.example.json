@@ -1,0 +1,17 @@
+{
+  "targets": [
+    {
+      "module": "ecommerce",
+      "source_name": "drogasil",
+      "collector_name": "poupi_legacy_raw_collector",
+      "target_url": "https://www.drogasil.com.br/fralda-pampers-confort-sec-xxxg-44-unidades-pampers-1351898.html",
+      "active": true,
+      "metadata_json": {
+        "kind": "production_target",
+        "category": "baby",
+        "priority": "normal",
+        "owner": "data-platform"
+      }
+    }
+  ]
+}

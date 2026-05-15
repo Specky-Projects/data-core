@@ -1,0 +1,163 @@
+services:
+  api:
+    image: data-core-api
+    build: .
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    ports:
+      - "8000:8000"
+    environment:
+      SCHEDULER_ENABLED: "false"
+      POUPI_LEGACY_BACKEND_DIR: /app/poupi-baby/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - ${POUPI_LEGACY_BACKEND_HOST_DIR:-../poupi-baby/backend}:/app/poupi-baby/backend:ro
+      - ./runtime-logs:/app/runtime-logs
+      - ./runtime-data:/app/runtime-data
+    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  scheduler:
+    image: data-core-api
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    environment:
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_COLLECTORS_ENABLED: "true"
+      SCHEDULER_PIPELINE_ENABLED: "false"
+      SCHEDULER_DOMAIN_JOBS_ENABLED: "true"
+      POUPI_LEGACY_BACKEND_DIR: /app/poupi-baby/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - ${POUPI_LEGACY_BACKEND_HOST_DIR:-../poupi-baby/backend}:/app/poupi-baby/backend:ro
+      - ./runtime-logs:/app/runtime-logs
+      - ./runtime-data:/app/runtime-data
+    command: sh -c "python -m app.jobs.scheduler_runner"
+
+  worker:
+    image: data-core-api
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    environment:
+      SCHEDULER_ENABLED: "false"
+      WORKER_PIPELINE_INTERVAL_SECONDS: "300"
+      POUPI_LEGACY_BACKEND_DIR: /app/poupi-baby/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - ${POUPI_LEGACY_BACKEND_HOST_DIR:-../poupi-baby/backend}:/app/poupi-baby/backend:ro
+      - ./runtime-logs:/app/runtime-logs
+      - ./runtime-data:/app/runtime-data
+    command: sh -c "python -m app.jobs.worker --interval $${WORKER_PIPELINE_INTERVAL_SECONDS}"
+
+  tests:
+    image: data-core-api
+    profiles:
+      - test
+    env_file:
+      - path: .env.example
+        required: true
+      - path: .env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - ${POUPI_LEGACY_BACKEND_HOST_DIR:-../poupi-baby/backend}:/app/poupi-baby/backend:ro
+    command: sh -c "python -m pip install pytest==8.3.3 && alembic upgrade head && pytest -q"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: data_core
+      POSTGRES_USER: data_core
+      POSTGRES_PASSWORD: data_core
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U data_core -d data_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    depends_on:
+      - api
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres-data:
+  grafana-data:

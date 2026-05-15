@@ -1,0 +1,83 @@
+services:
+  bot-runner:
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      DATA_CORE_URL: ${DATA_CORE_URL:-http://data-core-api:8000}
+      DATA_CORE_API_KEY: ${DATA_CORE_API_KEY:-}
+      STORAGE_URL: ${STORAGE_URL:-sqlite:////app/runtime-data/crypto_coin_bot.sqlite3}
+      LOG_FILE: ${LOG_FILE:-/app/runtime-logs/trading-bot.log}
+      EXCHANGE: ${EXCHANGE:-binance}
+      SYMBOL: ${SYMBOL:-BTC/USDT}
+      TIMEFRAME: ${TIMEFRAME:-15m}
+      PAPER_TRADING: ${PAPER_TRADING:-true}
+      PAPER_INITIAL_BALANCE: ${PAPER_INITIAL_BALANCE:-10000}
+      SHADOW_LIVE_ENABLED: ${SHADOW_LIVE_ENABLED:-false}
+      AUTOTUNE_ENABLED: ${AUTOTUNE_ENABLED:-false}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      CRYPTO_API_KEY: ${CRYPTO_API_KEY:-}
+      CRYPTO_API_SECRET: ${CRYPTO_API_SECRET:-}
+      CRYPTO_API_PASSPHRASE: ${CRYPTO_API_PASSPHRASE:-}
+    command: ["python", "-m", "workers.crypto_coin_worker"]
+    networks:
+      app:
+      infra_internal:
+        aliases:
+          - trading-bot-runner
+    volumes:
+      - runtime-logs:/app/runtime-logs
+      - runtime-data:/app/runtime-data
+
+  autotune:
+    profiles:
+      - tools
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+    restart: "no"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATA_CORE_URL: ${DATA_CORE_URL:-http://data-core-api:8000}
+      DATA_CORE_API_KEY: ${DATA_CORE_API_KEY:-}
+      STORAGE_URL: ${STORAGE_URL:-sqlite:////app/runtime-data/crypto_coin_bot.sqlite3}
+      LOG_FILE: ${LOG_FILE:-/app/runtime-logs/trading-bot-autotune.log}
+      EXCHANGE: ${EXCHANGE:-binance}
+      SYMBOL: ${SYMBOL:-BTC/USDT}
+      TIMEFRAME: ${TIMEFRAME:-15m}
+      PAPER_TRADING: ${PAPER_TRADING:-true}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      CRYPTO_API_KEY: ${CRYPTO_API_KEY:-}
+      CRYPTO_API_SECRET: ${CRYPTO_API_SECRET:-}
+      CRYPTO_API_PASSPHRASE: ${CRYPTO_API_PASSPHRASE:-}
+    command: ["python", "-m", "domains.crypto_coin.autotune_runner", "--dry-run"]
+    networks:
+      app:
+      infra_internal:
+    volumes:
+      - runtime-logs:/app/runtime-logs
+      - runtime-data:/app/runtime-data
+
+networks:
+  app:
+    name: trading_bot_app
+  infra_internal:
+    external: true
+
+volumes:
+  runtime-logs:
+  runtime-data:

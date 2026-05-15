@@ -1,0 +1,107 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      API_KEY_ENABLED: ${API_KEY_ENABLED:-true}
+      API_KEY: ${API_KEY}
+      SCHEDULER_ENABLED: "false"
+      POUPI_LEGACY_BACKEND_DIR: ${POUPI_LEGACY_BACKEND_DIR:-/app/domains/poupi_baby/backend}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    expose:
+      - "8000"
+    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      app:
+      infra_internal:
+        aliases:
+          - data-core-api
+    volumes:
+      - runtime-logs:/app/runtime-logs
+      - runtime-data:/app/runtime-data
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      API_KEY_ENABLED: ${API_KEY_ENABLED:-true}
+      API_KEY: ${API_KEY}
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_COLLECTORS_ENABLED: ${SCHEDULER_COLLECTORS_ENABLED:-true}
+      SCHEDULER_PIPELINE_ENABLED: ${SCHEDULER_PIPELINE_ENABLED:-false}
+      SCHEDULER_DOMAIN_JOBS_ENABLED: ${SCHEDULER_DOMAIN_JOBS_ENABLED:-true}
+      POUPI_LEGACY_BACKEND_DIR: ${POUPI_LEGACY_BACKEND_DIR:-/app/domains/poupi_baby/backend}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    command: sh -c "python -m app.jobs.scheduler_runner"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      app:
+      infra_internal:
+    volumes:
+      - runtime-logs:/app/runtime-logs
+      - runtime-data:/app/runtime-data
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CACHE_ENABLED: ${CACHE_ENABLED:-true}
+      API_KEY_ENABLED: ${API_KEY_ENABLED:-true}
+      API_KEY: ${API_KEY}
+      SCHEDULER_ENABLED: "false"
+      WORKER_PIPELINE_INTERVAL_SECONDS: ${WORKER_PIPELINE_INTERVAL_SECONDS:-300}
+      POUPI_LEGACY_BACKEND_DIR: ${POUPI_LEGACY_BACKEND_DIR:-/app/domains/poupi_baby/backend}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    command: sh -c "python -m app.jobs.worker --interval $${WORKER_PIPELINE_INTERVAL_SECONDS:-300}"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      app:
+      infra_internal:
+    volumes:
+      - runtime-logs:/app/runtime-logs
+      - runtime-data:/app/runtime-data
+
+networks:
+  app:
+    name: data_core_app
+  infra_internal:
+    external: true
+
+volumes:
+  runtime-logs:
+  runtime-data:
