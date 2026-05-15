@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      context: ../../..
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
@@ -36,7 +36,7 @@ services:
 
   scheduler:
     build:
-      context: ../../..
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
@@ -68,7 +68,7 @@ services:
 
   worker:
     build:
-      context: ../../..
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
