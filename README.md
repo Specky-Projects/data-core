@@ -1,84 +1,140 @@
-# Data Core
+# data-core
 
-Backend modular para coleta de dados, agendamento, armazenamento, logs, retries e API REST.
+Production ETL platform — collects, normalizes and computes analytics for 4 domains:
+**crypto**, **ecommerce**, **real_estate**, **sports_betting**.
 
-Este projeto fica separado do frontend. O frontend deve consumir apenas a API HTTP exposta pelo Data Core e deve ter deploy independente.
+**Status (2026-05-16):** Crypto fully operational. Other domains on demo/stub data.
+**Grade:** B+ — strong architecture, gaps in domain activation (see `docs/AUDIT.md`).
 
-## Arquitetura
+---
 
-```text
-data-core/
-  app/
-    main.py          # ponto de entrada FastAPI
-  api/               # FastAPI routers, schemas e dependencias HTTP
-  collectors/        # collectors por dominio e registry
-    real_estate/
-    ecommerce/
-    crypto/
-    sports_betting/
-  database/          # SQLAlchemy engine, session e modelos
-  logs/              # configuracao de logging
-  scheduler/         # APScheduler e jobs
-  utils/             # retry, hashing e helpers
-  workers/           # execucao reutilizavel de collectors
-  alembic/           # migracoes futuras
-  docker-compose.yml
-  Dockerfile
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  scheduler container          worker container           │
+│  (SCHEDULER_COLLECTORS=true)  (SCHEDULER_PIPELINE=true)  │
+│                                                          │
+│  APScheduler                  APScheduler                │
+│  ├─ crypto: every 15min       ├─ normalize_job: 15min    │
+│  ├─ ecommerce: every 60min    └─ analytics_job: 60min    │
+│  ├─ real_estate: every 120min                            │
+│  └─ sports_betting: every 15min                          │
+└──────────┬───────────────────────────┬───────────────────┘
+           │                           │
+           ▼                           ▼
+    raw_collections            normalized_* → *_analytics
+    (PostgreSQL)               pipeline_runs / pipeline_failures
+           │
+           ▼
+    api container (SCHEDULER_ENABLED=false)
+    FastAPI on :8000
+    /health /live /ready /metrics
+    /api/v1/crypto/* /api/v1/operations/*
 ```
 
-## Rodando localmente
+**3-stage ETL:** Collection → Normalization → Analytics  
+**Observability:** `pipeline_runs` DB table + Prometheus metrics + Grafana `data-core-ops-v1`
+
+---
+
+## Quick start
 
 ```bash
 cp .env.example .env
+# Edit .env: DATABASE_URL, REDIS_URL, API_KEY
+
 docker compose up --build
+# API starts on :8000 — applies alembic migrations on startup
 ```
 
-O container aplica `alembic upgrade head` antes de iniciar a API.
+---
 
-API:
+## Container roles
 
-- `GET /health`
-- `GET /api/v1/collectors`
-- `POST /api/v1/collectors/{collector_name}/run`
-- `GET /api/v1/runs`
-- `GET /api/v1/records`
-- `GET /api/v1/poupi-baby`
-- `GET /api/v1/poupi-baby/modules`
-- `GET /api/v1/poupi-baby/endpoints`
+| Container | `SCHEDULER_ENABLED` | `SCHEDULER_COLLECTORS_ENABLED` | `SCHEDULER_PIPELINE_ENABLED` |
+|---|---|---|---|
+| `api` | false | — | — |
+| `scheduler` | true | true | false |
+| `worker` | true | false | true |
 
-Collector crypto migrado:
+---
 
-- `POST /api/v1/collectors/crypto.crypto_coin_ohlcv/run`
+## Key API endpoints
 
-## Adicionando um collector
+| Method | Path | Description |
+|---|---|---|
+| GET | `/live` | Liveness probe |
+| GET | `/ready` | Readiness probe (postgres + redis) |
+| GET | `/health` | Full dependency check |
+| GET | `/metrics` | Prometheus scrape endpoint |
+| GET | `/api/v1/analytics/signals` | Trading signals feed (used by poupi-crypto) |
+| GET | `/api/v1/crypto/feed` | OHLCV candles feed |
+| GET | `/api/v1/crypto/analytics` | Full analytics rows |
+| POST | `/api/v1/operations/pipeline/run` | Manual pipeline trigger |
+| GET | `/api/v1/operations/alerts` | Circuit breakers, dead letters |
+| GET | `/api/v1/price-feed` | Ecommerce price feed (legacy) |
 
-1. Crie um arquivo em `app/collectors/<dominio>/<site>.py`.
-2. Herde de `BaseCollector`.
-3. Implemente `collect`.
-4. Registre o collector em `app/collectors/registry.py`.
+Full reference: [`docs/API_ENDPOINTS.md`](docs/API_ENDPOINTS.md)
 
-O collector retorna `CollectedItem` com `external_id`, `source_url`, `payload` e metadados. O worker salva histórico de execução, registros coletados e falhas.
+---
 
-## Separacao frontend/backend
+## Environment variables
 
-- Frontend: Next.js/React separado, sem scraping, deploy independente.
-- Backend/Data Core: collectors, scheduler, banco, logs, retries, API e analytics futuros.
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | required | PostgreSQL connection string |
+| `REDIS_URL` | required | Redis connection string |
+| `API_KEY` | — | API key (when `API_KEY_ENABLED=true`) |
+| `API_KEY_ENABLED` | true | Enable API key auth |
+| `SCHEDULER_ENABLED` | true | Enable APScheduler |
+| `SCHEDULER_COLLECTORS_ENABLED` | true | Enable collector jobs |
+| `SCHEDULER_PIPELINE_ENABLED` | true | Enable normalize + analytics jobs |
+| `SYMBOLS` | BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,ADA/USDT | Crypto pairs |
+| `TIMEFRAMES` | 15m,1h | Crypto timeframes |
+| `LOG_JSON` | false | Enable JSON structured logs |
+| `CACHE_ENABLED` | false | Enable Redis cache |
+| `THE_ODDS_API_KEY` | — | Sports odds API key |
 
-## Dominio Crypto Coin
+---
 
-O backend do projeto `bot-crypto-coin` foi migrado para `domains/crypto_coin`.
+## Adding a collector
 
-- A logica do bot, indicadores, strategies, analytics, backtesting e autotune fica isolada nesse dominio.
-- A integracao com o Data Core acontece por adaptadores em `collectors/` e `workers/`.
-- A camada antiga `src` foi preservada em `domains/crypto_coin/legacy` apenas para compatibilidade.
+1. Create `collectors/<domain>/<name>.py`, inherit `BaseCollector`
+2. Implement `async def collect(self) -> list[CollectedItem]`
+3. Register in `collectors/registry.py`
+4. Add job to `scheduler/jobs.py`
 
-Contexto para evolucao assistida por IA: `docs/AI_CONTEXT.md`.
+---
 
-## Dominio Poupi Baby
+## Adding a migration
 
-A interface backend do projeto `poupi` foi migrada para `domains/poupi_baby`.
+```bash
+alembic revision --autogenerate -m "short_description"
+# IMPORTANT: keep revision ID <= 32 chars (varchar constraint in alembic_version)
+# Set down_revision = "0015_pipeline_observability"
+alembic upgrade head
+```
 
-- `backend/`: NestJS backend original, incluindo controllers, services, modules e Prisma.
-- `worker/`: worker BullMQ original.
-- `interface.py`: manifest Python usado pelo FastAPI para expor o contrato do dominio.
-- Frontend do Poupi nao foi migrado.
+Current head: `0015_pipeline_observability`
+
+---
+
+## Documentation
+
+| File | Content |
+|---|---|
+| [`docs/DATA_FLOW.md`](docs/DATA_FLOW.md) | ETL flow, stage details, timing |
+| [`docs/JOBS_AND_SCHEDULES.md`](docs/JOBS_AND_SCHEDULES.md) | All jobs, triggers, reliability |
+| [`docs/API_ENDPOINTS.md`](docs/API_ENDPOINTS.md) | REST endpoints reference |
+| [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | Metrics, alerts, logs, health |
+| [`docs/AUDIT.md`](docs/AUDIT.md) | Audit report, gaps, priority matrix |
+| [`ai/CONTEXT.md`](ai/CONTEXT.md) | AI operational context |
+| [`ai/RUNBOOK.md`](ai/RUNBOOK.md) | Diagnose + deploy playbook |
+
+---
+
+## Production deployment
+
+Hosted on Hetzner via Coolify. GitHub `main` branch → auto-build on push.  
+See [`ai/RUNBOOK.md`](ai/RUNBOOK.md) §2 for deploy procedure.
