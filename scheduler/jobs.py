@@ -34,6 +34,8 @@ def collect_raw_job(collector_name: str) -> None:
 
 
 def normalize_job(module: str | None = None, limit: int = 100) -> None:
+    from app.pipeline.recorder import PipelineRecorder
+
     register_pipeline_modules()
     modules = [module] if module else normalizer_registry.modules()
     for module_name in modules:
@@ -42,11 +44,20 @@ def normalize_job(module: str | None = None, limit: int = 100) -> None:
                 "Starting normalization job",
                 extra={"pipeline_module": module_name, "normalizer": normalizer_type.__name__},
             )
-            db = SessionLocal()
-            try:
-                normalizer_type(db).run(limit=limit)
-            finally:
-                db.close()
+            with PipelineRecorder(
+                domain=module_name, stage="normalization",
+                source_name=normalizer_type.__name__, trigger="scheduler",
+            ) as rec:
+                db = SessionLocal()
+                try:
+                    result = normalizer_type(db).run(limit=limit)
+                    if isinstance(result, dict):
+                        rec.items_processed = result.get("normalized", 0)
+                        rec.items_skipped = result.get("skipped", 0)
+                        rec.items_error = result.get("errors", 0)
+                    logger.info("Normalization finished", extra={"pipeline_module": module_name})
+                finally:
+                    db.close()
 
 
 MODULE_COLLECTORS = {
@@ -625,15 +636,26 @@ def backfill_canonical_product_id_job(batch_size: int = 500) -> dict[str, int]:
 
 
 def analytics_job(module: str | None = None, limit: int = 100) -> None:
+    from app.pipeline.recorder import PipelineRecorder
+
     register_pipeline_modules()
-    db = SessionLocal()
-    try:
-        modules = [module] if module else analytics_registry.modules()
-        for module_name in modules:
-            processor_type = analytics_registry.get(module_name)
-            if not processor_type:
-                continue
-            logger.info("Starting analytics job", extra={"pipeline_module": module_name})
-            processor_type(db).run(limit=limit)
-    finally:
-        db.close()
+    modules = [module] if module else analytics_registry.modules()
+    for module_name in modules:
+        processor_type = analytics_registry.get(module_name)
+        if not processor_type:
+            continue
+        logger.info("Starting analytics job", extra={"pipeline_module": module_name})
+        with PipelineRecorder(
+            domain=module_name, stage="analytics",
+            source_name=processor_type.__name__, trigger="scheduler",
+        ) as rec:
+            db = SessionLocal()
+            try:
+                result = processor_type(db).run(limit=limit)
+                if isinstance(result, dict):
+                    rec.items_processed = result.get("processed", 0)
+                    rec.items_skipped = result.get("skipped", 0)
+                    rec.items_error = result.get("errors", 0)
+                logger.info("Analytics processing finished", extra={"pipeline_module": module_name})
+            finally:
+                db.close()
