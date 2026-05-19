@@ -339,11 +339,24 @@ def run_trading_collectors_job(source: str | None = None) -> None:
 
 
 def ensure_default_collection_targets() -> int:
+    """Insert or activate default collection targets and deactivate stale legacy ones.
+
+    For each entry in DEFAULT_COLLECTION_TARGETS:
+      - If the exact record (module+source_name+collector_name+target_url) exists → ensure active.
+      - If it does not exist → insert it.
+      - Any other record with the same (module, source_name, target_url) but a DIFFERENT
+        collector_name (e.g. "poupi_legacy_raw_collector") is deactivated so the scheduler
+        no longer picks it up.
+
+    Returns the number of newly created records.
+    """
     db = SessionLocal()
     created = 0
+    deactivated = 0
     try:
         for item in DEFAULT_COLLECTION_TARGETS:
-            existing = (
+            # Exact match (correct collector_name)
+            exact = (
                 db.query(CollectionTarget)
                 .filter(
                     CollectionTarget.module == item["module"],
@@ -353,10 +366,33 @@ def ensure_default_collection_targets() -> int:
                 )
                 .one_or_none()
             )
-            if existing is None:
+            if exact is None:
                 db.add(CollectionTarget(**item))
                 created += 1
+            elif not exact.active:
+                exact.active = True
+
+            # Deactivate any other collector pointing at the same URL
+            # (e.g. old poupi_legacy_raw_collector targets from before Phase B)
+            n = (
+                db.query(CollectionTarget)
+                .filter(
+                    CollectionTarget.module == item["module"],
+                    CollectionTarget.source_name == item["source_name"],
+                    CollectionTarget.target_url == item["target_url"],
+                    CollectionTarget.collector_name != item["collector_name"],
+                    CollectionTarget.active.is_(True),
+                )
+                .update({"active": False}, synchronize_session=False)
+            )
+            deactivated += n
+
         db.commit()
+        if created or deactivated:
+            logger.info(
+                "Collection targets ensured",
+                extra={"created": created, "legacy_deactivated": deactivated},
+            )
         return created
     finally:
         db.close()
