@@ -406,7 +406,14 @@ class EcommerceURLScraper:
                     or offers.get("highPrice")
                 )
                 price = _parse_ld_price(raw_price)
+                # For AggregateOffer the availability lives inside sub-offers, not on the root.
                 avail_url = offers.get("availability", "")
+                if not avail_url and offers.get("@type") == "AggregateOffer":
+                    sub_offers = offers.get("offers", [])
+                    if isinstance(sub_offers, list) and sub_offers:
+                        avail_url = sub_offers[0].get("availability", "")
+                    elif isinstance(sub_offers, dict):
+                        avail_url = sub_offers.get("availability", "")
                 availability = "in_stock" if "InStock" in avail_url else "out_of_stock"
 
                 brand = data.get("brand", {})
