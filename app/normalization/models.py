@@ -3,7 +3,7 @@ from datetime import datetime
 
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint  # noqa: F401
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -19,6 +19,9 @@ class NormalizedProduct(Base):
     source_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     canonical_product_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    # source_url: original product page URL from the collector target_url (migration 0016).
+    # Exposed in /price-feed so consumers (poupi-baby) can build "see product" links.
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
     brand: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     price: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
@@ -129,7 +132,12 @@ class NormalizedMarketCandle(Base):
     source_collector_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     source_collector_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
 
-    __table_args__ = (Index("ix_norm_market_candle_identity", "source", "symbol", "timeframe", "timestamp"),)
+    __table_args__ = (
+        # Migration 0014 replaced the original non-unique index with this UniqueConstraint.
+        # on_conflict_do_nothing(constraint="uq_norm_market_candle_identity") in
+        # CryptoSnapshotNormalizer relies on this name being correct at the DB level.
+        UniqueConstraint("source", "symbol", "timeframe", "timestamp", name="uq_norm_market_candle_identity"),
+    )
 
 
 class NormalizedSportsOdd(Base):

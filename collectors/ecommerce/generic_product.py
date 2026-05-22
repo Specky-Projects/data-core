@@ -7,10 +7,11 @@ class GenericProductCollector(BaseCollector):
         name="ecommerce.generic_product",
         domain=CollectorDomain.ecommerce,
         source="generic_marketplace",
-        description="Example ecommerce collector prepared for product payloads.",
+        description="Placeholder ecommerce collector — retorna produto demo hardcoded. NÃO usar em produção.",
         default_interval_minutes=60,
         raw_schema_name="genericProduct",
         raw_schema_version="1.0.0",
+        schedulable=False,  # MOCK_ONLY — dado hardcoded, não agendável
     )
 
     async def collect(self) -> list[CollectedItem]:

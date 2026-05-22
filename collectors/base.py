@@ -18,6 +18,10 @@ class CollectorMetadata:
     collector_version: str = "1.0.0"
     raw_schema_name: str = "genericJson"
     raw_schema_version: str = "1.0.0"
+    # schedulable=False → collector existe para documentação/testes mas NÃO deve ser
+    # agendado automaticamente (ex: mocks de demo, placeholders sem fonte real).
+    # O scheduler verifica este flag antes de criar o job automático.
+    schedulable: bool = True
 
 
 @dataclass(frozen=True)

@@ -7,10 +7,11 @@ class GenericRealEstateCollector(BaseCollector):
         name="real_estate.generic_listing",
         domain=CollectorDomain.real_estate,
         source="generic_real_estate",
-        description="Example real estate collector prepared for listing payloads.",
+        description="Placeholder imóveis — retorna listing demo hardcoded. NÃO usar em produção.",
         default_interval_minutes=120,
         raw_schema_name="realEstateListing",
         raw_schema_version="1.0.0",
+        schedulable=False,  # MOCK_ONLY — dado hardcoded, não agendável
     )
 
     async def collect(self) -> list[CollectedItem]:

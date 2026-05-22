@@ -56,10 +56,19 @@ class EcommerceProductNormalizer(BaseNormalizer):
             or source_id
             or _title_slug(title)
         )
+        # source_url: original product page URL for consumer links (e.g. poupi-baby price alerts).
+        # Prefer explicit payload field, fall back to raw.target_url (the scraper's target URL).
+        source_url = (
+            payload.get("source_url")
+            or payload.get("product_url")
+            or payload.get("url")
+            or raw.target_url
+        )
         return {
             "source_id": source_id,
             "external_id": payload.get("external_id") or source_id or raw.target_url,
             "canonical_product_id": canonical,
+            "source_url": source_url,
             "title": title,
             "brand": _clean_text(payload.get("brand") or payload.get("manufacturer")),
             "price": price,

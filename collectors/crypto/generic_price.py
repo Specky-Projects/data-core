@@ -7,10 +7,11 @@ class GenericCryptoPriceCollector(BaseCollector):
         name="crypto.generic_price",
         domain=CollectorDomain.crypto,
         source="generic_exchange",
-        description="Example crypto collector prepared for market price payloads.",
+        description="Placeholder crypto collector — retorna dados demo hardcoded. NÃO usar em produção.",
         default_interval_minutes=5,
         raw_schema_name="cryptoPriceSnapshot",
         raw_schema_version="1.0.0",
+        schedulable=False,  # MOCK_ONLY — dado hardcoded, não agendável
     )
 
     async def collect(self) -> list[CollectedItem]:

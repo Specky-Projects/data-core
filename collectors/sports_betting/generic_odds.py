@@ -7,10 +7,11 @@ class GenericSportsOddsCollector(BaseCollector):
         name="sports_betting.generic_odds",
         domain=CollectorDomain.sports_betting,
         source="generic_bookmaker",
-        description="Example sports betting collector prepared for odds payloads.",
+        description="Placeholder odds — retorna match demo hardcoded. NÃO usar em produção.",
         default_interval_minutes=15,
         raw_schema_name="genericOddsSnapshot",
         raw_schema_version="1.0.0",
+        schedulable=False,  # MOCK_ONLY — dado hardcoded, não agendável
     )
 
     async def collect(self) -> list[CollectedItem]:
