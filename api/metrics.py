@@ -209,6 +209,38 @@ trading_confidence_histogram = Histogram(
 )
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Dataset quality metrics — crypto/trading candle freshness and coverage
+# Labels: symbol (BTC/USDT etc.)  timeframe (15m | 1h)
+# Populated by DatasetIntegrityScorer (dataset_quality_crypto scheduler job, every 30 min).
+# ──────────────────────────────────────────────────────────────────────────────
+
+dataset_integrity_score = Gauge(
+    "dataset_integrity_score",
+    "Composite integrity score for a symbol/timeframe candle dataset (0-100). "
+    "Combines freshness (0-40 pts), coverage (0-40 pts), and OHLC consistency (0-20 pts).",
+    ["symbol", "timeframe"],
+)
+
+candle_coverage_pct = Gauge(
+    "candle_coverage_pct",
+    "Percentage of expected OHLCV candles present in the last 24 hours (0-100).",
+    ["symbol", "timeframe"],
+)
+
+stale_candle_total = Counter(
+    "stale_candle_total",
+    "Total detections of stale candle data "
+    "(last candle older than 2× the expected collection interval).",
+    ["symbol", "timeframe"],
+)
+
+candle_gap_total = Counter(
+    "candle_gap_total",
+    "Total candle intervals found missing during the 24-hour gap analysis window.",
+    ["symbol", "timeframe"],
+)
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Dead-letter + scheduler
 # ──────────────────────────────────────────────────────────────────────────────
 

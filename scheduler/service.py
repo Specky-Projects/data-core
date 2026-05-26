@@ -14,10 +14,12 @@ from scheduler.jobs import (
     cleanup_stale_runs_job,
     collect_raw_job,
     data_retention_job,
+    dataset_quality_crypto_job,
     normalize_job,
     operational_watchdog_job,
     run_ecommerce_url_targets_job,
     scheduler_heartbeat_job,
+    signal_outcomes_job,
     watchdog_heartbeat_job,
 )
 from scheduler.retry import with_retry
@@ -257,6 +259,36 @@ def create_scheduler() -> BackgroundScheduler:
             "interval",
             hours=settings.watchdog_heartbeat_hours,
             id="platform:watchdog_heartbeat",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    # ── Dataset quality — candle freshness/coverage scoring (every 30 min) ────
+    # Runs in both scheduler and worker containers (pipeline must be enabled to have
+    # normalized candles to score; but quality scoring itself is lightweight enough
+    # to run alongside any other pipeline job).
+    if settings.scheduler_pipeline_enabled:
+        scheduler.add_job(
+            lambda: _with_heartbeat(
+                "dataset_quality_crypto_job",
+                lambda: with_retry(dataset_quality_crypto_job, job_name="dataset_quality_crypto_job"),
+            ),
+            "interval",
+            minutes=30,
+            id="quality:dataset_quality_crypto",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            lambda: _with_heartbeat(
+                "signal_outcomes_job",
+                lambda: with_retry(signal_outcomes_job, job_name="signal_outcomes_job"),
+            ),
+            "interval",
+            minutes=60,
+            id="quality:signal_outcomes",
             replace_existing=True,
             max_instances=1,
             coalesce=True,

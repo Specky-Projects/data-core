@@ -1281,4 +1281,134 @@ def watchdog_heartbeat_job() -> None:
                 "last_failure_at": datetime.now(timezone.utc).isoformat(),
             },
         )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dataset quality — crypto candle freshness / coverage / integrity
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def dataset_quality_crypto_job() -> None:
+    """Evaluate freshness, coverage, and OHLC integrity for all active trading pairs.
+
+    Runs every 30 minutes.  For each (symbol, timeframe) combination found in
+    ``normalized_market_candles``, computes a 0-100 integrity score, persists it to
+    ``crypto_dataset_quality_scores``, and updates Prometheus metrics:
+      - dataset_integrity_score [symbol, timeframe]
+      - candle_coverage_pct     [symbol, timeframe]
+      - stale_candle_total      [symbol, timeframe]
+      - candle_gap_total        [symbol, timeframe]
+    """
+    from app.data_quality.crypto.integrity import DatasetIntegrityScorer
+    from app.normalization.models import NormalizedMarketCandle
+
+    run_id = str(uuid.uuid4())
+    started_at = time.monotonic()
+    logger.info(
+        "Job run started",
+        extra={"run_id": run_id, "job": "dataset_quality_crypto_job", "domain": "trading", "source": "data_quality"},
+    )
+    error: Exception | None = None
+    score_count = 0
+    try:
+        db = SessionLocal()
+        try:
+            # Discover active symbols and timeframes from the normalized table
+            pairs: list[tuple[str, str]] = (
+                db.query(NormalizedMarketCandle.symbol, NormalizedMarketCandle.timeframe)
+                .distinct()
+                .all()
+            )
+            if not pairs:
+                logger.info(
+                    "Job run finished",
+                    extra={
+                        "run_id": run_id, "job": "dataset_quality_crypto_job",
+                        "status": "success", "score_count": 0,
+                        "note": "no normalized candles found — skipping",
+                    },
+                )
+                return
+
+            symbols = sorted({p[0] for p in pairs})
+            timeframes = sorted({p[1] for p in pairs})
+
+            scorer = DatasetIntegrityScorer(db)
+            scores = scorer.score(symbols, timeframes, persist=True, emit_metrics=True)
+            score_count = len(scores)
+        finally:
+            db.close()
+    except Exception as exc:
+        error = exc
+        logger.error(
+            "Job run finished",
+            extra={
+                "run_id": run_id, "job": "dataset_quality_crypto_job",
+                "domain": "trading", "source": "data_quality",
+                "status": "error", "error": str(exc),
+            },
+        )
+        raise
+
+    _log_job_run(
+        job_name="dataset_quality_crypto_job",
+        run_id=run_id,
+        domain="trading",
+        source="data_quality",
+        started_at=started_at,
+        collected_count=score_count,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Signal outcomes — retrospective BUY/SELL evaluation after N candles
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def signal_outcomes_job() -> None:
+    """Evaluate signal outcomes for BUY/SELL analytics records.
+
+    Runs every 60 minutes.  For each TradingAnalytics row with signal BUY or SELL
+    that has not yet been evaluated, looks ahead ``evaluation_horizon_candles`` (default 6)
+    candles and records:
+      - price_change_pct  — percentage move from signal price to outcome price
+      - max_favorable_pct — max favourable excursion (MFE) during the horizon
+      - max_adverse_pct   — max adverse excursion (MAE) during the horizon
+      - outcome_correct   — True if price moved in the signal direction
+    """
+    from app.modules.trading.validation.outcome_tracker import SignalOutcomeTracker
+
+    run_id = str(uuid.uuid4())
+    started_at = time.monotonic()
+    logger.info(
+        "Job run started",
+        extra={"run_id": run_id, "job": "signal_outcomes_job", "domain": "trading", "source": "validation"},
+    )
+    evaluated = 0
+    try:
+        db = SessionLocal()
+        try:
+            result = SignalOutcomeTracker(db).run(limit=200)
+            evaluated = result.get("evaluated", 0)
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.error(
+            "Job run finished",
+            extra={
+                "run_id": run_id, "job": "signal_outcomes_job",
+                "domain": "trading", "source": "validation",
+                "status": "error", "error": str(exc),
+            },
+        )
+        raise
+
+    _log_job_run(
+        job_name="signal_outcomes_job",
+        run_id=run_id,
+        domain="trading",
+        source="validation",
+        started_at=started_at,
+        collected_count=evaluated,
+    )
         raise
