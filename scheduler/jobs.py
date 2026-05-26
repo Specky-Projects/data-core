@@ -135,6 +135,12 @@ def normalize_job(module: str | None = None, limit: int = 100) -> None:
                         rec.items_processed = result.get("normalized", 0)
                         rec.items_skipped = result.get("skipped", 0)
                         rec.items_error = result.get("errors", 0)
+                        rec.items_input = result.get("loaded_raw", 0)
+                    else:
+                        rec.items_input = int(getattr(result, "loaded_raw", 0) or 0)
+                        rec.items_processed = int(getattr(result, "normalized", 0) or 0)
+                        rec.items_error = int(getattr(result, "failed", 0) or 0)
+                        rec.items_skipped = max(0, rec.items_input - rec.items_processed - rec.items_error)
                     logger.info("Normalization finished", extra={"pipeline_module": module_name})
                 finally:
                     db.close()
@@ -157,112 +163,112 @@ SOURCE_COLLECTORS = {
 }
 
 DEFAULT_COLLECTION_TARGETS = [
-    # --- Drogasil (6 targets) ---
+    # --- Drogasil (6 targets — BLOCKED 403, active=False para reduzir ruído) ---
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/fralda-pampers-confort-sec-xxxg-44-unidades-pampers-1351898.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xxxg_44"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xxxg_44", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/pampers-fralda-descartavel-confort-sec-pacote-max-xg-com-92-unidades-1250294.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/fralda-pampers-confort-sec-xg-92-unidades-1474816.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92_marketplace"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92_marketplace", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/fralda-pampers-supersec-g-26-unidades-891311.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/fralda-pampers-premium-care-pants-xg-com-26un-1143334.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_pants_xg_26"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_pants_xg_26", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogasil",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogasil.com.br/kit-2-fraldas-pampers-supersec-g-26-unidades-666396.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26_kit_2"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26_kit_2", "blocked_reason": "HTTP_403_since_2026-05"},
     },
-    # --- Drogaraia (6 targets) ---
+    # --- Drogaraia (6 targets — BLOCKED 403, active=False para reduzir ruído) ---
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/fralda-pampers-confort-sec-xxxg-44-unidades-pampers-1351898.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xxxg_44"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xxxg_44", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/pampers-premium-care-tamanho-grande-com-30-tiras.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_g_30"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_g_30", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/fralda-pampers-supersec-g-26-unidades-891311.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/kit-2-fraldas-pampers-supersec-g-26-unidades-666396.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26_kit_2"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_g_26_kit_2", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/fralda-pampers-premium-care-pants-xg-com-26un-1143334.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_pants_xg_26"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_pants_xg_26", "blocked_reason": "HTTP_403_since_2026-05"},
     },
     {
         "module": "ecommerce",
         "source_name": "drogaraia",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.drogaraia.com.br/pampers-fralda-descartavel-confort-sec-pacote-max-xg-com-92-unidades-1250294.html",
-        "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92"},
+        "active": False,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xg_92", "blocked_reason": "HTTP_403_since_2026-05"},
     },
-    # --- Pague Menos (5 targets) ---
+    # --- Pague Menos — Fraldas Pampers (5 targets existentes + 8 novos) ---
     {
         "module": "ecommerce",
         "source_name": "paguemenos",
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.paguemenos.com.br/fralda-descartavel-infantil-pampers-confort-sec-xxxg-mais-de-19kg-pacote-44-unidades-leve-mais-pague-menos/p",
         "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_xxxg_44"},
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_confort_sec_xxxg_44"},
     },
     {
         "module": "ecommerce",
@@ -270,7 +276,7 @@ DEFAULT_COLLECTION_TARGETS = [
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.paguemenos.com.br/fralda-pampers-pants-premium-care-m-78-unidades/p",
         "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_pants_m_78"},
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_premium_care_pants_m_78"},
     },
     {
         "module": "ecommerce",
@@ -278,7 +284,7 @@ DEFAULT_COLLECTION_TARGETS = [
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.paguemenos.com.br/fralda-pampers-confort-sec-p-72-unidades/p",
         "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_confort_sec_p_72"},
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_confort_sec_p_72"},
     },
     {
         "module": "ecommerce",
@@ -286,7 +292,7 @@ DEFAULT_COLLECTION_TARGETS = [
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.paguemenos.com.br/fraldas-pampers-supersec-p-34-unidades/p",
         "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_supersec_p_34"},
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_supersec_p_34"},
     },
     {
         "module": "ecommerce",
@@ -294,7 +300,140 @@ DEFAULT_COLLECTION_TARGETS = [
         "collector_name": "ecommerce.url_scraper",
         "target_url": "https://www.paguemenos.com.br/fraldas-pampers-premium-care-p-40-unidades/p",
         "active": True,
-        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "product_seed": "pampers_premium_care_p_40"},
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_premium_care_p_40"},
+    },
+    # Pampers fraldas — tamanhos adicionais
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-pampers-premium-care-rn-40-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_premium_care_rn_40"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-pampers-pants-premium-care-g-60-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_premium_care_pants_g_60"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-pampers-pants-premium-care-xg-48-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_premium_care_pants_xg_48"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-pampers-confort-sec-g-26-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "pampers", "product_seed": "pampers_confort_sec_g_26"},
+    },
+    # --- Pague Menos — Fraldas Huggies ---
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-huggies-supreme-care-p-34-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "huggies", "product_seed": "huggies_supreme_care_p_34"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-huggies-supreme-care-m-28-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "huggies", "product_seed": "huggies_supreme_care_m_28"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/fralda-huggies-turma-da-monica-g-14-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "fraldas", "brand": "huggies", "product_seed": "huggies_turma_monica_g_14"},
+    },
+    # --- Pague Menos — Lenços Umedecidos ---
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/lencos-umedecidos-pampers-sem-perfume-192-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "lencos_umedecidos", "brand": "pampers", "product_seed": "pampers_lencos_192"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/lencos-umedecidos-huggies-one-done-baby-wipes-96-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "lencos_umedecidos", "brand": "huggies", "product_seed": "huggies_lencos_96"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/lencos-umedecidos-johnsons-baby-hora-do-banho-96-unidades/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "lencos_umedecidos", "brand": "johnsons", "product_seed": "johnsons_lencos_96"},
+    },
+    # --- Pague Menos — Pomadas para Assaduras ---
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/pomada-hipoglos-original-30g/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "pomadas", "brand": "hipoglos", "product_seed": "hipoglos_original_30g"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/pomada-bepanthen-bebe-30g/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "pomadas", "brand": "bepanthen", "product_seed": "bepanthen_bebe_30g"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/creme-preventivo-assaduras-granado-bebe-150g/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "pomadas", "brand": "granado", "product_seed": "granado_creme_assaduras_150g"},
+    },
+    # --- Pague Menos — Higiene Baby ---
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/sabonete-liquido-johnsons-baby-hidratacao-intensiva-400ml/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "higiene", "brand": "johnsons", "product_seed": "johnsons_sabonete_400ml"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/shampoo-johnsons-baby-cabelos-claros-400ml/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "higiene", "brand": "johnsons", "product_seed": "johnsons_shampoo_400ml"},
+    },
+    {
+        "module": "ecommerce",
+        "source_name": "paguemenos",
+        "collector_name": "ecommerce.url_scraper",
+        "target_url": "https://www.paguemenos.com.br/talco-johnsons-baby-original-200g/p",
+        "active": True,
+        "metadata_json": {"kind": "production_target", "owner": "data-platform", "category": "baby", "subcategory": "higiene", "brand": "johnsons", "product_seed": "johnsons_talco_200g"},
     },
 ]
 
@@ -369,7 +508,10 @@ def ensure_default_collection_targets() -> int:
             if exact is None:
                 db.add(CollectionTarget(**item))
                 created += 1
-            elif not exact.active:
+            elif not exact.active and item.get("active", True):
+                # Only re-enable if the seed record itself is active.
+                # active=False in DEFAULT_COLLECTION_TARGETS means permanently blocked
+                # (e.g. HTTP 403 providers) — do not override the manual deactivation.
                 exact.active = True
 
             # Deactivate any other collector pointing at the same URL
@@ -992,6 +1134,12 @@ def analytics_job(module: str | None = None, limit: int = 100) -> None:
                     rec.items_processed = result.get("processed", 0)
                     rec.items_skipped = result.get("skipped", 0)
                     rec.items_error = result.get("errors", 0)
+                    rec.items_input = result.get("loaded_normalized", 0)
+                else:
+                    rec.items_input = int(getattr(result, "loaded_normalized", 0) or 0)
+                    rec.items_processed = int(getattr(result, "processed", 0) or 0)
+                    rec.items_error = int(getattr(result, "failed", 0) or 0)
+                    rec.items_skipped = max(0, rec.items_input - rec.items_processed - rec.items_error)
                 logger.info("Analytics processing finished", extra={"pipeline_module": module_name})
             finally:
                 db.close()
@@ -1062,6 +1210,23 @@ def operational_watchdog_job() -> None:
             },
         )
         raise
+
+
+def scheduler_heartbeat_job() -> None:
+    """Proof-of-execution heartbeat written every 5 min by the scheduler process.
+
+    Unlike a Docker health-check (process alive), this proves that APScheduler
+    is actively dispatching jobs.  The timestamp is read by the API container
+    via the shared runtime-data volume and exposed on /system-status.
+    """
+    from app.runtime.scheduler_heartbeat import record_job_execution
+
+    record_job_execution(
+        "scheduler_heartbeat_job",
+        status="success",
+        duration_seconds=0.0,
+    )
+    logger.debug("scheduler_heartbeat_job: heartbeat written")
 
 
 def watchdog_heartbeat_job() -> None:
