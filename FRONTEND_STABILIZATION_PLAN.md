@@ -13,6 +13,12 @@ The local frontend workspace appears to be a pnpm/turbo monorepo with apps under
 - A local Git repository now exists at `C:\Users\dev\Documents\Projetos\poupi-frontend`.
 - Baseline branch: `main`.
 - Baseline commit: `92b2d56 chore: establish frontend baseline`.
+- GitHub remote is configured:
+  - `https://github.com/poupi-hub/poupi-frontend.git`
+- Initial CI workflow exists at `.github/workflows/ci.yml`.
+- Branch `main` was pushed to GitHub.
+- GitHub Actions CI is green on `main`.
+- Green run: `26451821825`.
 - Real `.env.local` files exist under multiple frontend apps:
   - `apps/crypto-dashboard/.env.local`
   - `apps/poupi-baby/.env.local`
@@ -42,7 +48,7 @@ Classification: `PARTIAL`
 
 The frontend can likely be developed locally, but it is not yet production-operationally mature because:
 
-- Deploy reproducibility is proven locally, but not yet in CI/CD or a remote GitHub origin.
+- Deploy reproducibility is proven locally and GitHub CI is green. Next gate is branch protection plus Coolify/CI deploy wiring.
 - Runtime endpoints were previously able to silently point to localhost if env vars were missing; production now fails fast in the centralized helpers.
 - Secrets may remain scattered in local `.env.local` files.
 - Different apps may build against different implicit API targets.
@@ -79,10 +85,9 @@ Rules:
 
 ### Phase 1 - Version Control
 
-1. Confirm whether an upstream GitHub repository already exists.
-2. If it exists, add it as `origin` and compare before pushing.
-3. If it does not exist, create a private GitHub repository and push `main`.
-4. Keep `.env.local`, `.env.production`, `.next`, `node_modules`, and build artifacts ignored.
+1. Keep `.env.local`, `.env.production`, `.next`, `node_modules`, and build artifacts ignored.
+2. Configure branch protection for `main`.
+3. Wire Coolify/CI deploy from GitHub.
 
 ### Phase 2 - Env Hygiene
 
@@ -127,10 +132,10 @@ cd C:\Users\dev\Documents\Projetos\poupi-frontend
 npm run check:prod-env
 ```
 
-Then decide:
+Then configure:
 
-- If a GitHub repo exists: reclone and migrate changes through Git.
-- If no GitHub repo exists: initialize repository and create first baseline commit after approval.
+- GitHub branch protection for `main`.
+- Coolify/CI deploy from GitHub rather than notebook-only state.
 
 ## Do Not Do Yet
 
