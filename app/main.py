@@ -35,6 +35,8 @@ from app.system_status import build_system_status, router as system_status_route
 import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
 from app.watchdog.api import router as watchdog_router
 import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
+from app.modules.trading.validation.api import router as trading_validation_router
+import app.modules.trading.validation.models  # noqa: F401 — ensure TradingSignalOutcome table registered
 from app.normalization import models as normalization_models
 from app.pipeline import models as pipeline_models  # ensure tables are registered
 from app.raw import models as raw_models
@@ -55,6 +57,7 @@ _ = documentation_models
 _ = pipeline_models
 _ = app.scrapers.models
 _ = app.watchdog.models
+_ = app.modules.trading.validation.models
 
 
 def _metrics_refresh_loop(stop_event: threading.Event, interval: int = 60) -> None:
@@ -233,5 +236,6 @@ def create_app() -> FastAPI:
     app.include_router(scrapers_router, dependencies=auth_dep)
     app.include_router(runtime_router, dependencies=auth_dep)
     app.include_router(watchdog_router, dependencies=auth_dep)
+    app.include_router(trading_validation_router, dependencies=auth_dep)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app
