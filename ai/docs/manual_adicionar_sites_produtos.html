@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual — Como Adicionar Novos Sites e Produtos no Poupi</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.65;
+      color: #1e293b;
+      background: #f8fafc;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 48px;
+      background: #fff;
+    }
+
+    /* ── Cover ─────────────────────────────────────────────────────────────── */
+    .cover {
+      text-align: center;
+      padding: 64px 0 48px;
+      border-bottom: 3px solid #6366f1;
+      margin-bottom: 48px;
+    }
+    .cover .badge {
+      display: inline-block;
+      background: #6366f1;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+    }
+    .cover h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .cover .subtitle {
+      font-size: 16px;
+      color: #64748b;
+      max-width: 560px;
+      margin: 0 auto 24px;
+    }
+    .cover .meta {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* ── TOC ───────────────────────────────────────────────────────────────── */
+    .toc {
+      background: #f1f5f9;
+      border-left: 4px solid #6366f1;
+      border-radius: 0 8px 8px 0;
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+    .toc h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #6366f1; margin-bottom: 14px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin: 6px 0; }
+    .toc a { color: #3730a3; text-decoration: none; font-size: 13px; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── Headings ──────────────────────────────────────────────────────────── */
+    h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 48px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 28px 0 10px;
+    }
+    h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 20px 0 8px;
+    }
+
+    /* ── Section number badges ─────────────────────────────────────────────── */
+    h2 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px; height: 32px;
+      background: #6366f1;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 800;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    /* ── Prose ─────────────────────────────────────────────────────────────── */
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 5px 0; }
+    strong { color: #0f172a; }
+
+    /* ── Code ──────────────────────────────────────────────────────────────── */
+    code {
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 12.5px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #7c3aed;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 14px 0;
+      overflow-x: auto;
+      tab-size: 4;
+    }
+    pre .c  { color: #64748b; font-style: italic; }  /* comment */
+    pre .k  { color: #a78bfa; }                       /* keyword */
+    pre .s  { color: #86efac; }                       /* string */
+    pre .n  { color: #7dd3fc; }                       /* name */
+    pre .v  { color: #fbbf24; }                       /* value */
+    pre .p  { color: #e2e8f0; }                       /* punctuation */
+    pre .kw { color: #f472b6; font-weight: bold; }    /* keyword strong */
+    pre .num { color: #fb923c; }                      /* number */
+
+    /* ── Callouts ──────────────────────────────────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body p { margin: 4px 0; }
+    .callout.tip    { background: #f0fdf4; border-left: 4px solid #22c55e; }
+    .callout.warn   { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .callout.info   { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .callout.danger { background: #fef2f2; border-left: 4px solid #ef4444; }
+
+    /* ── Steps ─────────────────────────────────────────────────────────────── */
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 16px 0; }
+    .steps > li {
+      counter-increment: step;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .steps > li::before {
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px; height: 28px;
+      background: #6366f1;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .steps > li .step-content { flex: 1; }
+    .steps > li .step-content strong { display: block; margin-bottom: 4px; }
+
+    /* ── Tables ────────────────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 13px;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 700;
+      text-align: left;
+      padding: 9px 12px;
+      border: 1px solid #e2e8f0;
+      color: #374151;
+    }
+    td {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #f8fafc; }
+
+    /* ── Diagram / flow ────────────────────────────────────────────────────── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .flow-box {
+      background: #ede9fe;
+      border: 2px solid #7c3aed;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #3730a3;
+      text-align: center;
+      min-width: 100px;
+    }
+    .flow-arrow {
+      font-size: 22px;
+      color: #6366f1;
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+
+    /* ── Tags ──────────────────────────────────────────────────────────────── */
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .tag-green  { background: #dcfce7; color: #166534; }
+    .tag-blue   { background: #dbeafe; color: #1e40af; }
+    .tag-yellow { background: #fef9c3; color: #854d0e; }
+    .tag-purple { background: #ede9fe; color: #5b21b6; }
+    .tag-red    { background: #fee2e2; color: #991b1b; }
+
+    /* ── Divider ───────────────────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 40px 0; }
+
+    /* ── Print ─────────────────────────────────────────────────────────────── */
+    @media print {
+      body { background: #fff; font-size: 12px; }
+      .page { padding: 20px 24px; max-width: 100%; }
+      pre { white-space: pre-wrap; font-size: 11px; }
+      h2 { page-break-before: auto; break-before: auto; }
+      .callout, .toc, pre, table { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- COVER                                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="cover">
+    <div class="badge">data-core · Poupi Platform</div>
+    <h1>Como Adicionar Novos Sites<br>e Produtos no Poupi</h1>
+    <p class="subtitle">Guia completo para criar coletores, registrar URLs e expandir o monitoramento de preços para novos e-commerces</p>
+    <p class="meta">Versão 1.0 &nbsp;·&nbsp; Maio 2026 &nbsp;·&nbsp; data-core</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- TOC                                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="toc">
+    <h2>Índice</h2>
+    <ol>
+      <li><a href="#overview">Visão Geral da Arquitetura</a></li>
+      <li><a href="#vtex-or-not">Verificar se o Site é VTEX</a></li>
+      <li><a href="#add-url">Adicionar URL via Banco de Dados (método mais rápido)</a></li>
+      <li><a href="#add-default">Adicionar URL nos Targets Padrão do Código</a></li>
+      <li><a href="#new-store">Adicionar Suporte a uma Nova Loja (VTEX)</a></li>
+      <li><a href="#new-collector">Criar um Coletor do Zero (loja não-VTEX)</a></li>
+      <li><a href="#register">Registrar o Coletor no Registry</a></li>
+      <li><a href="#schedule">Agendar o Coletor no Scheduler</a></li>
+      <li><a href="#verify">Verificar se Está Funcionando</a></li>
+      <li><a href="#troubleshoot">Solução de Problemas</a></li>
+    </ol>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 1 — OVERVIEW                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="overview"><span class="num">1</span> Visão Geral da Arquitetura</h2>
+
+  <p>O sistema de coleta de produtos do Poupi é composto por quatro camadas que se comunicam sequencialmente:</p>
+
+  <div class="flow">
+    <div class="flow-box">collection_targets<br><small>(banco de dados)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">EcommerceURLScraper<br><small>(coletor)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">raw_collections<br><small>(dados brutos)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">normalized_products<br><small>(dados limpos)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">product_price_analytics<br><small>(análises)</small></div>
+  </div>
+
+  <h3>Componentes-chave</h3>
+  <table>
+    <tr>
+      <th>Componente</th>
+      <th>Arquivo</th>
+      <th>Função</th>
+    </tr>
+    <tr>
+      <td><code>collection_targets</code></td>
+      <td><code>database/models.py</code></td>
+      <td>Tabela de URLs que serão coletadas</td>
+    </tr>
+    <tr>
+      <td><code>EcommerceURLScraper</code></td>
+      <td><code>collectors/ecommerce/url_scraper.py</code></td>
+      <td>Scraper com suporte a VTEX e JSON-LD</td>
+    </tr>
+    <tr>
+      <td><code>BaseCollector</code></td>
+      <td><code>collectors/base.py</code></td>
+      <td>Contrato base para todos os coletores</td>
+    </tr>
+    <tr>
+      <td><code>CollectorRegistry</code></td>
+      <td><code>collectors/registry.py</code></td>
+      <td>Mapa de nome → classe do coletor</td>
+    </tr>
+    <tr>
+      <td><code>DEFAULT_COLLECTION_TARGETS</code></td>
+      <td><code>scheduler/jobs.py</code></td>
+      <td>URLs padrão semeadas no banco na inicialização</td>
+    </tr>
+    <tr>
+      <td><code>run_ecommerce_url_targets_job</code></td>
+      <td><code>scheduler/jobs.py</code></td>
+      <td>Job agendado que dispara o scraper a cada 2h</td>
+    </tr>
+  </table>
+
+  <h3>Estratégias de Scraping</h3>
+  <p>O <code>EcommerceURLScraper</code> tenta as estratégias nesta ordem:</p>
+  <ol>
+    <li><strong>VTEX Catalog API</strong> — extrai o <code>productId</code> da URL e chama a API interna da VTEX (<code>/api/catalog_system/pub/products/search?fq=productId:...</code>). Funciona em qualquer loja que use o CMS VTEX.</li>
+    <li><strong>JSON-LD Structured Data</strong> — faz download do HTML e procura por <code>&lt;script type="application/ld+json"&gt;</code> com <code>@type: "Product"</code>. Fallback genérico para qualquer site.</li>
+    <li><strong>Falha documentada</strong> — salva <code>{"success": false, ...}</code> para auditoria.</li>
+  </ol>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 2 — VTEX OR NOT                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="vtex-or-not"><span class="num">2</span> Verificar se o Site é VTEX</h2>
+
+  <p>Antes de adicionar qualquer URL, verifique se a loja usa VTEX. Se usar, o scraper já funciona automaticamente — não é necessário escrever código.</p>
+
+  <h3>Como identificar uma loja VTEX</h3>
+
+  <ul>
+    <li>Abra a página do produto e procure a URL. Se terminar em <code>-&lt;números&gt;.html</code> ou <code>/p/&lt;números&gt;</code>, provavelmente é VTEX.</li>
+    <li>Abra o DevTools (F12) → aba Network → recarregue → procure chamadas para <code>/api/catalog_system/pub/products/search</code>. Se existir, é VTEX.</li>
+    <li>Veja o código-fonte da página (<code>Ctrl+U</code>) e procure por <code>vtex</code>, <code>vtex.com</code> ou <code>VTEX_STATE</code>.</li>
+  </ul>
+
+  <p>Lojas VTEX já suportadas pelo scraper:</p>
+
+  <div style="display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;">
+    <span class="tag tag-green">drogasil</span>
+    <span class="tag tag-green">drogaraia</span>
+    <span class="tag tag-green">pague menos</span>
+    <span class="tag tag-green">nissei</span>
+    <span class="tag tag-green">ultrafarma</span>
+    <span class="tag tag-green">panvel</span>
+    <span class="tag tag-blue">kabum</span>
+    <span class="tag tag-blue">centauro</span>
+    <span class="tag tag-yellow">qualquer loja VTEX</span>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">✅</div>
+    <div class="callout-body">
+      <p><strong>Se o site for VTEX:</strong> pule para a <a href="#add-url">Seção 3</a> e adicione a URL diretamente. Nenhum código novo é necessário.</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">
+      <p><strong>Se o site não for VTEX:</strong> o scraper vai tentar JSON-LD automaticamente. Se também não funcionar, veja a <a href="#new-collector">Seção 6</a> para criar um coletor customizado.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 3 — ADD URL VIA DB                                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="add-url"><span class="num">3</span> Adicionar URL via Banco de Dados</h2>
+
+  <p>Este é o método mais rápido. A URL entra no banco de dados e o scheduler a coleta automaticamente na próxima execução (a cada 2 horas).</p>
+
+  <h3>SQL direto</h3>
+
+  <p>Execute no PostgreSQL (use <code>psql</code>, DBeaver, pgAdmin, etc.):</p>
+
+<pre><span class="k">INSERT INTO</span> collection_targets (
+    id,
+    module,
+    source_name,
+    collector_name,
+    target_url,
+    active,
+    metadata_json,
+    created_at,
+    updated_at
+) <span class="k">VALUES</span> (
+    <span class="n">gen_random_uuid</span>(),
+    <span class="s">'ecommerce'</span>,            <span class="c">-- sempre 'ecommerce' para produtos</span>
+    <span class="s">'drogasil'</span>,             <span class="c">-- nome da loja (snake_case)</span>
+    <span class="s">'ecommerce.url_scraper'</span>, <span class="c">-- sempre este valor</span>
+    <span class="s">'https://www.drogasil.com.br/fralda-pampers-premium-care-m-x44-1351898.html'</span>,
+    <span class="k">true</span>,                   <span class="c">-- true = ativo, false = pausado</span>
+    <span class="s">'{"kind": "product", "owner": "poupi", "category": "baby", "product_seed": "pampers premium care M"}'</span>,
+    <span class="n">now</span>(),
+    <span class="n">now</span>()
+);
+</pre>
+
+  <h3>Campos obrigatórios</h3>
+
+  <table>
+    <tr>
+      <th>Campo</th>
+      <th>Valor</th>
+      <th>Descrição</th>
+    </tr>
+    <tr>
+      <td><code>module</code></td>
+      <td><code>'ecommerce'</code></td>
+      <td>Sempre este valor para produtos</td>
+    </tr>
+    <tr>
+      <td><code>source_name</code></td>
+      <td><code>'nome_da_loja'</code></td>
+      <td>Nome da loja em snake_case (ex: <code>pague_menos</code>)</td>
+    </tr>
+    <tr>
+      <td><code>collector_name</code></td>
+      <td><code>'ecommerce.url_scraper'</code></td>
+      <td>Sempre este valor</td>
+    </tr>
+    <tr>
+      <td><code>target_url</code></td>
+      <td>URL completa</td>
+      <td>URL da página do produto (com https://)</td>
+    </tr>
+    <tr>
+      <td><code>active</code></td>
+      <td><code>true</code></td>
+      <td><code>true</code> = coleta ativa, <code>false</code> = pausada</td>
+    </tr>
+    <tr>
+      <td><code>metadata_json</code></td>
+      <td>JSON</td>
+      <td>Veja campos do metadata abaixo</td>
+    </tr>
+  </table>
+
+  <h3>Campos do metadata_json</h3>
+
+  <table>
+    <tr>
+      <th>Campo</th>
+      <th>Exemplo</th>
+      <th>Descrição</th>
+    </tr>
+    <tr>
+      <td><code>kind</code></td>
+      <td><code>"product"</code></td>
+      <td>Tipo do target (sempre <code>"product"</code> para URLs de produto)</td>
+    </tr>
+    <tr>
+      <td><code>owner</code></td>
+      <td><code>"poupi"</code></td>
+      <td>Sistema ou cliente dono do monitoramento</td>
+    </tr>
+    <tr>
+      <td><code>category</code></td>
+      <td><code>"baby"</code></td>
+      <td>Categoria do produto</td>
+    </tr>
+    <tr>
+      <td><code>product_seed</code></td>
+      <td><code>"pampers premium care M"</code></td>
+      <td>Nome descritivo para identificação humana</td>
+    </tr>
+  </table>
+
+  <h3>Adicionar múltiplos URLs de uma vez</h3>
+
+<pre><span class="k">INSERT INTO</span> collection_targets
+  (id, module, source_name, collector_name, target_url, active, metadata_json, created_at, updated_at)
+<span class="k">VALUES</span>
+  (<span class="n">gen_random_uuid</span>(), <span class="s">'ecommerce'</span>, <span class="s">'drogasil'</span>,    <span class="s">'ecommerce.url_scraper'</span>,
+   <span class="s">'https://www.drogasil.com.br/fralda-pampers-xxg-1351899.html'</span>,
+   <span class="k">true</span>, <span class="s">'{"kind":"product","owner":"poupi","category":"baby","product_seed":"pampers XXG"}'</span>,
+   <span class="n">now</span>(), <span class="n">now</span>()),
+
+  (<span class="n">gen_random_uuid</span>(), <span class="s">'ecommerce'</span>, <span class="s">'drogaraia'</span>,   <span class="s">'ecommerce.url_scraper'</span>,
+   <span class="s">'https://www.drogaraia.com.br/fralda-pampers-xxg-5001234.html'</span>,
+   <span class="k">true</span>, <span class="s">'{"kind":"product","owner":"poupi","category":"baby","product_seed":"pampers XXG"}'</span>,
+   <span class="n">now</span>(), <span class="n">now</span>());
+</pre>
+
+  <div class="callout tip">
+    <div class="callout-icon">⚡</div>
+    <div class="callout-body">
+      <p><strong>Coleta imediata:</strong> após inserir, o scheduler coleta na próxima execução (até 2h). Para testar agora, use o endpoint da API:</p>
+      <p><code>POST /api/v1/pipeline/jobs/run-ecommerce-url-targets</code></p>
+    </div>
+  </div>
+
+  <h3>Desativar uma URL temporariamente</h3>
+
+<pre><span class="k">UPDATE</span> collection_targets
+<span class="k">SET</span> active = <span class="k">false</span>, updated_at = <span class="n">now</span>()
+<span class="k">WHERE</span> target_url = <span class="s">'https://...'</span>;
+</pre>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 4 — DEFAULT TARGETS                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="add-default"><span class="num">4</span> Adicionar nos Targets Padrão do Código</h2>
+
+  <p>Se você quer que a URL seja semeada automaticamente sempre que o sistema inicializar (útil para produtos essenciais do Poupi), adicione em <code>scheduler/jobs.py</code> na lista <code>DEFAULT_COLLECTION_TARGETS</code>.</p>
+
+<pre><span class="c"># scheduler/jobs.py</span>
+
+DEFAULT_COLLECTION_TARGETS: <span class="n">list</span>[<span class="n">dict</span>] = [
+    <span class="c"># ... targets existentes ...</span>
+
+    <span class="c"># Adicione aqui no final:</span>
+    {
+        <span class="s">"module"</span>:         <span class="s">"ecommerce"</span>,
+        <span class="s">"source_name"</span>:    <span class="s">"minha_nova_loja"</span>,
+        <span class="s">"collector_name"</span>: <span class="s">"ecommerce.url_scraper"</span>,
+        <span class="s">"target_url"</span>:     <span class="s">"https://www.minhaloja.com.br/produto-123.html"</span>,
+        <span class="s">"active"</span>:         <span class="k">True</span>,
+        <span class="s">"metadata_json"</span>: {
+            <span class="s">"kind"</span>:         <span class="s">"product"</span>,
+            <span class="s">"owner"</span>:        <span class="s">"poupi"</span>,
+            <span class="s">"category"</span>:     <span class="s">"baby"</span>,
+            <span class="s">"product_seed"</span>: <span class="s">"nome do produto para referência"</span>,
+        },
+    },
+]
+</pre>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <p><strong>Atenção:</strong> A função <code>ensure_default_collection_targets()</code> é idempotente — ela usa <code>INSERT OR IGNORE</code> baseado na chave única <code>(module, source_name, collector_name, target_url)</code>. Duplicatas não são inseridas.</p>
+      <p>Após alterar o código, reinicie o container do scheduler para que a semeadura ocorra:</p>
+      <p><code>docker restart data-core-scheduler-1</code></p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 5 — NEW STORE VTEX                                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="new-store"><span class="num">5</span> Adicionar Suporte a uma Nova Loja VTEX</h2>
+
+  <p>O <code>EcommerceURLScraper</code> detecta o domínio da URL e aplica regras específicas por loja. Para adicionar uma nova loja VTEX com comportamento padrão, abra <code>collectors/ecommerce/url_scraper.py</code> e localize o dicionário de lojas suportadas.</p>
+
+  <h3>Estrutura atual</h3>
+
+<pre><span class="c"># collectors/ecommerce/url_scraper.py</span>
+
+VTEX_STORES = {
+    <span class="s">"drogasil.com.br"</span>:    <span class="s">"drogasil"</span>,
+    <span class="s">"drogaraia.com.br"</span>:   <span class="s">"drogaraia"</span>,
+    <span class="s">"paguemenos.com.br"</span>:  <span class="s">"pague_menos"</span>,
+    <span class="s">"nissei.com.br"</span>:      <span class="s">"nissei"</span>,
+    <span class="s">"ultrafarma.com.br"</span>:  <span class="s">"ultrafarma"</span>,
+    <span class="s">"panvel.com"</span>:         <span class="s">"panvel"</span>,
+    <span class="c"># ↓ Adicione aqui</span>
+    <span class="s">"novafarma.com.br"</span>:   <span class="s">"nova_farma"</span>,
+}
+</pre>
+
+  <p>Adicione a entrada com o domínio da loja (sem <code>https://www.</code>) mapeado para um <code>store_name</code> em snake_case. Isso é suficiente para que o scraper identifique a loja e tente a API VTEX automaticamente.</p>
+
+  <div class="callout tip">
+    <div class="callout-icon">🔍</div>
+    <div class="callout-body">
+      <p><strong>Teste rápido antes de adicionar:</strong> verifique se a API VTEX funciona manualmente abrindo no navegador:</p>
+      <p><code>https://www.novafarma.com.br/api/catalog_system/pub/products/search?fq=productId:123456</code></p>
+      <p>Se retornar JSON com dados do produto, a integração VTEX funcionará automaticamente.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 6 — NEW COLLECTOR                                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="new-collector"><span class="num">6</span> Criar um Coletor do Zero (Loja Não-VTEX)</h2>
+
+  <p>Se o site não usa VTEX e não tem JSON-LD estruturado, você precisa criar um <code>BaseCollector</code> customizado com lógica de scraping específica.</p>
+
+  <h3>Template completo</h3>
+
+<pre><span class="c"># collectors/ecommerce/minha_loja_collector.py</span>
+<span class="k">from</span> <span class="n">__future__</span> <span class="k">import</span> annotations
+<span class="k">import</span> requests
+<span class="k">from</span> collectors.base <span class="k">import</span> BaseCollector, CollectedItem, CollectorMetadata, CollectorDomain
+
+
+<span class="kw">class</span> <span class="n">MinhaLojaCollector</span>(BaseCollector):
+    <span class="s">"""
+    Coletor para minha-loja.com.br.
+    Estratégia: HTML scraping com BeautifulSoup.
+    """</span>
+
+    <span class="c"># ── Metadados do coletor (obrigatórios) ─────────────────────</span>
+    metadata = CollectorMetadata(
+        name=<span class="s">"ecommerce.minha_loja"</span>,         <span class="c"># chave única no registry</span>
+        domain=CollectorDomain.ECOMMERCE,
+        source=<span class="s">"minha_loja"</span>,
+        description=<span class="s">"Coleta preços de minha-loja.com.br"</span>,
+        default_interval_minutes=<span class="num">120</span>,
+        collector_version=<span class="s">"1.0.0"</span>,
+        raw_schema_name=<span class="s">"scrapedProduct"</span>,
+        raw_schema_version=<span class="s">"1.0.0"</span>,
+        schedulable=<span class="k">True</span>,
+    )
+
+    <span class="c"># ── URLs de produtos a coletar (ou busque do config/DB) ──────</span>
+    PRODUCT_URLS: list[str] = [
+        <span class="s">"https://www.minha-loja.com.br/produto-abc"</span>,
+        <span class="s">"https://www.minha-loja.com.br/produto-xyz"</span>,
+    ]
+
+    <span class="kw">def</span> <span class="n">collect</span>(self) -> list[CollectedItem]:
+        <span class="s">"""Implementação obrigatória do BaseCollector."""</span>
+        items = []
+        headers = {<span class="s">"User-Agent"</span>: <span class="s">"Mozilla/5.0 (compatible; PouplBot/1.0)"</span>}
+
+        <span class="k">for</span> url <span class="k">in</span> self.PRODUCT_URLS:
+            <span class="k">try</span>:
+                resp = requests.get(url, headers=headers, timeout=<span class="num">15</span>)
+                resp.raise_for_status()
+
+                <span class="c"># Extraia os dados conforme o HTML da loja</span>
+                price = self._extract_price(resp.text)
+                title = self._extract_title(resp.text)
+
+                payload = {
+                    <span class="s">"success"</span>:        <span class="k">True</span>,
+                    <span class="s">"scrapedProduct"</span>: {
+                        <span class="s">"title"</span>:        title,
+                        <span class="s">"price"</span>:        price,
+                        <span class="s">"currency"</span>:     <span class="s">"BRL"</span>,
+                        <span class="s">"availability"</span>: <span class="s">"in_stock"</span>,
+                        <span class="s">"store_name"</span>:   <span class="s">"minha_loja"</span>,
+                        <span class="s">"url"</span>:          url,
+                        <span class="s">"scraper_strategy"</span>: <span class="s">"custom_html"</span>,
+                    }
+                }
+                items.append(CollectedItem(
+                    payload=payload,
+                    external_id=url,
+                    source_url=url,
+                    metadata={<span class="s">"store"</span>: <span class="s">"minha_loja"</span>},
+                ))
+            <span class="k">except</span> Exception <span class="k">as</span> e:
+                items.append(CollectedItem(
+                    payload={<span class="s">"success"</span>: <span class="k">False</span>, <span class="s">"error_message"</span>: str(e)},
+                    external_id=url,
+                    source_url=url,
+                    metadata={},
+                ))
+
+        <span class="k">return</span> items
+
+    <span class="kw">def</span> <span class="n">_extract_price</span>(self, html: str) -> float | None:
+        <span class="c"># Implemente extração específica da loja</span>
+        <span class="k">from</span> bs4 <span class="k">import</span> BeautifulSoup
+        soup = BeautifulSoup(html, <span class="s">"html.parser"</span>)
+        el = soup.select_one(<span class="s">".product-price"</span>)  <span class="c"># ajuste o seletor</span>
+        <span class="k">if</span> el:
+            <span class="k">return</span> float(el.text.strip().replace(<span class="s">"R$"</span>, <span class="s">""</span>).replace(<span class="s">","</span>, <span class="s">"."</span>).strip())
+        <span class="k">return</span> <span class="k">None</span>
+
+    <span class="kw">def</span> <span class="n">_extract_title</span>(self, html: str) -> str | None:
+        <span class="k">from</span> bs4 <span class="k">import</span> BeautifulSoup
+        soup = BeautifulSoup(html, <span class="s">"html.parser"</span>)
+        el = soup.select_one(<span class="s">"h1.product-name"</span>)  <span class="c"># ajuste o seletor</span>
+        <span class="k">return</span> el.text.strip() <span class="k">if</span> el <span class="k">else</span> <span class="k">None</span>
+</pre>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 7 — REGISTER                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="register"><span class="num">7</span> Registrar o Coletor no Registry</h2>
+
+  <p>Abra <code>collectors/registry.py</code> e adicione seu coletor:</p>
+
+<pre><span class="c"># collectors/registry.py</span>
+<span class="k">from</span> collectors.ecommerce.minha_loja_collector <span class="k">import</span> MinhaLojaCollector
+
+<span class="c"># No corpo do CollectorRegistry (ou no dict de inicialização):</span>
+_registry: dict[str, type[BaseCollector]] = {
+    <span class="c"># ... entradas existentes ...</span>
+    MinhaLojaCollector.metadata.name: MinhaLojaCollector,  <span class="c"># ← adicione</span>
+}
+</pre>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 8 — SCHEDULE                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="schedule"><span class="num">8</span> Agendar o Coletor no Scheduler</h2>
+
+  <p>Se seu coletor é um <code>BaseCollector</code> com <code>schedulable=True</code>, adicione-o ao mapeamento em <code>scheduler/jobs.py</code>:</p>
+
+<pre><span class="c"># scheduler/jobs.py</span>
+
+MODULE_COLLECTORS = {
+    <span class="s">"ecommerce"</span>: [
+        <span class="s">"ecommerce.generic_product"</span>,
+        <span class="s">"ecommerce.minha_loja"</span>,  <span class="c"># ← adicione aqui</span>
+    ],
+    <span class="c"># ... outros módulos ...</span>
+}
+</pre>
+
+  <p>Se quiser agendar com horário específico, adicione um job no <code>scheduler/service.py</code>:</p>
+
+<pre><span class="c"># scheduler/service.py</span>
+<span class="k">from</span> scheduler.jobs <span class="k">import</span> collect_raw_job
+
+scheduler.add_job(
+    collect_raw_job,
+    <span class="s">"interval"</span>,
+    hours=<span class="num">2</span>,
+    kwargs={<span class="s">"collector_name"</span>: <span class="s">"ecommerce.minha_loja"</span>},
+    id=<span class="s">"collect_minha_loja"</span>,
+    replace_existing=<span class="k">True</span>,
+)
+</pre>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 9 — VERIFY                                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="verify"><span class="num">9</span> Verificar se Está Funcionando</h2>
+
+  <ol class="steps">
+    <li>
+      <div class="step-content">
+        <strong>Verifique se a URL foi inserida no banco</strong>
+<pre><span class="k">SELECT</span> id, source_name, target_url, active, created_at
+<span class="k">FROM</span> collection_targets
+<span class="k">WHERE</span> module = <span class="s">'ecommerce'</span>
+<span class="k">ORDER BY</span> created_at <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="num">10</span>;
+</pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-content">
+        <strong>Verifique se existem coletas para a URL</strong>
+<pre><span class="k">SELECT</span> rc.id, rc.source_name, rc.processing_status, rc.collected_at,
+       rc.raw_json->><span class="s">'success'</span> <span class="k">as</span> success,
+       rc.raw_json-><span class="s">'scrapedProduct'</span>->><span class="s">'price'</span> <span class="k">as</span> price
+<span class="k">FROM</span> raw_collections rc
+<span class="k">WHERE</span> rc.source_name = <span class="s">'minha_loja'</span>
+<span class="k">ORDER BY</span> rc.collected_at <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="num">5</span>;
+</pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-content">
+        <strong>Verifique se normalizou corretamente</strong>
+<pre><span class="k">SELECT</span> id, store_name, title, price, availability, collected_at, analytics_status
+<span class="k">FROM</span> normalized_products
+<span class="k">WHERE</span> store_name = <span class="s">'minha_loja'</span>
+<span class="k">ORDER BY</span> collected_at <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="num">5</span>;
+</pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-content">
+        <strong>Veja o histórico de execuções do job</strong>
+<pre><span class="k">SELECT</span> collector_name, status, items_collected, error_count, started_at, finished_at
+<span class="k">FROM</span> collection_runs
+<span class="k">WHERE</span> collector_name <span class="k">LIKE</span> <span class="s">'%minha_loja%'</span>
+<span class="k">ORDER BY</span> started_at <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="num">10</span>;
+</pre>
+      </div>
+    </li>
+    <li>
+      <div class="step-content">
+        <strong>Dispare uma coleta manual via API</strong>
+<pre>curl -X POST https://seu-api/api/v1/pipeline/jobs/run-ecommerce-url-targets \
+     -H "X-API-Key: sua-chave"
+</pre>
+      </div>
+    </li>
+  </ol>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- 10 — TROUBLESHOOT                                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="troubleshoot"><span class="num">10</span> Solução de Problemas</h2>
+
+  <table>
+    <tr>
+      <th>Sintoma</th>
+      <th>Causa Provável</th>
+      <th>Solução</th>
+    </tr>
+    <tr>
+      <td><code>success: false</code> em <code>raw_collections</code></td>
+      <td>URL inválida, produto fora de estoque, site com anti-bot</td>
+      <td>Verifique <code>error_message</code> no <code>raw_json</code>. Tente abrir a URL no navegador.</td>
+    </tr>
+    <tr>
+      <td>Nenhuma linha em <code>raw_collections</code> após esperar</td>
+      <td>URL com <code>active=false</code> ou coletor não registrado</td>
+      <td>Verifique <code>SELECT active FROM collection_targets WHERE target_url=...</code></td>
+    </tr>
+    <tr>
+      <td><code>scraper_strategy: "failure"</code></td>
+      <td>Nem VTEX nem JSON-LD encontrados</td>
+      <td>O site não é VTEX e não tem JSON-LD. Crie um coletor customizado (Seção 6).</td>
+    </tr>
+    <tr>
+      <td>Produto normalizado mas <code>price</code> é NULL</td>
+      <td>Normalizer não encontrou o campo price no payload</td>
+      <td>Verifique se o <code>scrapedProduct.price</code> está no <code>raw_json</code>.</td>
+    </tr>
+    <tr>
+      <td>URL duplicada no banco</td>
+      <td>Constraint única <code>(module, source_name, collector_name, target_url)</code></td>
+      <td>Normal — o sistema rejeita duplicatas automaticamente.</td>
+    </tr>
+    <tr>
+      <td>Coleta travada (<code>status=running</code> por +30 min)</td>
+      <td>Job travou; circuit breaker ativo</td>
+      <td><code>cleanup_stale_runs_job</code> corrige automaticamente. Ou execute: <code>UPDATE collection_runs SET status='failed' WHERE status='running' AND started_at &lt; now()-interval '30 min'</code></td>
+    </tr>
+    <tr>
+      <td>Erro <code>ImportError</code> ao importar coletor</td>
+      <td>Dependência ausente (ex: <code>beautifulsoup4</code>)</td>
+      <td>Adicione ao <code>requirements.txt</code> e reconstrua a imagem Docker.</td>
+    </tr>
+  </table>
+
+  <hr>
+  <p style="color:#94a3b8; font-size:12px; text-align:center; margin-top:32px;">
+    data-core · Manual Técnico v1.0 · Maio 2026 · Para imprimir como PDF: Ctrl+P → Salvar como PDF
+  </p>
+
+</div>
+</body>
+</html>

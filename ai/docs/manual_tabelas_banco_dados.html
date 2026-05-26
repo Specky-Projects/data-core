@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual — Guia das Tabelas do Banco de Dados · data-core</title>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.65;
+      color: #1e293b;
+      background: #f8fafc;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────────── */
+    .page {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 40px 48px;
+      background: #fff;
+    }
+
+    /* ── Cover ─────────────────────────────────────────────────────────────── */
+    .cover {
+      text-align: center;
+      padding: 64px 0 48px;
+      border-bottom: 3px solid #0ea5e9;
+      margin-bottom: 48px;
+    }
+    .cover .badge {
+      display: inline-block;
+      background: #0ea5e9;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+    }
+    .cover h1 { font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1.2; margin-bottom: 12px; }
+    .cover .subtitle { font-size: 16px; color: #64748b; max-width: 600px; margin: 0 auto 24px; }
+    .cover .meta { font-size: 12px; color: #94a3b8; }
+
+    /* ── TOC ───────────────────────────────────────────────────────────────── */
+    .toc {
+      background: #f0f9ff;
+      border-left: 4px solid #0ea5e9;
+      border-radius: 0 8px 8px 0;
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+    .toc h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0284c7; margin-bottom: 14px; }
+    .toc-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 32px; }
+    .toc a { color: #0369a1; text-decoration: none; font-size: 12.5px; display: block; padding: 2px 0; }
+    .toc a:hover { text-decoration: underline; }
+    .toc-section { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin: 12px 0 4px; }
+
+    /* ── Data flow diagram ─────────────────────────────────────────────────── */
+    .dataflow {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 28px;
+      margin: 24px 0;
+      color: #e2e8f0;
+      font-family: 'Consolas', monospace;
+      font-size: 12.5px;
+      line-height: 1.8;
+    }
+    .dataflow .layer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 6px 0;
+    }
+    .dataflow .lbl {
+      font-size: 10px;
+      color: #64748b;
+      width: 80px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .dataflow .tables {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dataflow .tbl {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .tbl-core   { background: #1e1b4b; color: #a5b4fc; border-color: #4f46e5; }
+    .tbl-raw    { background: #0c1a2e; color: #7dd3fc; border-color: #0ea5e9; }
+    .tbl-norm   { background: #0a1628; color: #6ee7b7; border-color: #10b981; }
+    .tbl-anlyt  { background: #1a0a2e; color: #c4b5fd; border-color: #7c3aed; }
+    .tbl-pipe   { background: #1a1000; color: #fde68a; border-color: #d97706; }
+    .tbl-qual   { background: #1a0a0a; color: #fca5a5; border-color: #dc2626; }
+    .tbl-gov    { background: #0a1a0a; color: #86efac; border-color: #16a34a; }
+    .tbl-domain { background: #1a1000; color: #fed7aa; border-color: #ea580c; }
+    .dataflow .arrow { color: #475569; margin: 2px 0; padding-left: 86px; font-size: 16px; }
+
+    /* ── Headings ──────────────────────────────────────────────────────────── */
+    h2 {
+      font-size: 20px; font-weight: 800; color: #0f172a;
+      margin: 52px 0 16px; padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    h2 .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-size: 13px; font-weight: 800;
+      margin-right: 10px; vertical-align: middle;
+    }
+    h3 { font-size: 15px; font-weight: 700; color: #1e293b; margin: 28px 0 10px; }
+
+    /* ── Table group styles ────────────────────────────────────────────────── */
+    .group-core   h2 .num { background: #4f46e5; color: #fff; }
+    .group-raw    h2 .num { background: #0ea5e9; color: #fff; }
+    .group-norm   h2 .num { background: #10b981; color: #fff; }
+    .group-anlyt  h2 .num { background: #7c3aed; color: #fff; }
+    .group-pipe   h2 .num { background: #d97706; color: #fff; }
+    .group-qual   h2 .num { background: #dc2626; color: #fff; }
+    .group-gov    h2 .num { background: #16a34a; color: #fff; }
+    .group-domain h2 .num { background: #ea580c; color: #fff; }
+
+    /* ── Prose ─────────────────────────────────────────────────────────────── */
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 24px; margin: 10px 0; }
+    li { margin: 5px 0; }
+    strong { color: #0f172a; }
+
+    /* ── Code ──────────────────────────────────────────────────────────────── */
+    code {
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #7c3aed;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 12px 0;
+      overflow-x: auto;
+    }
+    pre .c  { color: #64748b; font-style: italic; }
+    pre .k  { color: #a78bfa; }
+    pre .s  { color: #86efac; }
+    pre .n  { color: #7dd3fc; }
+
+    /* ── Column tables ─────────────────────────────────────────────────────── */
+    .col-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12.5px; }
+    .col-table th {
+      background: #f1f5f9; font-weight: 700; text-align: left;
+      padding: 7px 10px; border: 1px solid #e2e8f0; color: #374151;
+    }
+    .col-table td { padding: 6px 10px; border: 1px solid #e2e8f0; vertical-align: top; }
+    .col-table tr:nth-child(even) td { background: #f8fafc; }
+    .col-table .pk  { color: #d97706; font-weight: 700; }
+    .col-table .fk  { color: #2563eb; }
+    .col-table .idx { color: #16a34a; }
+    .col-table .uniq { color: #7c3aed; }
+
+    /* ── Table card ────────────────────────────────────────────────────────── */
+    .table-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin: 24px 0;
+      overflow: hidden;
+    }
+    .table-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .table-card-header .tname {
+      font-family: 'Consolas', monospace;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .table-card-header .tdesc {
+      font-size: 12.5px;
+      color: #64748b;
+    }
+    .table-card-body { padding: 0 18px 14px; }
+
+    /* ── Summary table (index) ─────────────────────────────────────────────── */
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 12px 0; }
+    .summary-table th { background: #f1f5f9; font-weight: 700; padding: 8px 12px; border: 1px solid #e2e8f0; text-align: left; }
+    .summary-table td { padding: 7px 12px; border: 1px solid #e2e8f0; vertical-align: top; }
+    .summary-table tr:nth-child(even) td { background: #f8fafc; }
+
+    /* ── Callouts ──────────────────────────────────────────────────────────── */
+    .callout {
+      display: flex; gap: 14px; padding: 14px 18px;
+      border-radius: 8px; margin: 14px 0; font-size: 13px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; }
+    .callout.tip    { background: #f0fdf4; border-left: 4px solid #22c55e; }
+    .callout.info   { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .callout.warn   { background: #fffbeb; border-left: 4px solid #f59e0b; }
+
+    /* ── Layer badge ───────────────────────────────────────────────────────── */
+    .layer-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+    .lb-core   { background: #ede9fe; color: #4f46e5; }
+    .lb-raw    { background: #e0f2fe; color: #0369a1; }
+    .lb-norm   { background: #dcfce7; color: #166534; }
+    .lb-anlyt  { background: #f3e8ff; color: #5b21b6; }
+    .lb-pipe   { background: #fef3c7; color: #92400e; }
+    .lb-qual   { background: #fee2e2; color: #991b1b; }
+    .lb-gov    { background: #dcfce7; color: #14532d; }
+    .lb-domain { background: #fff7ed; color: #9a3412; }
+
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 40px 0; }
+
+    /* ── Print ─────────────────────────────────────────────────────────────── */
+    @media print {
+      body { background: #fff; font-size: 11px; }
+      .page { padding: 16px 20px; max-width: 100%; }
+      pre { white-space: pre-wrap; font-size: 10px; }
+      .table-card { break-inside: avoid; }
+      h2 { break-before: auto; }
+      .callout { break-inside: avoid; }
+      .dataflow { break-inside: avoid; color-adjust: exact; -webkit-print-color-adjust: exact; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- COVER                                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="cover">
+    <div class="badge">data-core · Referência Técnica</div>
+    <h1>Guia das Tabelas<br>do Banco de Dados</h1>
+    <p class="subtitle">Referência completa de todas as 40 tabelas PostgreSQL: propósito, colunas, relacionamentos e exemplos de consulta</p>
+    <p class="meta">Versão 1.0 &nbsp;·&nbsp; Maio 2026 &nbsp;·&nbsp; data-core</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- FLUXO DE DADOS                                                         -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h3>Fluxo de dados ponta a ponta</h3>
+
+  <div class="dataflow">
+    <div class="layer">
+      <span class="lbl">CORE</span>
+      <div class="tables">
+        <span class="tbl tbl-core">collection_targets</span>
+        <span class="tbl tbl-core">collector_definitions</span>
+        <span class="tbl tbl-core">collection_runs</span>
+        <span class="tbl tbl-core">collected_records</span>
+        <span class="tbl tbl-core">collector_errors</span>
+      </div>
+    </div>
+    <div class="arrow">↓ coletor executa, salva bruto</div>
+    <div class="layer">
+      <span class="lbl">RAW</span>
+      <div class="tables">
+        <span class="tbl tbl-raw">raw_collections</span>
+        <span class="tbl tbl-raw">collector_versions</span>
+      </div>
+    </div>
+    <div class="arrow">↓ normalizer processa raw_json</div>
+    <div class="layer">
+      <span class="lbl">NORMALIZED</span>
+      <div class="tables">
+        <span class="tbl tbl-norm">normalized_products</span>
+        <span class="tbl tbl-norm">normalized_market_candles</span>
+        <span class="tbl tbl-norm">normalized_crypto_snapshots</span>
+        <span class="tbl tbl-norm">normalized_real_estate_listings</span>
+        <span class="tbl tbl-norm">normalized_sports_odds</span>
+      </div>
+    </div>
+    <div class="arrow">↓ analytics processor calcula métricas</div>
+    <div class="layer">
+      <span class="lbl">ANALYTICS</span>
+      <div class="tables">
+        <span class="tbl tbl-anlyt">product_price_analytics</span>
+        <span class="tbl tbl-anlyt">crypto_analytics</span>
+        <span class="tbl tbl-anlyt">trading_analytics</span>
+        <span class="tbl tbl-anlyt">real_estate_analytics</span>
+        <span class="tbl tbl-anlyt">sports_odds_analytics</span>
+      </div>
+    </div>
+    <div class="arrow">↓ instrumentação cruzada</div>
+    <div class="layer">
+      <span class="lbl">OBSERV.</span>
+      <div class="tables">
+        <span class="tbl tbl-pipe">pipeline_runs</span>
+        <span class="tbl tbl-pipe">pipeline_failures</span>
+        <span class="tbl tbl-qual">data_quality_runs</span>
+        <span class="tbl tbl-gov">data_lineage</span>
+        <span class="tbl tbl-gov">data_contracts</span>
+      </div>
+    </div>
+    <div class="arrow">↓ domínios com tabelas próprias</div>
+    <div class="layer">
+      <span class="lbl">DOMAIN</span>
+      <div class="tables">
+        <span class="tbl tbl-domain">real_estate_listings</span>
+        <span class="tbl tbl-domain">real_estate_price_history</span>
+        <span class="tbl tbl-domain">sports_events</span>
+        <span class="tbl tbl-domain">sports_odds_snapshots</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- TOC                                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="toc">
+    <h2>Índice de Tabelas</h2>
+    <div class="toc-cols">
+      <div>
+        <div class="toc-section">Core Operacional</div>
+        <a href="#t-collection-targets">collection_targets</a>
+        <a href="#t-collector-definitions">collector_definitions</a>
+        <a href="#t-collection-runs">collection_runs</a>
+        <a href="#t-collected-records">collected_records</a>
+        <a href="#t-collector-errors">collector_errors</a>
+        <div class="toc-section">Camada Raw</div>
+        <a href="#t-raw-collections">raw_collections</a>
+        <a href="#t-collector-versions">collector_versions</a>
+        <div class="toc-section">Camada Normalizada</div>
+        <a href="#t-normalized-products">normalized_products</a>
+        <a href="#t-normalized-candles">normalized_market_candles</a>
+        <a href="#t-normalized-crypto">normalized_crypto_snapshots</a>
+        <a href="#t-normalized-re">normalized_real_estate_listings</a>
+        <a href="#t-normalized-sports">normalized_sports_odds</a>
+        <a href="#t-normalizer-versions">normalizer_versions</a>
+        <div class="toc-section">Camada Analytics</div>
+        <a href="#t-price-analytics">product_price_analytics</a>
+        <a href="#t-crypto-analytics">crypto_analytics</a>
+        <a href="#t-trading-analytics">trading_analytics</a>
+        <a href="#t-re-analytics">real_estate_analytics</a>
+        <a href="#t-sports-analytics">sports_odds_analytics</a>
+      </div>
+      <div>
+        <div class="toc-section">Observabilidade</div>
+        <a href="#t-pipeline-runs">pipeline_runs</a>
+        <a href="#t-pipeline-failures">pipeline_failures</a>
+        <div class="toc-section">Qualidade de Dados</div>
+        <a href="#t-dq-runs">data_quality_runs</a>
+        <div class="toc-section">Governança</div>
+        <a href="#t-lineage">data_lineage</a>
+        <a href="#t-schema-docs">schema_documentation</a>
+        <a href="#t-entity-rel">entity_relationships</a>
+        <a href="#t-owners">data_owners</a>
+        <a href="#t-slas">data_slas</a>
+        <a href="#t-contracts">data_contracts</a>
+        <div class="toc-section">Domínio Real Estate</div>
+        <a href="#t-re-sources">real_estate_sources</a>
+        <a href="#t-re-listings">real_estate_listings</a>
+        <a href="#t-re-price-hist">real_estate_price_history</a>
+        <a href="#t-re-raw-pages">real_estate_raw_pages</a>
+        <div class="toc-section">Domínio Sports Odds</div>
+        <a href="#t-sportsbooks">sportsbooks</a>
+        <a href="#t-leagues">sports_leagues</a>
+        <a href="#t-events">sports_events</a>
+        <a href="#t-markets">sports_markets</a>
+        <a href="#t-odds-snaps">sports_odds_snapshots</a>
+        <a href="#t-sports-raw">sports_raw_payloads</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 1: CORE OPERACIONAL                                              -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-core">
+    <h2><span class="num">1</span> Core Operacional <span class="layer-badge lb-core">Core</span></h2>
+    <p>Tabelas que gerenciam o ciclo de vida das coletas: quais URLs coletar, quais coletores existem, quais execuções ocorreram e quais erros aconteceram.</p>
+
+    <!-- collection_targets -->
+    <div class="table-card" id="t-collection-targets">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collection_targets</div>
+          <div class="tdesc">URLs que serão coletadas pelo sistema de scraping</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador único</td></tr>
+          <tr><td><code class="idx">module</code></td><td>String(80)</td><td>Módulo dono (<code>ecommerce</code>, <code>real_estate</code>…)</td></tr>
+          <tr><td><code class="idx">source_name</code></td><td>String(160)</td><td>Nome da loja/fonte (ex: <code>drogasil</code>)</td></tr>
+          <tr><td><code class="idx">collector_name</code></td><td>String(160)</td><td>Coletor responsável (ex: <code>ecommerce.url_scraper</code>)</td></tr>
+          <tr><td><code>target_url</code></td><td>Text</td><td>URL completa do produto a ser coletado</td></tr>
+          <tr><td><code class="idx">active</code></td><td>Boolean</td><td><code>true</code> = coleta ativa; <code>false</code> = pausada</td></tr>
+          <tr><td><code>metadata_json</code></td><td>JSONB</td><td>Dados extras: <code>kind</code>, <code>owner</code>, <code>category</code>, <code>product_seed</code></td></tr>
+          <tr><td><code>created_at / updated_at</code></td><td>DateTime TZ</td><td>Auditoria temporal</td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> <code>(module, source_name, collector_name, target_url)</code></p>
+        <pre><span class="c">-- Todos os targets ativos do ecommerce</span>
+<span class="k">SELECT</span> source_name, target_url, metadata_json->><span class="s">'product_seed'</span> <span class="k">as</span> produto
+<span class="k">FROM</span> collection_targets
+<span class="k">WHERE</span> module = <span class="s">'ecommerce'</span> <span class="k">AND</span> active = <span class="k">true</span>
+<span class="k">ORDER BY</span> source_name;</pre>
+      </div>
+    </div>
+
+    <!-- collector_definitions -->
+    <div class="table-card" id="t-collector-definitions">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collector_definitions</div>
+          <div class="tdesc">Registro mestre dos coletores disponíveis no sistema</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="uniq idx">name</code></td><td>String(160)</td><td>Nome único (ex: <code>ecommerce.url_scraper</code>)</td></tr>
+          <tr><td><code class="idx">domain</code></td><td>Enum</td><td><code>real_estate | ecommerce | crypto | sports_betting</code></td></tr>
+          <tr><td><code class="idx">source</code></td><td>String(160)</td><td>Fonte lógica do coletor</td></tr>
+          <tr><td><code>enabled</code></td><td>Boolean</td><td>Coletor habilitado no sistema</td></tr>
+          <tr><td><code>config</code></td><td>JSONB</td><td>Configurações do coletor (parâmetros, credenciais referenciadas)</td></tr>
+          <tr><td><code>created_at / updated_at</code></td><td>DateTime TZ</td><td>Auditoria</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- collection_runs -->
+    <div class="table-card" id="t-collection-runs">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collection_runs</div>
+          <div class="tdesc">Histórico de cada execução de coleta (job run)</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="fk">collector_id</code></td><td>UUID FK → collector_definitions</td><td>Coletor que rodou</td></tr>
+          <tr><td><code class="idx">collector_name</code></td><td>String(160)</td><td>Nome do coletor (desnormalizado)</td></tr>
+          <tr><td><code class="idx">module / domain / source</code></td><td>String/Enum</td><td>Contexto do coletor</td></tr>
+          <tr><td><code class="idx">status</code></td><td>Enum</td><td><code>pending | running | success | failed | partial</code></td></tr>
+          <tr><td><code>started_at / finished_at</code></td><td>DateTime TZ</td><td>Início e fim da execução</td></tr>
+          <tr><td><code>items_collected / raw_saved_count</code></td><td>Integer</td><td>Itens coletados e salvos</td></tr>
+          <tr><td><code>error_count / error_message</code></td><td>Int / Text</td><td>Erros durante coleta</td></tr>
+          <tr><td><code>metadata_json</code></td><td>JSONB</td><td>Dados extras da execução</td></tr>
+        </table>
+        <pre><span class="c">-- Últimas execuções com erros</span>
+<span class="k">SELECT</span> collector_name, status, error_count, error_message, started_at
+<span class="k">FROM</span> collection_runs
+<span class="k">WHERE</span> status <span class="k">IN</span> (<span class="s">'failed'</span>, <span class="s">'partial'</span>)
+<span class="k">ORDER BY</span> started_at <span class="k">DESC LIMIT</span> 20;</pre>
+      </div>
+    </div>
+
+    <!-- collected_records -->
+    <div class="table-card" id="t-collected-records">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collected_records</div>
+          <div class="tdesc">Registros individuais coletados (alternativa ao raw_collections para coletores BaseCollector)</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="fk">run_id</code></td><td>UUID FK → collection_runs</td><td>Execução que gerou o registro</td></tr>
+          <tr><td><code class="idx">collector_name / domain / source</code></td><td>String</td><td>Origem do dado</td></tr>
+          <tr><td><code>external_id</code></td><td>String(255)</td><td>ID externo do item (chave da fonte)</td></tr>
+          <tr><td><code>source_url</code></td><td>Text</td><td>URL de origem</td></tr>
+          <tr><td><code>payload</code></td><td>JSONB</td><td>Dados brutos coletados</td></tr>
+          <tr><td><code class="idx">payload_hash</code></td><td>String(64)</td><td>SHA-256 do payload (deduplicação)</td></tr>
+          <tr><td><code>collected_at</code></td><td>DateTime TZ</td><td>Momento da coleta</td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> <code>(collector_name, source, external_id, payload_hash)</code></p>
+      </div>
+    </div>
+
+    <!-- collector_errors -->
+    <div class="table-card" id="t-collector-errors">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collector_errors</div>
+          <div class="tdesc">Log de erros detalhados por execução de coletor</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="fk">run_id</code></td><td>UUID FK → collection_runs</td><td>Execução relacionada</td></tr>
+          <tr><td><code class="idx">collector_name</code></td><td>String(160)</td><td>Coletor que errou</td></tr>
+          <tr><td><code>error_type</code></td><td>String(160)</td><td>Classe do erro (ex: <code>TimeoutError</code>)</td></tr>
+          <tr><td><code>message</code></td><td>Text</td><td>Mensagem do erro</td></tr>
+          <tr><td><code>traceback</code></td><td>Text</td><td>Stack trace completo</td></tr>
+          <tr><td><code>context</code></td><td>JSONB</td><td>Contexto adicional (URL, parâmetros)</td></tr>
+          <tr><td><code class="idx">resolved_at</code></td><td>DateTime TZ</td><td>Quando foi resolvido (NULL = pendente)</td></tr>
+          <tr><td><code>resolution_note</code></td><td>Text</td><td>Nota de resolução</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 2: RAW                                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-raw">
+    <h2><span class="num">2</span> Camada Raw <span class="layer-badge lb-raw">Raw</span></h2>
+    <p>Armazena <strong>todos os dados brutos</strong> exatamente como chegaram das fontes, antes de qualquer transformação. É a fonte da verdade do sistema.</p>
+
+    <!-- raw_collections -->
+    <div class="table-card" id="t-raw-collections">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">raw_collections</div>
+          <div class="tdesc">Tabela central de ingestão — cada linha é uma resposta de coleta</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador único do dado bruto</td></tr>
+          <tr><td><code class="idx">module</code></td><td>String(80)</td><td>Domínio: <code>ecommerce</code>, <code>crypto</code>, <code>real_estate</code>…</td></tr>
+          <tr><td><code class="idx">source_name</code></td><td>String(160)</td><td>Loja/exchange/fonte (ex: <code>drogasil</code>, <code>binance</code>)</td></tr>
+          <tr><td><code class="idx">source_type</code></td><td>String(80)</td><td>Mecanismo: <code>python_url_scraper</code>, <code>legacy_ts_scraper</code>…</td></tr>
+          <tr><td><code class="idx">collector_name</code></td><td>String(160)</td><td>Coletor que gerou o dado</td></tr>
+          <tr><td><code class="idx">raw_schema_name</code></td><td>String(160)</td><td>Schema do payload: <code>scrapedProduct</code>, <code>marketCandle</code>…</td></tr>
+          <tr><td><code>target_url / url</code></td><td>Text</td><td>URL de onde o dado foi coletado</td></tr>
+          <tr><td><code>raw_json</code></td><td>JSONB</td><td><strong>O payload completo da coleta</strong> (dado bruto)</td></tr>
+          <tr><td><code class="idx">checksum</code></td><td>String(64)</td><td>SHA-256 do raw_json (deduplicação)</td></tr>
+          <tr><td><code class="idx">processing_status</code></td><td>String(40)</td><td><code>normalization_pending</code> | <code>normalized</code> | <code>ignored</code></td></tr>
+          <tr><td><code>collected_at / created_at</code></td><td>DateTime TZ</td><td>Timestamps da coleta e inserção</td></tr>
+          <tr><td><code>error_message</code></td><td>Text</td><td>Erro de coleta (quando <code>success=false</code>)</td></tr>
+          <tr><td><code>metadata_json</code></td><td>JSONB</td><td>Metadados adicionais (strategy, collection_target_id…)</td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> <code>(module, source_name, checksum)</code> — evita duplicatas automaticamente</p>
+        <pre><span class="c">-- Ver últimas coletas com preço extraído</span>
+<span class="k">SELECT</span>
+    source_name,
+    raw_json-><span class="s">'scrapedProduct'</span>->><span class="s">'title'</span>  <span class="k">as</span> titulo,
+    raw_json-><span class="s">'scrapedProduct'</span>->><span class="s">'price'</span>  <span class="k">as</span> preco,
+    processing_status,
+    collected_at
+<span class="k">FROM</span> raw_collections
+<span class="k">WHERE</span> module = <span class="s">'ecommerce'</span>
+  <span class="k">AND</span> raw_json->><span class="s">'success'</span> = <span class="s">'true'</span>
+<span class="k">ORDER BY</span> collected_at <span class="k">DESC LIMIT</span> 10;</pre>
+      </div>
+    </div>
+
+    <!-- collector_versions -->
+    <div class="table-card" id="t-collector-versions">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">collector_versions</div>
+          <div class="tdesc">Log de auditoria das versões de coletores implantadas</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <p>Rastreia quais versões de coletores estiveram ativas, quando e com quais schemas. Permite auditoria histórica de mudanças de coletor.</p>
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code>module / source_name / collector_name / collector_version</code></td><td>String</td><td>Identidade completa do coletor</td></tr>
+          <tr><td><code>raw_schema_name / raw_schema_version</code></td><td>String</td><td>Schema que o coletor gera</td></tr>
+          <tr><td><code>is_active</code></td><td>Boolean</td><td>Se esta versão está ativa atualmente</td></tr>
+          <tr><td><code>description / metadata_json</code></td><td>Text/JSONB</td><td>Documentação da versão</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 3: NORMALIZED                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-norm">
+    <h2><span class="num">3</span> Camada Normalizada <span class="layer-badge lb-norm">Normalized</span></h2>
+    <p>Dados transformados, limpos e estruturados. Cada tabela corresponde a um tipo de entidade de negócio. São alimentadas pelos <em>normalizers</em> que leem o <code>raw_json</code> e extraem campos tipados.</p>
+
+    <!-- normalized_products -->
+    <div class="table-card" id="t-normalized-products">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">normalized_products</div>
+          <div class="tdesc">Produtos de e-commerce normalizados (principal tabela do Poupi)</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="fk">raw_collection_id</code></td><td>UUID FK → raw_collections</td><td>Dado bruto de origem</td></tr>
+          <tr><td><code class="idx">source_id / external_id</code></td><td>String(255)</td><td>ID do produto na loja de origem</td></tr>
+          <tr><td><code class="idx">canonical_product_id</code></td><td>String(255)</td><td>ID canônico para agrupar o mesmo produto entre lojas</td></tr>
+          <tr><td><code>source_url</code></td><td>Text</td><td>URL da página do produto (link para o consumidor)</td></tr>
+          <tr><td><code>title / brand</code></td><td>Text / String(160)</td><td>Nome e marca do produto</td></tr>
+          <tr><td><code>price / currency</code></td><td>Numeric(14,2) / String(8)</td><td>Preço e moeda (<code>BRL</code>)</td></tr>
+          <tr><td><code class="idx">availability</code></td><td>String(80)</td><td><code>in_stock</code> | <code>out_of_stock</code></td></tr>
+          <tr><td><code class="idx">store_name</code></td><td>String(160)</td><td>Loja (ex: <code>drogasil</code>, <code>drogaraia</code>)</td></tr>
+          <tr><td><code class="idx">analytics_status</code></td><td>String(40)</td><td><code>pending</code> | <code>processed</code></td></tr>
+          <tr><td><code class="idx">collected_at</code></td><td>DateTime TZ</td><td>Quando o preço foi coletado</td></tr>
+          <tr><td><code>normalizer_name / normalizer_version</code></td><td>String</td><td>Proveniência do dado</td></tr>
+        </table>
+        <pre><span class="c">-- Comparar preço do mesmo produto em várias lojas</span>
+<span class="k">SELECT</span> store_name, price, availability, collected_at
+<span class="k">FROM</span> normalized_products
+<span class="k">WHERE</span> canonical_product_id = <span class="s">'pampers-premium-care-m'</span>
+  <span class="k">AND</span> collected_at >= <span class="n">now</span>() - <span class="k">interval</span> <span class="s">'24 hours'</span>
+<span class="k">ORDER BY</span> price <span class="k">ASC</span>;</pre>
+      </div>
+    </div>
+
+    <!-- normalized_market_candles -->
+    <div class="table-card" id="t-normalized-candles">
+      <div class="table-card-header">
+        <div>
+          <div class="tname">normalized_market_candles</div>
+          <div class="tdesc">Candles OHLCV de mercado (dados de trading)</div>
+        </div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td>Identificador</td></tr>
+          <tr><td><code class="idx">source / symbol / timeframe</code></td><td>String</td><td>Exchange, par e período (ex: <code>binance</code>, <code>BTC/USDT</code>, <code>1h</code>)</td></tr>
+          <tr><td><code>open / high / low / close / volume</code></td><td>Numeric(24,8)</td><td>Dados OHLCV</td></tr>
+          <tr><td><code class="idx">timestamp</code></td><td>DateTime TZ</td><td>Abertura da vela</td></tr>
+          <tr><td><code class="idx">analytics_status</code></td><td>String(40)</td><td><code>pending</code> | <code>processed</code></td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> <code>(source, symbol, timeframe, timestamp)</code></p>
+      </div>
+    </div>
+
+    <!-- normalized_crypto_snapshots -->
+    <div class="table-card" id="t-normalized-crypto">
+      <div class="table-card-header">
+        <div><div class="tname">normalized_crypto_snapshots</div><div class="tdesc">Snapshots de preço de criptomoedas</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td></td></tr>
+          <tr><td><code class="idx">source / symbol</code></td><td>String</td><td>Exchange e par (ex: <code>coingecko</code>, <code>BTC</code>)</td></tr>
+          <tr><td><code>price / volume / market_cap</code></td><td>Numeric</td><td>Preço, volume e market cap</td></tr>
+          <tr><td><code>change_24h</code></td><td>Numeric(12,6)</td><td>Variação nas últimas 24h (%)</td></tr>
+          <tr><td><code class="idx">collected_at</code></td><td>DateTime TZ</td><td>Timestamp do snapshot</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- normalized_real_estate_listings -->
+    <div class="table-card" id="t-normalized-re">
+      <div class="table-card-header">
+        <div><div class="tname">normalized_real_estate_listings</div><div class="tdesc">Anúncios imobiliários normalizados</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td></td></tr>
+          <tr><td><code>title / url</code></td><td>Text</td><td>Título e URL do anúncio</td></tr>
+          <tr><td><code class="idx">property_type</code></td><td>String(80)</td><td><code>apartment</code>, <code>house</code>, <code>commercial</code>…</td></tr>
+          <tr><td><code class="idx">purpose</code></td><td>String(40)</td><td><code>sale</code> | <code>rent</code></td></tr>
+          <tr><td><code>price / currency</code></td><td>Numeric(14,2)</td><td>Preço do imóvel</td></tr>
+          <tr><td><code class="idx">city / neighborhood</code></td><td>String</td><td>Localização</td></tr>
+          <tr><td><code>area_m2 / bedrooms / bathrooms / parking_spaces</code></td><td>Integer</td><td>Características do imóvel</td></tr>
+          <tr><td><code>condo_fee / iptu</code></td><td>Numeric(14,2)</td><td>Condomínio e IPTU</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- normalized_sports_odds -->
+    <div class="table-card" id="t-normalized-sports">
+      <div class="table-card-header">
+        <div><div class="tname">normalized_sports_odds</div><div class="tdesc">Odds esportivas normalizadas</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td></td></tr>
+          <tr><td><code class="idx">sportsbook</code></td><td>String(160)</td><td>Casa de apostas</td></tr>
+          <tr><td><code class="idx">sport / league</code></td><td>String</td><td>Esporte e liga</td></tr>
+          <tr><td><code class="idx">home_team / away_team</code></td><td>String(160)</td><td>Times</td></tr>
+          <tr><td><code class="idx">market_type / selection</code></td><td>String</td><td>Tipo de mercado (handicap, 1X2…) e seleção</td></tr>
+          <tr><td><code>odd</code></td><td>Numeric(10,4)</td><td>Cotação decimal</td></tr>
+          <tr><td><code>implied_probability</code></td><td>Numeric(10,6)</td><td>Probabilidade implícita (1/odd)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-normalizer-versions">
+      <div class="table-card-header">
+        <div><div class="tname">normalizer_versions</div><div class="tdesc">Log de auditoria de versões de normalizers</div></div>
+      </div>
+      <div class="table-card-body">
+        <p>Mesma função que <code>collector_versions</code>, mas para normalizers. Rastreia qual versão de normalizer processou cada dado.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 4: ANALYTICS                                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-anlyt">
+    <h2><span class="num">4</span> Camada Analytics <span class="layer-badge lb-anlyt">Analytics</span></h2>
+    <p>Métricas calculadas e insights derivados dos dados normalizados. São alimentadas pelos <em>analytics processors</em>.</p>
+
+    <!-- product_price_analytics -->
+    <div class="table-card" id="t-price-analytics">
+      <div class="table-card-header">
+        <div><div class="tname">product_price_analytics</div><div class="tdesc">Análise de preços de produtos (Poupi)</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td></td></tr>
+          <tr><td><code class="fk">product_id</code></td><td>UUID FK → normalized_products</td><td>Produto analisado</td></tr>
+          <tr><td><code>avg_price_7d / avg_price_30d</code></td><td>Numeric(14,2)</td><td>Preço médio nos últimos 7 e 30 dias</td></tr>
+          <tr><td><code>min_price_90d / max_price_90d</code></td><td>Numeric(14,2)</td><td>Mínimo e máximo nos últimos 90 dias</td></tr>
+          <tr><td><code>price_score</code></td><td>Numeric(10,4)</td><td>Score de oportunidade de preço (0-100)</td></tr>
+          <tr><td><code>calculated_at</code></td><td>DateTime TZ</td><td>Quando a análise foi calculada</td></tr>
+        </table>
+        <pre><span class="c">-- Produtos com melhor oportunidade de preço agora</span>
+<span class="k">SELECT</span> np.store_name, np.title, np.price,
+       pa.avg_price_30d, pa.min_price_90d, pa.price_score
+<span class="k">FROM</span> product_price_analytics pa
+<span class="k">JOIN</span> normalized_products np <span class="k">ON</span> pa.product_id = np.id
+<span class="k">WHERE</span> pa.price_score >= <span class="n">80</span>
+<span class="k">ORDER BY</span> pa.price_score <span class="k">DESC LIMIT</span> 20;</pre>
+      </div>
+    </div>
+
+    <!-- crypto_analytics -->
+    <div class="table-card" id="t-crypto-analytics">
+      <div class="table-card-header">
+        <div><div class="tname">crypto_analytics</div><div class="tdesc">Métricas de mercado de criptomoedas</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="idx">symbol</code></td><td>String(40)</td><td>Par de trading (ex: <code>BTC</code>)</td></tr>
+          <tr><td><code>volatility_24h</code></td><td>Numeric(12,6)</td><td>Volatilidade das últimas 24h</td></tr>
+          <tr><td><code>volume_spike_score</code></td><td>Numeric(10,4)</td><td>Score de spike de volume</td></tr>
+          <tr><td><code>trend_score</code></td><td>Numeric(10,4)</td><td>Score de tendência direcional</td></tr>
+          <tr><td><code class="idx">regime</code></td><td>String(80)</td><td>Regime de mercado (bull/bear/sideways)</td></tr>
+          <tr><td><code>calculated_at</code></td><td>DateTime TZ</td><td>Timestamp do cálculo</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- trading_analytics -->
+    <div class="table-card" id="t-trading-analytics">
+      <div class="table-card-header">
+        <div><div class="tname">trading_analytics</div><div class="tdesc">Indicadores técnicos e sinais de trading</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="fk">market_candle_id</code></td><td>UUID FK → normalized_market_candles</td><td>Candle de origem</td></tr>
+          <tr><td><code class="idx">symbol / timeframe</code></td><td>String</td><td>Par e período</td></tr>
+          <tr><td><code>rsi</code></td><td>Numeric(10,4)</td><td>RSI (0-100)</td></tr>
+          <tr><td><code>moving_average_fast / slow</code></td><td>Numeric(24,8)</td><td>Médias móveis</td></tr>
+          <tr><td><code>atr / adx</code></td><td>Numeric</td><td>ATR (volatilidade) e ADX (força de tendência)</td></tr>
+          <tr><td><code>breakout_score / trend_score</code></td><td>Numeric(10,4)</td><td>Scores de breakout e tendência</td></tr>
+          <tr><td><code class="idx">signal</code></td><td>String(40)</td><td><code>buy</code> | <code>sell</code> | <code>hold</code></td></tr>
+          <tr><td><code>confidence</code></td><td>Integer</td><td>Confiança do sinal (0-100)</td></tr>
+          <tr><td><code class="idx">regime</code></td><td>String(80)</td><td>Regime de mercado detectado</td></tr>
+        </table>
+        <pre><span class="c">-- Sinais de compra recentes com alta confiança</span>
+<span class="k">SELECT</span> symbol, timeframe, signal, confidence, rsi, regime, calculated_at
+<span class="k">FROM</span> trading_analytics
+<span class="k">WHERE</span> signal = <span class="s">'buy'</span> <span class="k">AND</span> confidence >= <span class="n">70</span>
+<span class="k">ORDER BY</span> calculated_at <span class="k">DESC LIMIT</span> 10;</pre>
+      </div>
+    </div>
+
+    <!-- real_estate_analytics -->
+    <div class="table-card" id="t-re-analytics">
+      <div class="table-card-header">
+        <div><div class="tname">real_estate_analytics</div><div class="tdesc">Análise de oportunidades imobiliárias</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="fk">listing_id</code></td><td>UUID FK → normalized_real_estate_listings</td><td>Anúncio analisado</td></tr>
+          <tr><td><code>price_per_m2</code></td><td>Numeric(14,2)</td><td>Preço por m²</td></tr>
+          <tr><td><code>neighborhood_avg_price_m2</code></td><td>Numeric(14,2)</td><td>Média do bairro por m²</td></tr>
+          <tr><td><code>discount_vs_neighborhood</code></td><td>Numeric(10,4)</td><td>Desconto vs. média do bairro (%)</td></tr>
+          <tr><td><code>opportunity_score</code></td><td>Numeric(10,4)</td><td>Score de oportunidade (0-100)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- sports_odds_analytics -->
+    <div class="table-card" id="t-sports-analytics">
+      <div class="table-card-header">
+        <div><div class="tname">sports_odds_analytics</div><div class="tdesc">CLV e EV de odds esportivas</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code>event_id / market_type / selection</code></td><td>String</td><td>Identificação do mercado</td></tr>
+          <tr><td><code>opening_odd / current_odd / closing_odd</code></td><td>Numeric(10,4)</td><td>Odds de abertura, atual e fechamento</td></tr>
+          <tr><td><code>line_movement</code></td><td>Numeric(10,4)</td><td>Movimento de linha (current - opening)</td></tr>
+          <tr><td><code>clv</code></td><td>Numeric(10,4)</td><td>Closing Line Value</td></tr>
+          <tr><td><code>ev_estimate</code></td><td>Numeric(10,4)</td><td>Estimativa de Expected Value</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 5: PIPELINE                                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-pipe">
+    <h2><span class="num">5</span> Observabilidade do Pipeline <span class="layer-badge lb-pipe">Pipeline</span></h2>
+    <p>Instrumentação de todas as execuções do pipeline para monitoramento operacional e debugging.</p>
+
+    <div class="table-card" id="t-pipeline-runs">
+      <div class="table-card-header">
+        <div><div class="tname">pipeline_runs</div><div class="tdesc">Log de execuções de stages do pipeline (coleta, normalização, analytics)</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="pk">id</code></td><td>UUID PK</td><td></td></tr>
+          <tr><td><code class="idx">domain</code></td><td>String(64)</td><td><code>crypto | ecommerce | real_estate | sports_betting | trading</code></td></tr>
+          <tr><td><code class="idx">stage</code></td><td>String(32)</td><td><code>collection | normalization | analytics</code></td></tr>
+          <tr><td><code>source_name</code></td><td>String(128)</td><td>Classe que executou (ex: nome do normalizer)</td></tr>
+          <tr><td><code>started_at / finished_at</code></td><td>DateTime TZ</td><td>Início e fim</td></tr>
+          <tr><td><code>duration_seconds</code></td><td>Float</td><td>Duração em segundos</td></tr>
+          <tr><td><code class="idx">status</code></td><td>String(16)</td><td><code>running | success | partial | error</code></td></tr>
+          <tr><td><code>items_input / processed / skipped / error</code></td><td>Integer</td><td>Contadores de itens por resultado</td></tr>
+          <tr><td><code>trigger</code></td><td>String(32)</td><td><code>scheduler | api | manual</code></td></tr>
+        </table>
+        <pre><span class="c">-- Resumo de execuções das últimas 24h</span>
+<span class="k">SELECT</span> domain, stage, status, <span class="n">count</span>(*) qtd,
+       <span class="n">sum</span>(items_processed) total_itens
+<span class="k">FROM</span> pipeline_runs
+<span class="k">WHERE</span> started_at >= <span class="n">now</span>() - <span class="k">interval</span> <span class="s">'24 hours'</span>
+<span class="k">GROUP BY</span> <span class="n">1,2,3 ORDER BY</span> <span class="n">1,2,3</span>;</pre>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-pipeline-failures">
+      <div class="table-card-header">
+        <div><div class="tname">pipeline_failures</div><div class="tdesc">Detalhes de falhas individuais por item no pipeline</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="fk">run_id</code></td><td>UUID FK → pipeline_runs</td><td>Execução pai</td></tr>
+          <tr><td><code>domain / stage</code></td><td>String</td><td>Contexto (desnormalizado)</td></tr>
+          <tr><td><code class="idx">error_type</code></td><td>String(128)</td><td>Classe da exceção</td></tr>
+          <tr><td><code>error_message / traceback</code></td><td>Text</td><td>Mensagem e stack trace</td></tr>
+          <tr><td><code>item_id</code></td><td>String(256)</td><td>ID do item que causou a falha</td></tr>
+          <tr><td><code>retry_count</code></td><td>Integer</td><td>Tentativas de reprocessamento</td></tr>
+          <tr><td><code>is_terminal</code></td><td>Boolean</td><td><code>true</code> = máximo de retries atingido</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 6: DATA QUALITY                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-qual">
+    <h2><span class="num">6</span> Qualidade de Dados <span class="layer-badge lb-qual">Quality</span></h2>
+
+    <div class="table-card" id="t-dq-runs">
+      <div class="table-card-header">
+        <div><div class="tname">data_quality_runs</div><div class="tdesc">Resultados de validações de qualidade de dados</div></div>
+      </div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="idx">module / source_name</code></td><td>String</td><td>Escopo da validação</td></tr>
+          <tr><td><code>checked_count / passed_count / failed_count</code></td><td>Integer</td><td>Contadores de registros validados</td></tr>
+          <tr><td><code>quality_score</code></td><td>Numeric(10,4)</td><td>Score de qualidade (0.0-1.0)</td></tr>
+          <tr><td><code class="idx">status</code></td><td>String(40)</td><td><code>completed | failed | running</code></td></tr>
+          <tr><td><code>error_message</code></td><td>Text</td><td>Erro se status=failed</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 7: GOVERNANÇA                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-gov">
+    <h2><span class="num">7</span> Governança de Dados <span class="layer-badge lb-gov">Governance</span></h2>
+    <p>Tabelas de documentação e rastreabilidade do sistema de dados.</p>
+
+    <div class="table-card" id="t-lineage">
+      <div class="table-card-header">
+        <div><div class="tname">data_lineage</div><div class="tdesc">Rastreamento completo raw → normalized → analytics</div></div>
+      </div>
+      <div class="table-card-body">
+        <p>Cada linha conecta um <code>raw_collection_id</code> ao registro normalizado e analítico correspondente. Permite rastrear de onde veio qualquer dado.</p>
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="idx">raw_collection_id</code></td><td>UUID</td><td>Dado bruto de origem</td></tr>
+          <tr><td><code>normalized_record_type / normalized_record_id</code></td><td>String/UUID</td><td>Registro normalizado gerado</td></tr>
+          <tr><td><code>analytics_record_type / analytics_record_id</code></td><td>String/UUID</td><td>Registro analítico gerado</td></tr>
+          <tr><td><code>collector_name / version</code></td><td>String</td><td>Coletor que coletou</td></tr>
+          <tr><td><code>normalizer_name / version</code></td><td>String</td><td>Normalizer que processou</td></tr>
+          <tr><td><code>analytics_processor_name / version</code></td><td>String</td><td>Processor que calculou</td></tr>
+        </table>
+        <pre><span class="c">-- Rastrear origem de um produto normalizado</span>
+<span class="k">SELECT</span> l.raw_collection_id, rc.source_name,
+       rc.collected_at, l.normalizer_name
+<span class="k">FROM</span> data_lineage l
+<span class="k">JOIN</span> raw_collections rc <span class="k">ON</span> l.raw_collection_id = rc.id
+<span class="k">WHERE</span> l.normalized_record_id = <span class="s">'&lt;uuid-do-produto&gt;'</span>;</pre>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-schema-docs">
+      <div class="table-card-header"><div><div class="tname">schema_documentation</div><div class="tdesc">Documentação dos schemas raw e normalized</div></div></div>
+      <div class="table-card-body"><p>Armazena descrições dos campos de cada schema em <code>fields_json</code>, exemplos em <code>examples_json</code> e regras de validação em <code>validation_rules_json</code>.</p></div>
+    </div>
+
+    <div class="table-card" id="t-entity-rel">
+      <div class="table-card-header"><div><div class="tname">entity_relationships</div><div class="tdesc">Grafo de relacionamentos entre entidades</div></div></div>
+      <div class="table-card-body"><p>Metadados do grafo ER do sistema. Cada linha representa uma aresta (source_entity → target_entity com relationship_type).</p></div>
+    </div>
+
+    <div class="table-card" id="t-owners">
+      <div class="table-card-header"><div><div class="tname">data_owners</div><div class="tdesc">Registro de responsáveis por módulo</div></div></div>
+      <div class="table-card-body"><p>Define quem é responsável técnico e de negócios por cada módulo. Usado para escalation e SLAs.</p></div>
+    </div>
+
+    <div class="table-card" id="t-slas">
+      <div class="table-card-header"><div><div class="tname">data_slas</div><div class="tdesc">Definições de SLA de frescor, disponibilidade e qualidade</div></div></div>
+      <div class="table-card-body"><p>Define os SLAs esperados por módulo/fonte: <code>freshness_sla</code> (intervalo máximo), <code>availability_sla</code> (% uptime), <code>quality_sla</code> (score mínimo).</p></div>
+    </div>
+
+    <div class="table-card" id="t-contracts">
+      <div class="table-card-header"><div><div class="tname">data_contracts</div><div class="tdesc">Contratos de governança de dados</div></div></div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code>module / source_name / contract_name</code></td><td>String</td><td>Identificação do contrato</td></tr>
+          <tr><td><code>criticality</code></td><td>String</td><td><code>low | medium | high | critical</code></td></tr>
+          <tr><td><code>status</code></td><td>String</td><td><code>draft | active | deprecated</code></td></tr>
+          <tr><td><code>raw_required / lineage_required / quality_required</code></td><td>Boolean</td><td>Requisitos do contrato</td></tr>
+          <tr><td><code>schema_rules_json / quality_rules_json</code></td><td>JSONB</td><td>Regras de schema e qualidade</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 8: DOMAIN — REAL ESTATE                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-domain">
+    <h2><span class="num">8</span> Domínio Real Estate <span class="layer-badge lb-domain">Domain</span></h2>
+    <p>Tabelas com modelo de domínio enriquecido para imóveis, mantendo entidades canônicas além da camada raw/normalized.</p>
+
+    <div class="table-card" id="t-re-sources">
+      <div class="table-card-header"><div><div class="tname">real_estate_sources</div><div class="tdesc">Registro de imobiliárias e portais</div></div></div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Notas</th></tr>
+          <tr><td><code class="uniq">name</code></td><td>String</td><td>Nome único da fonte</td></tr>
+          <tr><td><code>base_url</code></td><td>Text</td><td>URL base do portal</td></tr>
+          <tr><td><code>city / state</code></td><td>String</td><td>Localização de cobertura</td></tr>
+          <tr><td><code>active</code></td><td>Boolean</td><td>Se está ativa</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-re-listings">
+      <div class="table-card-header"><div><div class="tname">real_estate_listings</div><div class="tdesc">Anúncios canônicos com histórico de primeira/última vista</div></div></div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="idx">property_type / purpose</code></td><td>String</td><td>Tipo e propósito (sale/rent)</td></tr>
+          <tr><td><code>bedrooms / bathrooms / parking_spaces / area_m2</code></td><td>Integer</td><td>Características fixas do imóvel</td></tr>
+          <tr><td><code>condo_fee / iptu</code></td><td>Numeric</td><td>Custos mensais</td></tr>
+          <tr><td><code>first_seen_at / last_seen_at</code></td><td>DateTime TZ</td><td>Primeira e última vez visto</td></tr>
+        </table>
+        <p><strong>Restrições únicas:</strong> <code>(source_id, url)</code> e <code>(source_id, external_id)</code></p>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-re-price-hist">
+      <div class="table-card-header"><div><div class="tname">real_estate_price_history</div><div class="tdesc">Série temporal de preços por anúncio</div></div></div>
+      <div class="table-card-body"><p>Append-only — cada coleta gera uma nova linha. Permite rastrear variação de preço do imóvel ao longo do tempo. Index em <code>(listing_id, collected_at)</code>.</p></div>
+    </div>
+
+    <div class="table-card" id="t-re-raw-pages">
+      <div class="table-card-header"><div><div class="tname">real_estate_raw_pages</div><div class="tdesc">Snapshots HTML completos das páginas coletadas</div></div></div>
+      <div class="table-card-body"><p>Armazena o HTML bruto para re-parsing futuro se o schema de extração mudar. Vinculado opcionalmente a um <code>real_estate_listing</code>.</p></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- GRUPO 9: DOMAIN — SPORTS ODDS                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="group-domain">
+    <h2><span class="num">9</span> Domínio Sports Odds <span class="layer-badge lb-domain">Domain</span></h2>
+    <p>Modelo de domínio completo para odds esportivas: hierarquia de sportsbooks → ligas → eventos → mercados → snapshots.</p>
+
+    <div class="table-card" id="t-sportsbooks">
+      <div class="table-card-header"><div><div class="tname">sportsbooks</div><div class="tdesc">Casas de apostas cadastradas</div></div></div>
+      <div class="table-card-body"><p>Campos: <code>name</code> (único), <code>base_url</code>, <code>active</code>.</p></div>
+    </div>
+
+    <div class="table-card" id="t-leagues">
+      <div class="table-card-header"><div><div class="tname">sports_leagues</div><div class="tdesc">Esportes e ligas cobertas</div></div></div>
+      <div class="table-card-body"><p>Campos: <code>sport</code>, <code>league_name</code>, <code>country</code>. Restrição única: <code>(sport, league_name, country)</code>.</p></div>
+    </div>
+
+    <div class="table-card" id="t-events">
+      <div class="table-card-header"><div><div class="tname">sports_events</div><div class="tdesc">Partidas/eventos esportivos</div></div></div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="fk">league_id</code></td><td>UUID FK → sports_leagues</td><td>Liga do evento</td></tr>
+          <tr><td><code>external_id</code></td><td>String(255)</td><td>ID na casa de apostas</td></tr>
+          <tr><td><code>home_team / away_team</code></td><td>String(160)</td><td>Times</td></tr>
+          <tr><td><code>start_time</code></td><td>DateTime TZ</td><td>Horário de início</td></tr>
+          <tr><td><code>event_status</code></td><td>String</td><td><code>scheduled | live | finished</code></td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> <code>(league_id, external_id)</code></p>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-markets">
+      <div class="table-card-header"><div><div class="tname">sports_markets</div><div class="tdesc">Mercados de apostas por evento × bookmaker</div></div></div>
+      <div class="table-card-body">
+        <table class="col-table">
+          <tr><th>Coluna</th><th>Tipo</th><th>Descrição</th></tr>
+          <tr><td><code class="fk">event_id / sportsbook_id</code></td><td>UUID FK</td><td>Evento e bookmaker</td></tr>
+          <tr><td><code>market_type</code></td><td>String(80)</td><td>Tipo de mercado (handicap, 1X2, over/under…)</td></tr>
+          <tr><td><code>selection</code></td><td>String(160)</td><td>Seleção dentro do mercado</td></tr>
+          <tr><td><code>handicap</code></td><td>Numeric(10,2)</td><td>Handicap quando aplicável</td></tr>
+        </table>
+        <p><strong>Restrição única:</strong> 5 campos: <code>(event_id, sportsbook_id, market_type, selection, handicap)</code></p>
+      </div>
+    </div>
+
+    <div class="table-card" id="t-odds-snaps">
+      <div class="table-card-header"><div><div class="tname">sports_odds_snapshots</div><div class="tdesc">Série temporal de odds por mercado</div></div></div>
+      <div class="table-card-body"><p>Append-only. Cada coleta de odd gera uma nova linha. Index em <code>(market_id, collected_at)</code> para consultas rápidas de evolução de odds.</p></div>
+    </div>
+
+    <div class="table-card" id="t-sports-raw">
+      <div class="table-card-header"><div><div class="tname">sports_raw_payloads</div><div class="tdesc">Payloads raw de APIs de casas de apostas</div></div></div>
+      <div class="table-card-body"><p>Armazena respostas brutas das APIs para auditoria e re-parsing. Vinculado opcionalmente a um sportsbook.</p></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- CONSULTAS ÚTEIS                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2><span class="num" style="background:#0ea5e9;color:#fff;">Q</span> Consultas Úteis</h2>
+
+  <h3>Saúde geral do pipeline</h3>
+<pre><span class="c">-- Taxa de sucesso por módulo nas últimas 24h</span>
+<span class="k">SELECT</span>
+    domain,
+    <span class="n">count</span>(*) <span class="k">filter</span> (<span class="k">where</span> status = <span class="s">'success'</span>) sucesso,
+    <span class="n">count</span>(*) <span class="k">filter</span> (<span class="k">where</span> status = <span class="s">'error'</span>)   erro,
+    <span class="n">count</span>(*) total,
+    <span class="n">round</span>(<span class="n">count</span>(*) <span class="k">filter</span>(<span class="k">where</span> status=<span class="s">'success'</span>)*<span class="n">100.0</span>/<span class="n">count</span>(*),<span class="n">1</span>) pct_sucesso
+<span class="k">FROM</span> pipeline_runs
+<span class="k">WHERE</span> started_at >= <span class="n">now</span>() - <span class="k">interval</span> <span class="s">'24 hours'</span>
+<span class="k">GROUP BY</span> domain <span class="k">ORDER BY</span> domain;</pre>
+
+  <h3>Produtos pendentes de normalização</h3>
+<pre><span class="k">SELECT</span> source_name, raw_schema_name, <span class="n">count</span>(*) pendentes
+<span class="k">FROM</span> raw_collections
+<span class="k">WHERE</span> processing_status = <span class="s">'normalization_pending'</span>
+  <span class="k">AND</span> module = <span class="s">'ecommerce'</span>
+<span class="k">GROUP BY</span> source_name, raw_schema_name
+<span class="k">ORDER BY</span> pendentes <span class="k">DESC</span>;</pre>
+
+  <h3>Histórico de preços de um produto</h3>
+<pre><span class="k">SELECT</span> np.store_name, np.price, np.availability, np.collected_at
+<span class="k">FROM</span> normalized_products np
+<span class="k">WHERE</span> np.canonical_product_id = <span class="s">'pampers-premium-care-m'</span>
+<span class="k">ORDER BY</span> np.collected_at <span class="k">DESC</span>
+<span class="k">LIMIT</span> <span class="n">30</span>;</pre>
+
+  <h3>Itens coletados hoje por loja</h3>
+<pre><span class="k">SELECT</span> source_name, <span class="n">count</span>(*) coletados, <span class="n">max</span>(collected_at) ultima_coleta
+<span class="k">FROM</span> raw_collections
+<span class="k">WHERE</span> module = <span class="s">'ecommerce'</span>
+  <span class="k">AND</span> collected_at >= <span class="n">current_date</span>
+<span class="k">GROUP BY</span> source_name <span class="k">ORDER BY</span> coletados <span class="k">DESC</span>;</pre>
+
+  <h3>Erros recentes de coletor</h3>
+<pre><span class="k">SELECT</span> ce.collector_name, ce.error_type, ce.message,
+       cr.started_at, ce.created_at
+<span class="k">FROM</span> collector_errors ce
+<span class="k">JOIN</span> collection_runs cr <span class="k">ON</span> ce.run_id = cr.id
+<span class="k">WHERE</span> ce.resolved_at <span class="k">IS NULL</span>
+<span class="k">ORDER BY</span> ce.created_at <span class="k">DESC LIMIT</span> 20;</pre>
+
+  <h3>Lineagem de um produto (raw → normalizado)</h3>
+<pre><span class="k">SELECT</span>
+    rc.source_name,
+    rc.collected_at,
+    rc.raw_json-><span class="s">'scrapedProduct'</span>->><span class="s">'scraper_strategy'</span> <span class="k">as</span> estrategia,
+    np.price,
+    np.store_name,
+    l.normalizer_name
+<span class="k">FROM</span> normalized_products np
+<span class="k">JOIN</span> data_lineage l   <span class="k">ON</span> l.normalized_record_id = np.id::text
+<span class="k">JOIN</span> raw_collections rc <span class="k">ON</span> rc.id = l.raw_collection_id
+<span class="k">WHERE</span> np.canonical_product_id = <span class="s">'pampers-premium-care-m'</span>
+<span class="k">ORDER BY</span> rc.collected_at <span class="k">DESC LIMIT</span> 10;</pre>
+
+  <hr>
+  <p style="color:#94a3b8; font-size:12px; text-align:center; margin-top:32px;">
+    data-core · Guia de Tabelas v1.0 · Maio 2026 · 40 tabelas cobertas · Para imprimir como PDF: Ctrl+P → Salvar como PDF
+  </p>
+
+</div>
+</body>
+</html>
