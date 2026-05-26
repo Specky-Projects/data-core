@@ -44,7 +44,7 @@ The notebook is no longer the primary runtime. Local Docker was not reachable du
 | Prometheus restart policy | recreated with `unless-stopped` | preserve restart policy in managed compose |
 | Local secrets | `.env` and `.env.local` files exist locally | migrate to server-managed secrets, keep examples locally |
 | Frontend no Git root | `poupi-frontend` has no `.git` root detected | place under GitHub and CI/CD |
-| Frontend localhost fallbacks | many `http://localhost:8000/3001` fallbacks | require env at build/runtime and fail closed in production |
+| Frontend localhost fallbacks | centralized into helper/client code; `npm run check:prod-env` passes | run full lint/typecheck/build once pnpm is available in local shell or CI |
 
 ## Architecture Consolidation Target
 
@@ -91,7 +91,7 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 ### P2 - Next Iteration
 
 1. Remove local real `.env` files after remote validation.
-2. Replace frontend localhost production fallbacks.
+2. Run frontend lint/typecheck/build in an environment with pnpm available.
 3. Normalize Compose naming and log rotation.
 4. Add scheduled backup jobs with retention and restore-test cadence.
 5. Build a single operational dashboard for platform readiness.
@@ -139,7 +139,9 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 - Backup and restore-test services now have systemd `OnFailure` hooks to local Alertmanager; handler script passed dry-run JSON validation and Alertmanager readiness returned `OK`.
 - `poupi-baby-worker` decision recorded: old Compose worker must not be started because it targets a separate local Compose database/Redis stack; create a production worker app with shared production env instead.
 - Local Git and frontend structure inspected.
-- Frontend safe env examples and `check:prod-env` guardrail were added locally; the guardrail currently fails by design until localhost fallbacks are remediated.
+- Frontend safe env examples and `check:prod-env` guardrail were added locally; `npm run check:prod-env` now passes after centralizing localhost development fallbacks.
+- Full frontend monorepo `lint`/`typecheck` remain blocked locally because `pnpm` is unavailable and Corepack activation failed with Windows permission error.
+- Focused `apps/poupi-baby` validation passed with `npx tsc --noEmit` and `npx eslint .` reported 0 errors.
 - New shell scripts syntax-checked with remote `bash -n`.
 
 ## Explicit Non-Actions

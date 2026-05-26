@@ -17,11 +17,10 @@ The local frontend workspace appears to be a pnpm/turbo monorepo with apps under
   - `apps/quant-dashboard/.env.local`
   - `apps/real-estate-dashboard/.env.local`
   - `apps/sports-dashboard/.env.local`
-- Multiple code paths still fall back to localhost endpoints:
+- Initial audit found multiple code paths falling back to localhost endpoints:
   - `http://localhost:8000`
   - `http://localhost:3001`
-- `packages/api-client/src/index.ts` defaults `NEXT_PUBLIC_API_URL` to `http://localhost:8000`.
-- `apps/poupi-baby` has many server routes/pages that default `BACKEND_URL` to localhost.
+- Localhost development fallback is now centralized in helper/client code and fails fast in production.
 - `README.md` documents per-app `.env.local` usage, but there is no verified production env contract or CI/CD flow in this local copy.
 - Safe env examples were added to the local frontend workspace:
   - root `.env.example`;
@@ -29,7 +28,11 @@ The local frontend workspace appears to be a pnpm/turbo monorepo with apps under
 - A production guardrail script was added:
   - `scripts/check-production-localhost.mjs`;
   - root package script `check:prod-env`.
-- `pnpm check:prod-env` currently fails by design because localhost references still exist in app `.env.local` files, `apps/poupi-baby`, and `packages/api-client`.
+- `npm run check:prod-env` now passes locally.
+- Full `lint`/`typecheck` validation is still blocked on the notebook because `pnpm` is not available and Corepack could not write to `C:\Program Files\nodejs`.
+- Focused validation for `apps/poupi-baby` passed:
+  - `npx tsc --noEmit`;
+  - `npx eslint .` with 0 errors and existing warnings only.
 
 ## Operational Risk
 
@@ -38,7 +41,7 @@ Classification: `PARTIAL`
 The frontend can likely be developed locally, but it is not yet production-operationally mature because:
 
 - Deploy reproducibility cannot be proven without a Git root or remote origin.
-- Runtime endpoints can silently point to localhost if env vars are missing.
+- Runtime endpoints were previously able to silently point to localhost if env vars were missing; production now fails fast in the centralized helpers.
 - Secrets may remain scattered in local `.env.local` files.
 - Different apps may build against different implicit API targets.
 
@@ -92,7 +95,7 @@ Rules:
    - allows localhost defaults only in development;
    - requires explicit URLs in production;
    - rejects malformed URLs.
-2. Replace repeated `process.env.BACKEND_URL || 'http://localhost:3001'` and `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'` patterns.
+2. Keep repeated `process.env.BACKEND_URL || 'http://localhost:3001'` and `process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'` patterns out of app routes and pages.
 3. Add tests or static checks for prohibited production localhost fallback.
 
 ### Phase 4 - Reproducible Build
@@ -119,7 +122,7 @@ Get-ChildItem -Force C:\Users\dev\Documents\Projetos\poupi-frontend
 Get-ChildItem -Recurse -Force C:\Users\dev\Documents\Projetos\poupi-frontend -Filter .git
 rg -n "localhost|127\.0\.0\.1|BACKEND_URL|NEXT_PUBLIC_API_URL" C:\Users\dev\Documents\Projetos\poupi-frontend
 cd C:\Users\dev\Documents\Projetos\poupi-frontend
-pnpm check:prod-env
+npm run check:prod-env
 ```
 
 Then decide:
@@ -130,6 +133,6 @@ Then decide:
 ## Do Not Do Yet
 
 - Do not delete local `.env.local` files until safe examples exist and secrets are moved.
-- Do not mass-replace localhost fallbacks before identifying production endpoint names.
+- Do not add new localhost fallbacks outside the centralized helper/client code.
 - Do not deploy a frontend build from this local folder until Git/CI state is clarified.
 - Do not expose backend-only URLs as `NEXT_PUBLIC_*`.
