@@ -18,8 +18,15 @@ The local frontend workspace appears to be a pnpm/turbo monorepo with apps under
 - Initial CI workflow exists at `.github/workflows/ci.yml`.
 - Branch `main` was pushed to GitHub.
 - GitHub Actions CI is green on `main`.
-- Latest green run: `26451961070`.
+- Latest green run: `26453842683`.
 - Branch protection for `main` requires `Frontend checks`, strict status checks, no force pushes and no branch deletion.
+- `apps/poupi-baby` now has a production Dockerfile in the frontend monorepo.
+- `apps/poupi-baby` exposes a minimal `/health` endpoint.
+- Local Docker image build was verified with `docker build -f apps\poupi-baby\Dockerfile -t poupi-frontend-baby:local .`.
+- Coolify application `poupi-frontend-baby` exists and deploys from `poupi-hub/poupi-frontend.git` branch `main`.
+- Coolify application UUID: `wsp5l6d144vs27lz7p37b1hk`.
+- Current generated URL: `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io`.
+- Remote `/health` was verified healthy on 2026-05-26.
 - Real `.env.local` files exist under multiple frontend apps:
   - `apps/crypto-dashboard/.env.local`
   - `apps/poupi-baby/.env.local`
@@ -49,7 +56,7 @@ Classification: `PARTIAL`
 
 The frontend can likely be developed locally, but it is not yet production-operationally mature because:
 
-- Deploy reproducibility is proven locally and GitHub CI is green. Branch protection is active. Next gate is Coolify/CI deploy wiring.
+- Deploy reproducibility is proven locally, GitHub CI is green, branch protection is active, and the first Coolify deploy is healthy.
 - Runtime endpoints were previously able to silently point to localhost if env vars were missing; production now fails fast in the centralized helpers.
 - Secrets may remain scattered in local `.env.local` files.
 - Different apps may build against different implicit API targets.
@@ -87,7 +94,7 @@ Rules:
 ### Phase 1 - Version Control
 
 1. Keep `.env.local`, `.env.production`, `.next`, `node_modules`, and build artifacts ignored.
-2. Wire Coolify/CI deploy from GitHub.
+2. Keep Coolify/CI deploy from GitHub.
 
 ### Phase 2 - Env Hygiene
 
@@ -111,14 +118,15 @@ Rules:
 2. Verify `pnpm install --frozen-lockfile`.
 3. Verify `pnpm build`.
 4. Add CI checks for lint, typecheck, and build.
-5. Build/deploy from CI or server, not from notebook-only state.
+5. Build/deploy from CI or server, not from notebook-only state. Initial Coolify deploy is verified.
 
 ### Phase 5 - Deployment
 
 1. Define one deploy target per app.
 2. Inject env vars through Coolify/CI secrets.
 3. Confirm Traefik routes and TLS for each frontend.
-4. Validate `/`, health route if available, and API proxy routes.
+4. Validate `/`, `/health`, and API proxy routes.
+5. Replace generated `sslip.io` URL with stable DNS after domain ownership is confirmed.
 
 ## Immediate Safe Next Actions
 
@@ -132,14 +140,15 @@ cd C:\Users\dev\Documents\Projetos\poupi-frontend
 npm run check:prod-env
 ```
 
-Then configure:
+Then keep verifying:
 
 - GitHub branch protection for `main`.
 - Coolify/CI deploy from GitHub rather than notebook-only state.
+- Remote frontend health at `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io/health`.
 
 ## Do Not Do Yet
 
 - Do not delete local `.env.local` files until safe examples exist and secrets are moved.
 - Do not add new localhost fallbacks outside the centralized helper/client code.
-- Do not deploy a frontend build from this local folder until Git/CI state is clarified.
+- Do not deploy a frontend build from this local folder outside the Git/Coolify flow.
 - Do not expose backend-only URLs as `NEXT_PUBLIC_*`.

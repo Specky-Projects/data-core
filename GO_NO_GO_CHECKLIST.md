@@ -18,7 +18,7 @@ Current classification: PARTIAL.
 - Critical containers have restart policy.
 - Critical APIs have healthchecks.
 - Local production secrets have been removed or documented as temporary.
-- Frontend deploy path is reproducible locally and connected to GitHub/CI; CI is green and branch protection is active. Deploy wiring remains before production deploy.
+- Frontend deploy path is reproducible locally, connected to GitHub/CI, protected on `main`, and deployed through Coolify with healthy `/health`.
 
 ## NO-GO Conditions
 
@@ -41,6 +41,7 @@ Current classification: PARTIAL.
 - Follow-up pending: `coolify.poupi.com` DNS is invalid and is causing ACME/rate-limit errors in Traefik logs.
 - Daily backup and weekly restore-test timers are active and validated; failure alerting to local Alertmanager is configured through systemd `OnFailure`.
 - Prometheus stale target `poupi-baby-worker` was removed; old Compose worker must not be started because it targets a separate local Compose DB/Redis. Production worker requires a Coolify-managed app with shared production env.
-- `poupi-frontend` and `poupi-brand` have no Git root detected locally.
+- `poupi-brand` has no Git root detected locally.
 - Frontend localhost fallbacks have been centralized; `check:prod-env`, monorepo typecheck, lint and build pass via `npx --yes pnpm@9.15.0`.
-- `poupi-frontend` is pushed to GitHub with green CI and protected `main`; wire Coolify/CI deploy next.
+- `poupi-frontend` is pushed to GitHub with green CI, protected `main`, Dockerfile for `apps/poupi-baby`, and a healthy Coolify app at `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io/health`.
+- Notebook Docker runtime was stopped reversibly; no local containers were running after validation.

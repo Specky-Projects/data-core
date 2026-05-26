@@ -2,6 +2,10 @@
 
 The notebook is a development and operations client only. It should not run continuous production workloads.
 
+Last verified: 2026-05-26.
+
+Current local runtime status: no Docker containers are running after reversible `docker compose stop` / `docker stop` operations. No volumes, images, databases, or local files were deleted.
+
 ## Required Locally
 
 - Git
@@ -75,3 +79,24 @@ scripts/remote-backup.sh inventory
 - No local scheduler process configured at login/startup.
 - No local Postgres/Redis services running continuously.
 - Frontend `.env.local` files contain non-secret remote URLs only.
+
+## Verified Cleanup Commands
+
+These commands were used to stop local continuous runtime without deleting data:
+
+```powershell
+cd C:\Users\dev\Documents\Projetos\data-core
+docker compose stop
+
+cd C:\Users\dev\Documents\Projetos\poupi-baby
+docker compose stop
+
+docker stop data-core-prometheus-1 data-core-alertmanager-1 data-core-grafana-1
+docker ps
+```
+
+Expected final state:
+
+```text
+NAMES     IMAGE     PORTS     STATUS
+```

@@ -8,7 +8,7 @@ Scope: infrastructure, operations, security, backups, deployment, observability,
 
 PARTIAL.
 
-The platform is mostly cloud-first in practice, but not yet mature enough to call READY. Public database, Prometheus, Traefik dashboard, Coolify realtime and manual crypto API source binds have been removed or restricted. Backup/restore-test failure alerting now exists through systemd `OnFailure` and local Alertmanager. The main blockers are the unresolved `poupi-baby-worker` runtime decision, local/frontend reproducibility gaps, and remaining DNS hygiene for `coolify.poupi.com`.
+The platform is mostly cloud-first in practice, but not yet mature enough to call READY. Public database, Prometheus, Traefik dashboard, Coolify realtime and manual crypto API source binds have been removed or restricted. Backup/restore-test failure alerting now exists through systemd `OnFailure` and local Alertmanager. The frontend now has GitHub CI, branch protection, a Coolify deploy target, and a healthy remote `/health`. The main blockers are the unresolved `poupi-baby-worker` runtime decision, remaining local secret cleanup, and DNS hygiene for `coolify.poupi.com`.
 
 ## Current State
 
@@ -23,7 +23,7 @@ Server-side runtime is active for:
 - Prometheus, Grafana and Alertmanager
 - Traefik/Coolify
 
-The notebook is no longer the primary runtime. Local Docker was not reachable during audit, and no local running containers/volumes could be confirmed. Local code and secrets still exist and must be cleaned gradually.
+The notebook is no longer the primary runtime. Local Docker was later confirmed to have data-core, Poupi Baby, and monitoring containers running; they were stopped reversibly on 2026-05-26 without deleting volumes or images. Local code and secrets still exist and must be cleaned gradually.
 
 ## Critical Risks
 
@@ -43,7 +43,7 @@ The notebook is no longer the primary runtime. Local Docker was not reachable du
 | Runtime containers without healthcheck | scheduler, worker, poupi-baby, poupi-jobs, alertmanager, prometheus | add healthchecks or external synthetic checks |
 | Prometheus restart policy | recreated with `unless-stopped` | preserve restart policy in managed compose |
 | Local secrets | `.env` and `.env.local` files exist locally | migrate to server-managed secrets, keep examples locally |
-| Frontend GitHub/CI | `poupi-frontend` pushed to `poupi-hub/poupi-frontend`; CI green on run `26451961070`; branch protection active | wire Coolify/CI deploy |
+| Frontend GitHub/CI/Coolify | `poupi-frontend` pushed to `poupi-hub/poupi-frontend`; CI green on run `26453842683`; branch protection active; Coolify app `poupi-frontend-baby` healthy at `/health` | replace generated `sslip.io` URL with stable DNS/TLS when domain ownership is confirmed |
 | Frontend localhost fallbacks | centralized into helper/client code; `check:prod-env`, monorepo typecheck, lint and build pass via `npx --yes pnpm@9.15.0` | preserve guardrail in CI and deploy gate |
 
 ## Architecture Consolidation Target
@@ -68,8 +68,8 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 ## Dangerous Dependencies
 
 - Production-like secrets on local notebook.
-- Current runtime state may include uncommitted local repo changes in `data-core`, `poupi-crypto`, and `poupi-baby`.
-- `poupi-frontend` is reproducible locally and pushed to GitHub with initial CI workflow.
+- Current repo state may include uncommitted local changes in `data-core`, `poupi-crypto`, and `poupi-baby`.
+- `poupi-frontend` is reproducible locally, pushed to GitHub, protected on `main`, and deployed through Coolify.
 - `poupi-brand` still needs a reproducibility audit.
 - Backup scripts exist but recovery has not been demonstrated.
 
@@ -87,12 +87,12 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 2. Add healthchecks or synthetic checks for scheduler, workers, jobs, Prometheus and Alertmanager.
 3. Standardize `/opt/backups`, `/opt/runbooks`, `/opt/scripts`, `/opt/monitoring`.
 4. Create remote-only secret inventory by key name, not value.
-5. Move frontend into reproducible Git/CI/CD flow.
+5. Move remaining frontend apps, if any, into the same reproducible Git/CI/CD/Coolify flow.
 
 ### P2 - Next Iteration
 
-1. Remove local real `.env` files after remote validation.
-2. Run frontend lint/typecheck/build in an environment with pnpm available.
+1. Remove or vault local real `.env` files after remote validation.
+2. Promote frontend generated domain to stable DNS/TLS.
 3. Normalize Compose naming and log rotation.
 4. Add scheduled backup jobs with retention and restore-test cadence.
 5. Build a single operational dashboard for platform readiness.
@@ -147,6 +147,10 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 - GitHub Actions CI passed on run `26451961070`.
 - GitHub branch protection enabled for `main` with required `Frontend checks`.
 - Full frontend monorepo validation passed through `npx --yes pnpm@9.15.0`: `check:prod-env`, `typecheck`, `lint`, and `build`.
+- `apps/poupi-baby` frontend Docker image build verified locally.
+- Frontend `/health` endpoint added and verified in Coolify.
+- Coolify app `poupi-frontend-baby` deployed from GitHub `main` and is healthy at `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io/health`.
+- Local notebook Docker runtime was stopped; `docker ps` returned no running containers.
 - New shell scripts syntax-checked with remote `bash -n`.
 
 ## Explicit Non-Actions
