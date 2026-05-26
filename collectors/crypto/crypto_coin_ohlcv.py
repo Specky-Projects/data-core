@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from collectors.base import BaseCollector, CollectedItem, CollectorMetadata
+from collectors.crypto.validators import log_active_symbols, validate_symbols
 from database.models import CollectorDomain
 from domains.crypto_coin.config.settings import load_config
 from domains.crypto_coin.core.execution.exchange_connector import ExchangeConnector
@@ -40,6 +41,10 @@ class CryptoCoinOHLCVCollector(BaseCollector):
             if raw_timeframes
             else DEFAULT_TIMEFRAMES
         )
+
+        # Validate symbols fail-fast before opening any exchange connections.
+        validate_symbols(symbols)
+        log_active_symbols(symbols, timeframes, extra={"source": "SYMBOLS_env" if raw_symbols else "DEFAULT_SYMBOLS"})
 
         items: list[CollectedItem] = []
         for symbol in symbols:
