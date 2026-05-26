@@ -28,6 +28,7 @@ Current classification: PARTIAL.
 - CI/CD or Coolify deploy path cannot reproduce current runtime.
 - Any production change requires notebook-only secrets.
 - Prometheus shows critical targets down without owner/decision.
+- `poupi-baby-worker-prod` is stopped or restart-looping while queue processing is required.
 
 ## Current NO-GO Items
 
@@ -40,8 +41,9 @@ Current classification: PARTIAL.
 - Coolify-managed crypto route now returns HTTPS `/health` 200.
 - Follow-up pending: `coolify.poupi.com` DNS is invalid and is causing ACME/rate-limit errors in Traefik logs.
 - Daily backup and weekly restore-test timers are active and validated; failure alerting to local Alertmanager is configured through systemd `OnFailure`.
-- Prometheus stale target `poupi-baby-worker` was removed; old Compose worker must not be started because it targets a separate local Compose DB/Redis. Production worker requires a Coolify-managed app with shared production env.
+- Prometheus `poupi-baby-worker` target is enabled and `up`; old Compose worker must not be started because it targets a separate local Compose DB/Redis. Production worker runs separately as `poupi-baby-worker-prod` with shared production env and no host ports.
 - `poupi-brand` has no Git root detected locally.
 - Frontend localhost fallbacks have been centralized; `check:prod-env`, monorepo typecheck, lint and build pass via `npx --yes pnpm@9.15.0`.
 - `poupi-frontend` is pushed to GitHub with green CI, protected `main`, Dockerfile for `apps/poupi-baby`, and a healthy Coolify app at `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io/health`.
 - Notebook Docker runtime was stopped reversibly; no local containers were running after validation.
+- DNS still requires owner action: `coolify.poupi.com` has no A/AAAA record; `poupi.com` and `www.poupi.com` currently point to `51.195.113.88`, not the current Poupi server `65.109.239.250`.

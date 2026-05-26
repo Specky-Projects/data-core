@@ -6,6 +6,8 @@ Last verified: 2026-05-26.
 
 Current local runtime status: no Docker containers are running after reversible `docker compose stop` / `docker stop` operations. No volumes, images, databases, or local files were deleted.
 
+Local secret inventory still shows real `.env` / `.env.local` files in local project folders. Treat them as temporary until a vault or encrypted archive is chosen.
+
 ## Required Locally
 
 - Git
@@ -79,6 +81,25 @@ scripts/remote-backup.sh inventory
 - No local scheduler process configured at login/startup.
 - No local Postgres/Redis services running continuously.
 - Frontend `.env.local` files contain non-secret remote URLs only.
+
+## Local Secret Inventory
+
+Real local env files found on 2026-05-26:
+
+```text
+C:\Users\dev\Documents\Projetos\data-core\.env
+C:\Users\dev\Documents\Projetos\poupi-baby\.env
+C:\Users\dev\Documents\Projetos\poupi-baby\backend\.env
+C:\Users\dev\Documents\Projetos\poupi-crypto\.env
+C:\Users\dev\Documents\Projetos\poupi-crypto\.env.volatile
+C:\Users\dev\Documents\Projetos\poupi-frontend\apps\crypto-dashboard\.env.local
+C:\Users\dev\Documents\Projetos\poupi-frontend\apps\poupi-baby\.env.local
+C:\Users\dev\Documents\Projetos\poupi-frontend\apps\quant-dashboard\.env.local
+C:\Users\dev\Documents\Projetos\poupi-frontend\apps\real-estate-dashboard\.env.local
+C:\Users\dev\Documents\Projetos\poupi-frontend\apps\sports-dashboard\.env.local
+```
+
+Do not delete these blindly. Quarantine or vault them only after confirming the matching remote env keys exist and the owner has a recovery path.
 
 ## Verified Cleanup Commands
 

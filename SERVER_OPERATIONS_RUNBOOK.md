@@ -52,6 +52,7 @@ If Redis requires auth, a `NOAUTH Authentication required` response proves the s
 ```bash
 ssh poupi "docker logs --tail 200 api-dvq6dwsagsw4p4oqwuw7bak9-075259609103"
 ssh poupi "docker logs --tail 200 poupi-crypto-api-1"
+ssh poupi "docker logs --tail 200 poupi-baby-worker-prod"
 ssh poupi "docker logs --tail 200 prometheus"
 ```
 
@@ -139,8 +140,9 @@ Latest evidence shows `coolify.poupi.com` is generated in `/data/coolify/proxy/d
 Prometheus target notes:
 
 ```text
-poupi-baby-worker target was removed on 2026-05-26 because no running worker container or monitoring alias existed.
-Re-enable only after the worker is deployed and attached to poupi-monitoring as poupi-baby-worker:3002.
+poupi-baby-worker is enabled after production worker deployment on 2026-05-26.
+Target: poupi-baby-worker:3002/metrics on the poupi-monitoring network.
+Validation: Prometheus /api/v1/targets reports poupi-baby-worker up.
 ```
 
 poupi-baby worker decision:
@@ -148,7 +150,8 @@ poupi-baby worker decision:
 ```text
 Do not start /opt/apps/poupi-baby docker-compose worker as production.
 That Compose stack uses its own postgres/redis services and would not share the current Coolify production DB/Redis.
-If worker processing is required, create a separate Coolify-managed worker app using the same DATABASE_URL and REDIS_URL as the production backend, then expose /healthz and /metrics on the monitoring network.
+Production worker now runs separately from /opt/apps/poupi-baby-worker using the same server-side backend env file.
+It publishes no host port and is attached to coolify, infra_internal, and poupi-monitoring.
 ```
 
 Validate externally after any reboot or Docker/Coolify network change:

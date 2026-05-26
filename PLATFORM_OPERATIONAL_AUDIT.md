@@ -8,7 +8,7 @@ Scope: infrastructure, operations, security, backups, deployment, observability,
 
 PARTIAL.
 
-The platform is mostly cloud-first in practice, but not yet mature enough to call READY. Public database, Prometheus, Traefik dashboard, Coolify realtime and manual crypto API source binds have been removed or restricted. Backup/restore-test failure alerting now exists through systemd `OnFailure` and local Alertmanager. The frontend now has GitHub CI, branch protection, a Coolify deploy target, and a healthy remote `/health`. The main blockers are the unresolved `poupi-baby-worker` runtime decision, remaining local secret cleanup, and DNS hygiene for `coolify.poupi.com`.
+The platform is mostly cloud-first in practice, but not yet mature enough to call READY. Public database, Prometheus, Traefik dashboard, Coolify realtime and manual crypto API source binds have been removed or restricted. Backup/restore-test failure alerting now exists through systemd `OnFailure` and local Alertmanager. The frontend now has GitHub CI, branch protection, a Coolify deploy target, and a healthy remote `/health`. The `poupi-baby-worker` now runs as a separate server-side worker with no public ports and Prometheus scraping. The main blockers are remaining local secret cleanup and DNS hygiene for `coolify.poupi.com` / stable frontend domains.
 
 ## Current State
 
@@ -33,14 +33,14 @@ The notebook is no longer the primary runtime. Local Docker was later confirmed 
 | Public Prometheus | source bind removed; `prometheus` now exposes only container port `9090/tcp` | residual risk low; firewall remains as defense in depth | keep Prometheus internal-only |
 | Public Traefik dashboard/surface | source bind removed; no host listener on `8080` in latest validation | residual risk low; Coolify/proxy updates could reintroduce bind | keep source config without public `8080` and validate after updates |
 | Backup automation | daily backup and weekly restore-test timers are active and validated; failures trigger local Alertmanager through systemd `OnFailure` | residual risk is end-to-end notification delivery outside Alertmanager | verify receiver delivery path after alert routing is confirmed |
-| poupi-baby worker not running | no running `poupi-baby-worker` container or monitoring alias; old compose worker is exited and points at a separate Compose Postgres/Redis stack | worker runtime/queue processing may be absent unless handled elsewhere; starting the old worker risks split-brain queues/data | do not start old Compose worker; deploy a Coolify-managed worker using the same production DB/Redis env if worker processing is required |
+| poupi-baby old worker compose | old `/opt/apps/poupi-baby/docker-compose.yml` worker points at a separate Compose Postgres/Redis stack | starting the old worker risks split-brain queues/data | keep old Compose worker stopped; use `/opt/apps/poupi-baby-worker` production worker instead |
 
 ## Medium Risks
 
 | Risk | Evidence | Action |
 | --- | --- | --- |
 | Coolify public surfaces | `8080` and `6001/6002` source binds removed; `8000` now bound to `127.0.0.1` only | residual risk low; keep validating after Coolify updates |
-| Runtime containers without healthcheck | scheduler, worker, poupi-baby, poupi-jobs, alertmanager, prometheus | add healthchecks or external synthetic checks |
+| Runtime containers without healthcheck | scheduler, poupi-baby, poupi-jobs, alertmanager, prometheus | add healthchecks or external synthetic checks |
 | Prometheus restart policy | recreated with `unless-stopped` | preserve restart policy in managed compose |
 | Local secrets | `.env` and `.env.local` files exist locally | migrate to server-managed secrets, keep examples locally |
 | Frontend GitHub/CI/Coolify | `poupi-frontend` pushed to `poupi-hub/poupi-frontend`; CI green on run `26453842683`; branch protection active; Coolify app `poupi-frontend-baby` healthy at `/health` | replace generated `sslip.io` URL with stable DNS/TLS when domain ownership is confirmed |
@@ -77,13 +77,13 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 
 ### P0 - Same Day
 
-1. Deploy a proper Coolify-managed `poupi-baby-worker` only if queue processing is required; do not start the old local Compose worker.
+1. Keep `poupi-baby-worker-prod` under observation after first server-side deployment; do not start the old local Compose worker.
 2. Verify end-to-end receiver delivery for failed backup/restore-test alerts.
 3. Record firewall and public listener baseline after each deploy/reboot.
 
 ### P1 - This Week
 
-1. Decide whether `poupi-baby-worker` should be deployed; Prometheus stale target has been removed until then.
+1. Keep `poupi-baby-worker` Prometheus target healthy and alert on restart loops.
 2. Add healthchecks or synthetic checks for scheduler, workers, jobs, Prometheus and Alertmanager.
 3. Standardize `/opt/backups`, `/opt/runbooks`, `/opt/scripts`, `/opt/monitoring`.
 4. Create remote-only secret inventory by key name, not value.
@@ -129,7 +129,7 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 - External checks confirmed `5435`, `9090`, `8080`, `6001`, `6002`, `8002`, and `8003` closed while `443` remained reachable.
 - Prometheus was recreated without host port publication and with `restart=unless-stopped`.
 - `poupi-crypto-db-1` was recreated from an explicit Compose `db` service without host port publication, preserving the existing `poupi-crypto_pgdata` volume.
-- Stale Prometheus target `poupi-baby-worker` was removed after evidence showed no running worker container or network alias. Remaining active targets are all `up`.
+- Stale Prometheus target `poupi-baby-worker` was first removed after evidence showed no running worker container or network alias, then re-enabled after the production worker was deployed. Active Prometheus targets are all `up`.
 - `coolify-proxy` was recreated without host port `8080`.
 - `coolify` was recreated with direct admin bind restricted to `127.0.0.1:8000`.
 - `coolify-realtime` was recreated on the same image tag without host ports `6001/6002`.
@@ -151,12 +151,15 @@ Public edge should be Traefik on `80/443`. Administrative and data services shou
 - Frontend `/health` endpoint added and verified in Coolify.
 - Coolify app `poupi-frontend-baby` deployed from GitHub `main` and is healthy at `http://wsp5l6d144vs27lz7p37b1hk.65.109.239.250.sslip.io/health`.
 - Local notebook Docker runtime was stopped; `docker ps` returned no running containers.
+- `poupi-baby-worker-prod` deployed from `/opt/apps/poupi-baby-worker`, using the production backend env file, with no host port publication.
+- Worker metrics validated internally at `poupi-baby-worker:3002/metrics`.
+- Prometheus reloaded/restarted with the `poupi-baby-worker` target, and `/api/v1/targets` reports it `up`.
 - New shell scripts syntax-checked with remote `bash -n`.
 
 ## Explicit Non-Actions
 
-- No production container was restarted.
-- No Compose file was applied.
+- Prometheus was restarted to load the worker scrape target.
+- A dedicated worker Compose file was applied for `poupi-baby-worker-prod`.
 - Firewall rules were changed only after a verified backup and restore test; snapshots were saved under `/opt/backups/firewall`.
 - No volume was deleted.
 - No `.env` value was printed.

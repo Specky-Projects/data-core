@@ -41,7 +41,9 @@ scrape_configs:
       - targets: ["poupi-baby-backend:3001"]
     metrics_path: /metrics
 
-  # poupi-baby-worker target intentionally disabled on 2026-05-26.
-  # Evidence: no running poupi-baby worker container or poupi-monitoring alias exists;
-  # old local compose worker was exited for 10 days. Re-enable only after the worker
-  # is deployed and attached to poupi-monitoring with alias "poupi-baby-worker".
+  # poupi-baby worker runs without public ports and exposes metrics only on
+  # the shared monitoring network.
+  - job_name: poupi-baby-worker
+    static_configs:
+      - targets: ["poupi-baby-worker:3002"]
+    metrics_path: /metrics
