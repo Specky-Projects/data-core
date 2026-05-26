@@ -29,7 +29,9 @@ from app.modules.real_estate import models as real_estate_models
 from app.modules.registry import register_pipeline_modules
 from app.modules.sports_odds.api import router as sports_odds_router
 from app.modules.sports_odds import models as sports_odds_models
+from app.runtime.api import router as runtime_router
 from app.scrapers.api import router as scrapers_router
+from app.system_status import build_system_status, router as system_status_router
 import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
 from app.watchdog.api import router as watchdog_router
 import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
@@ -193,14 +195,33 @@ def create_app() -> FastAPI:
                 checks["scheduler"] = "not running"
                 ready = False
 
+        operational: dict[str, object] | None = None
+        try:
+            with SessionLocal() as db:
+                operational = build_system_status(db)
+            checks["operational"] = str(operational.get("status"))
+            if operational.get("status") != "READY":
+                ready = False
+        except Exception as exc:
+            checks["operational"] = f"error: {exc}"
+            ready = False
+
         status_code = 200 if ready else 503
         return JSONResponse(
-            {"ready": ready, "checks": checks, "app": settings.app_name},
+            {
+                "ready": ready,
+                "checks": checks,
+                "app": settings.app_name,
+                "operational_status": operational.get("status") if operational else None,
+                "decision": operational.get("decision") if operational else "NO-GO",
+                "blockers": operational.get("blockers") if operational else ["operational_readiness_error"],
+            },
             status_code=status_code,
         )
 
     # ── Routers ───────────────────────────────────────────────────────────────
     auth_dep = [Depends(verify_api_key)]
+    app.include_router(system_status_router)
     app.include_router(api_router, dependencies=auth_dep)
     app.include_router(poupi_baby_router, dependencies=auth_dep)
     app.include_router(pipeline_router, dependencies=auth_dep)
@@ -210,6 +231,7 @@ def create_app() -> FastAPI:
     app.include_router(real_estate_router, dependencies=auth_dep)
     app.include_router(sports_odds_router, dependencies=auth_dep)
     app.include_router(scrapers_router, dependencies=auth_dep)
+    app.include_router(runtime_router, dependencies=auth_dep)
     app.include_router(watchdog_router, dependencies=auth_dep)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app

@@ -260,6 +260,7 @@ def collection_readiness(request: Request, db: Session = Depends(db_session)) ->
         .all()
     )
     target_statuses = [_collection_target_status_payload(db, target, compact=True) for target in targets]
+    provider_rows = _provider_readiness_payload(db)
     raw_pending = db.query(RawCollection).filter(RawCollection.processing_status == "normalization_pending").count()
     raw_failed = db.query(RawCollection).filter(RawCollection.processing_status == "normalization_failed").count()
     analytics_pending = {
@@ -286,6 +287,10 @@ def collection_readiness(request: Request, db: Session = Depends(db_session)) ->
         "raw_failed": raw_failed,
         "analytics_pending": analytics_pending,
         "unresolved_collector_errors": unresolved_errors,
+        "provider_count_total": provider_rows["provider_count_total"],
+        "provider_count_healthy": provider_rows["provider_count_healthy"],
+        "provider_count_blocked": provider_rows["provider_count_blocked"],
+        "providers": provider_rows["providers"],
         "targets": target_statuses,
     }
     cache_set("ops:readiness", result, ttl_seconds=120)
@@ -475,6 +480,75 @@ def _collection_coverage_payload(
         },
         "sources": sorted(by_source.values(), key=lambda item: (item["module"], item["source_name"])),
         "targets": rows,
+    }
+
+
+def _provider_readiness_payload(db: Session) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    providers = []
+    source_names = [
+        row[0]
+        for row in db.query(CollectionTarget.source_name)
+        .filter(CollectionTarget.module == "ecommerce", CollectionTarget.active.is_(True))
+        .distinct()
+        .order_by(CollectionTarget.source_name)
+        .all()
+    ]
+    for source_name in source_names:
+        active_targets = (
+            db.query(CollectionTarget)
+            .filter(
+                CollectionTarget.module == "ecommerce",
+                CollectionTarget.source_name == source_name,
+                CollectionTarget.active.is_(True),
+            )
+            .count()
+        )
+        latest_raw = (
+            db.query(RawCollection)
+            .filter(RawCollection.module == "ecommerce", RawCollection.source_name == source_name)
+            .order_by(desc(RawCollection.collected_at))
+            .first()
+        )
+        last_success = (
+            db.query(func.max(NormalizedProduct.normalized_at))
+            .filter(NormalizedProduct.store_name == source_name)
+            .scalar()
+        )
+        last_analytics = (
+            db.query(func.max(ProductPriceAnalytics.calculated_at))
+            .join(NormalizedProduct, ProductPriceAnalytics.product_id == NormalizedProduct.id)
+            .filter(NormalizedProduct.store_name == source_name)
+            .scalar()
+        )
+        freshness = _freshness_entry(
+            module="ecommerce",
+            source_name=source_name,
+            latest_collected_at=latest_raw.collected_at if latest_raw else None,
+            latest_run_at=last_success,
+            raw_count=1 if latest_raw else 0,
+            freshness_sla=_freshness_sla_for(db, "ecommerce", source_name),
+            now=now,
+        )
+        last_error = latest_raw.error_message if latest_raw else None
+        blocked = bool(last_error) and "HTTP_403_FORBIDDEN" in last_error
+        healthy = bool(last_success and last_analytics and freshness["status"] == "ok" and not blocked)
+        providers.append(
+            {
+                "provider": source_name,
+                "status": "healthy" if healthy else "blocked" if blocked else "degraded",
+                "active_targets": active_targets,
+                "last_success_at": last_success,
+                "last_analytics_at": last_analytics,
+                "last_error": last_error,
+                "freshness": freshness,
+            }
+        )
+    return {
+        "provider_count_total": len(providers),
+        "provider_count_healthy": sum(1 for item in providers if item["status"] == "healthy"),
+        "provider_count_blocked": sum(1 for item in providers if item["status"] == "blocked"),
+        "providers": providers,
     }
 
 

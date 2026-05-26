@@ -697,6 +697,173 @@ watchdog_checks_total = Counter(
     ["status"],  # ok | warning | critical
 )
 
+# Data-core scheduler preventive runtime watchdog.
+data_core_scheduler_memory_usage_bytes = Gauge(
+    "data_core_scheduler_memory_usage_bytes",
+    "Current memory usage of the data-core scheduler container in bytes.",
+)
+
+data_core_scheduler_memory_limit_bytes = Gauge(
+    "data_core_scheduler_memory_limit_bytes",
+    "Configured memory limit of the data-core scheduler container in bytes.",
+)
+
+data_core_scheduler_memory_usage_ratio = Gauge(
+    "data_core_scheduler_memory_usage_ratio",
+    "Scheduler memory usage ratio against the configured container limit.",
+)
+
+data_core_scheduler_swap_usage_ratio = Gauge(
+    "data_core_scheduler_swap_usage_ratio",
+    "Scheduler swap usage ratio against the configured swap limit.",
+)
+
+data_core_scheduler_restart_count = Gauge(
+    "data_core_scheduler_restart_count",
+    "Observed scheduler process restart count from the shared runtime probe.",
+)
+
+data_core_scheduler_oom_events_total = Gauge(
+    "data_core_scheduler_oom_events_total",
+    "Total scheduler cgroup OOM kill events visible to the runtime probe.",
+)
+
+data_core_scheduler_state = Gauge(
+    "data_core_scheduler_state",
+    "Scheduler watchdog state value: healthy=0 elevated=1 high=2 critical=3 oom_recent=4 restart_loop=5 degraded=6 observe_more=7.",
+)
+
+data_core_scheduler_alert_severity = Gauge(
+    "data_core_scheduler_alert_severity",
+    "Scheduler watchdog alert severity value: info=0 warning=1 critical=2.",
+)
+
+data_core_scheduler_growth_rate = Gauge(
+    "data_core_scheduler_growth_rate",
+    "Scheduler memory growth rate in bytes per second across recent probe samples.",
+)
+
+data_core_scheduler_cycle_duration_seconds = Gauge(
+    "data_core_scheduler_cycle_duration_seconds",
+    "Latest scheduler-triggered pipeline cycle duration in seconds.",
+)
+
+data_core_scheduler_backlog_score = Gauge(
+    "data_core_scheduler_backlog_score",
+    "Normalized scheduler backlog pressure score from pending raw normalization records.",
+)
+
+data_core_scheduler_protection_mode = Gauge(
+    "data_core_scheduler_protection_mode",
+    "Adaptive scheduler protection mode: normal=0 conservative=1 protective=2 critical=3.",
+)
+
+data_core_scheduler_effective_concurrency = Gauge(
+    "data_core_scheduler_effective_concurrency",
+    "Effective scheduler concurrency budget after adaptive reliability policy.",
+)
+
+data_core_scheduler_effective_batch_size = Gauge(
+    "data_core_scheduler_effective_batch_size",
+    "Effective batch size after adaptive reliability policy.",
+    ["job_name"],
+)
+
+data_core_scheduler_effective_cooldown_seconds = Gauge(
+    "data_core_scheduler_effective_cooldown_seconds",
+    "Effective cooldown in seconds before a scheduled job execution.",
+    ["job_name"],
+)
+
+data_core_scheduler_throttled_jobs_total = Counter(
+    "data_core_scheduler_throttled_jobs_total",
+    "Total scheduled jobs throttled by the adaptive reliability policy.",
+    ["job_name", "priority", "mode", "reason", "dry_run"],
+)
+
+data_core_scheduler_reliability_audit_total = Counter(
+    "data_core_scheduler_reliability_audit_total",
+    "Total scheduler reliability audit decisions.",
+    ["job_name", "priority", "mode", "dry_run"],
+)
+
+data_core_scheduler_backlog_growth_rate = Gauge(
+    "data_core_scheduler_backlog_growth_rate",
+    "Estimated backlog growth rate in pending records per second.",
+)
+
+data_core_scheduler_throughput_estimate = Gauge(
+    "data_core_scheduler_throughput_estimate",
+    "Estimated scheduler throughput from recent completed pipeline runs.",
+)
+
+reliability_dry_run_decisions_total = Counter(
+    "reliability_dry_run_decisions_total",
+    "Total scheduler reliability decisions computed while dry-run is active.",
+    ["job_name", "priority", "mode"],
+)
+
+reliability_mode_changes_total = Gauge(
+    "reliability_mode_changes_total",
+    "Observed scheduler reliability mode changes derived from the audit JSONL.",
+)
+
+reliability_false_positive_candidates_total = Counter(
+    "reliability_false_positive_candidates_total",
+    "Total non-normal dry-run decisions that look like false-positive candidates.",
+    ["job_name", "priority", "mode"],
+)
+
+reliability_max_memory_ratio_observed = Gauge(
+    "reliability_max_memory_ratio_observed",
+    "Maximum scheduler memory ratio observed in reliability dry-run decisions.",
+)
+
+reliability_max_backlog_score_observed = Gauge(
+    "reliability_max_backlog_score_observed",
+    "Maximum scheduler backlog pressure score observed in reliability dry-run decisions.",
+)
+
+scheduler_restart_loop_total = Gauge(
+    "scheduler_restart_loop_total",
+    "Current scheduler restart-loop diagnosis marker from the hardened watchdog (1=active, 0=inactive).",
+)
+
+scheduler_restart_real_total = Gauge(
+    "scheduler_restart_real_total",
+    "Real scheduler restarts observed from explicit runtime/container provenance.",
+)
+
+scheduler_false_restart_total = Gauge(
+    "scheduler_false_restart_total",
+    "Untrusted legacy/probe-local restart counts rejected as false restart-loop evidence.",
+)
+
+scheduler_heartbeat_age_seconds = Gauge(
+    "scheduler_heartbeat_age_seconds",
+    "Age in seconds of the latest scheduler watchdog heartbeat snapshot.",
+)
+
+scheduler_execution_drift_seconds = Gauge(
+    "scheduler_execution_drift_seconds",
+    "Latest APScheduler job execution drift in seconds.",
+)
+
+runtime_memory_pressure_score = Gauge(
+    "runtime_memory_pressure_score",
+    "Composite scheduler runtime memory pressure score from memory, swap, OOM, and trend evidence.",
+)
+
+runtime_swap_growth_bytes = Gauge(
+    "runtime_swap_growth_bytes",
+    "Positive swap usage growth observed between scheduler watchdog samples.",
+)
+
+watchdog_confidence_score = Gauge(
+    "watchdog_confidence_score",
+    "Confidence score for the current scheduler watchdog diagnosis after provenance validation.",
+)
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Phase RELIABILITY — Scraper reliability, drift, quality, anti-bot metrics
 # ──────────────────────────────────────────────────────────────────────────────
@@ -766,3 +933,391 @@ def measure_pipeline_stage(domain: str, stage: str) -> Generator[None, None, Non
         elapsed = time.perf_counter() - start
         pipeline_stage_duration_seconds.labels(domain=domain, stage=stage).observe(elapsed)
         pipeline_stage_active.labels(domain=domain, stage=stage).dec()
+
+
+# DB-backed operational truth metrics. These gauges are rebuilt from Postgres at
+# scrape time, so they stay truthful across API, scheduler and worker processes.
+raws_pending_total = Gauge(
+    "raws_pending_total",
+    "Current RAW records pending normalization, from Postgres.",
+    ["module"],
+)
+normalization_processed_total = Gauge(
+    "normalization_processed_total",
+    "Total normalized items recorded in pipeline_runs, from Postgres.",
+    ["module"],
+)
+normalization_failed_total = Gauge(
+    "normalization_failed_total",
+    "Total failed normalization items recorded in pipeline_runs, from Postgres.",
+    ["module"],
+)
+normalization_lag_seconds = Gauge(
+    "normalization_lag_seconds",
+    "Lag between latest RAW collection and latest normalized output.",
+    ["module"],
+)
+last_normalization_success_timestamp = Gauge(
+    "last_normalization_success_timestamp",
+    "Unix timestamp of the latest successful normalization pipeline run.",
+    ["module"],
+)
+analytics_processed_total = Gauge(
+    "analytics_processed_total",
+    "Total analytics items recorded in pipeline_runs, from Postgres.",
+    ["module"],
+)
+analytics_failed_total = Gauge(
+    "analytics_failed_total",
+    "Total failed analytics items recorded in pipeline_runs, from Postgres.",
+    ["module"],
+)
+analytics_lag_seconds = Gauge(
+    "analytics_lag_seconds",
+    "Lag between latest normalized input and latest analytics output.",
+    ["module"],
+)
+analytics_last_success_timestamp = Gauge(
+    "analytics_last_success_timestamp",
+    "Unix timestamp of the latest successful analytics pipeline run.",
+    ["module"],
+)
+
+
+def _db_scalar(fn, default: float = 0.0) -> float:
+    try:
+        return float(fn() or default)
+    except Exception:
+        return default
+
+
+def _dt_epoch(value) -> float:
+    if value is None:
+        return 0.0
+    try:
+        return float(value.timestamp())
+    except Exception:
+        return 0.0
+
+
+def _seconds_between(newer, older) -> float:
+    if newer is None or older is None:
+        return 0.0
+    try:
+        return max(0.0, float((newer - older).total_seconds()))
+    except Exception:
+        return 0.0
+
+
+def _wire_operational_truth_metrics() -> None:
+    from sqlalchemy import func
+
+    from app.analytics.models import ProductPriceAnalytics, RealEstateAnalytics, TradingAnalytics
+    from app.normalization.models import NormalizedMarketCandle, NormalizedProduct, NormalizedRealEstateListing
+    from app.pipeline.models import PipelineRun
+    from app.raw.models import RawCollection
+    from database.session import SessionLocal
+
+    modules = ("crypto", "ecommerce", "real_estate", "sports_odds", "trading")
+
+    def with_db(query_fn):
+        db = SessionLocal()
+        try:
+            return query_fn(db)
+        finally:
+            db.close()
+
+    normalized_models = {
+        "crypto": NormalizedMarketCandle,
+        "trading": NormalizedMarketCandle,
+        "ecommerce": NormalizedProduct,
+        "real_estate": NormalizedRealEstateListing,
+    }
+    analytics_models = {
+        "crypto": TradingAnalytics,
+        "trading": TradingAnalytics,
+        "ecommerce": ProductPriceAnalytics,
+        "real_estate": RealEstateAnalytics,
+    }
+
+    for module in modules:
+        raws_pending_total.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: db.query(func.count(RawCollection.id))
+                    .filter(
+                        RawCollection.module == module,
+                        RawCollection.processing_status == "normalization_pending",
+                    )
+                    .scalar()
+                )
+            )
+        )
+        normalization_processed_total.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: db.query(func.coalesce(func.sum(PipelineRun.items_processed), 0))
+                    .filter(PipelineRun.domain == module, PipelineRun.stage == "normalization")
+                    .scalar()
+                )
+            )
+        )
+        normalization_failed_total.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: db.query(func.coalesce(func.sum(PipelineRun.items_error), 0))
+                    .filter(PipelineRun.domain == module, PipelineRun.stage == "normalization")
+                    .scalar()
+                )
+            )
+        )
+        last_normalization_success_timestamp.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: _dt_epoch(
+                        db.query(func.max(PipelineRun.finished_at))
+                        .filter(
+                            PipelineRun.domain == module,
+                            PipelineRun.stage == "normalization",
+                            PipelineRun.status.in_(["success", "partial"]),
+                        )
+                        .scalar()
+                    )
+                )
+            )
+        )
+        analytics_processed_total.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: db.query(func.coalesce(func.sum(PipelineRun.items_processed), 0))
+                    .filter(PipelineRun.domain == module, PipelineRun.stage == "analytics")
+                    .scalar()
+                )
+            )
+        )
+        analytics_failed_total.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: db.query(func.coalesce(func.sum(PipelineRun.items_error), 0))
+                    .filter(PipelineRun.domain == module, PipelineRun.stage == "analytics")
+                    .scalar()
+                )
+            )
+        )
+        analytics_last_success_timestamp.labels(module=module).set_function(
+            lambda module=module: _db_scalar(
+                lambda: with_db(
+                    lambda db: _dt_epoch(
+                        db.query(func.max(PipelineRun.finished_at))
+                        .filter(
+                            PipelineRun.domain == module,
+                            PipelineRun.stage == "analytics",
+                            PipelineRun.status.in_(["success", "partial"]),
+                        )
+                        .scalar()
+                    )
+                )
+            )
+        )
+        if module in normalized_models:
+            normalization_lag_seconds.labels(module=module).set_function(
+                lambda module=module: _db_scalar(
+                    lambda: with_db(
+                        lambda db: _seconds_between(
+                            db.query(func.max(RawCollection.collected_at))
+                            .filter(RawCollection.module == ("crypto" if module == "trading" else module))
+                            .scalar(),
+                            db.query(func.max(normalized_models[module].normalized_at)).scalar(),
+                        )
+                    )
+                )
+            )
+        if module in analytics_models:
+            analytics_lag_seconds.labels(module=module).set_function(
+                lambda module=module: _db_scalar(
+                    lambda: with_db(
+                        lambda db: _seconds_between(
+                            db.query(func.max(normalized_models[module].normalized_at)).scalar(),
+                            db.query(func.max(analytics_models[module].calculated_at)).scalar(),
+                        )
+                    )
+                )
+            )
+
+
+_wire_operational_truth_metrics()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 8 — Pipeline Liveness, Queue Lag & Self-Healing Metrics
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Liveness status gauge: RUNNING=5 DEGRADED=4 STALLED=3 BLOCKED=2 DEAD=1 UNKNOWN=0
+_LIVENESS_STATUS_VALUE = {
+    "RUNNING": 5, "DEGRADED": 4, "STALLED": 3, "BLOCKED": 2, "DEAD": 1, "UNKNOWN": 0,
+}
+
+pipeline_liveness_status = Gauge(
+    "pipeline_liveness_status",
+    "Pipeline liveness: RUNNING=5 DEGRADED=4 STALLED=3 BLOCKED=2 DEAD=1 UNKNOWN=0",
+    ["pipeline_id"],
+)
+
+pipeline_liveness_lag_seconds = Gauge(
+    "pipeline_liveness_lag_seconds",
+    "Seconds since last successful run per pipeline (-1 = never ran)",
+    ["pipeline_id"],
+)
+
+scheduler_consecutive_failures = Gauge(
+    "scheduler_consecutive_failures",
+    "Consecutive failed scheduler jobs from the heartbeat file",
+)
+
+# Phase 4 — Queue Lag
+queue_backlog_total = Gauge(
+    "queue_backlog_total",
+    "Raw records pending normalization per module",
+    ["module"],
+)
+
+queue_lag_seconds = Gauge(
+    "queue_lag_seconds",
+    "Age of oldest normalization_pending raw record per module (seconds)",
+    ["module"],
+)
+
+queue_oldest_job_age_seconds = Gauge(
+    "queue_oldest_job_age_seconds",
+    "Age of oldest raw record (any status) per module (seconds)",
+    ["module"],
+)
+
+# Self-Healing counters
+self_healing_trigger_total = Counter(
+    "self_healing_trigger_total",
+    "Safe recovery actions triggered by the self-healing coordinator",
+    ["pipeline_id", "action"],
+)
+
+self_healing_throttled_total = Counter(
+    "self_healing_throttled_total",
+    "Self-healing actions suppressed by the rate limiter",
+    ["pipeline_id"],
+)
+
+dead_pipeline_signals_total = Counter(
+    "dead_pipeline_signals_total",
+    "Dead-pipeline signals detected per signal type and severity",
+    ["signal", "severity"],
+)
+
+
+def _wire_reliability_metrics() -> None:
+    """Wire Phase 8 metrics from runtime-data cache files and DB."""
+    from app.pipeline.liveness import PIPELINE_REGISTRY, PipelineLivenessService
+
+    # ── Pipeline liveness (cache file, no DB on scrape) ───────────────────────
+    for desc in PIPELINE_REGISTRY:
+        pid = desc.pipeline_id
+
+        def _status(pid=pid) -> float:
+            cached = PipelineLivenessService.read_cached()
+            if not cached:
+                return 0.0
+            for entry in cached.get("pipelines", []):
+                if entry.get("pipeline_id") == pid:
+                    return float(_LIVENESS_STATUS_VALUE.get(entry.get("status", "UNKNOWN"), 0))
+            return 0.0
+
+        def _lag(pid=pid) -> float:
+            cached = PipelineLivenessService.read_cached()
+            if not cached:
+                return -1.0
+            for entry in cached.get("pipelines", []):
+                if entry.get("pipeline_id") == pid:
+                    v = entry.get("lag_seconds")
+                    return float(v) if v is not None else -1.0
+            return -1.0
+
+        pipeline_liveness_status.labels(pipeline_id=pid).set_function(_status)
+        pipeline_liveness_lag_seconds.labels(pipeline_id=pid).set_function(_lag)
+
+    # ── Scheduler heartbeat (file-based) ──────────────────────────────────────
+    def _hb_age() -> float:
+        from app.runtime.scheduler_heartbeat import heartbeat_age_seconds
+        v = heartbeat_age_seconds()
+        return v if v is not None else -1.0
+
+    def _consec_failures() -> float:
+        from app.runtime.scheduler_heartbeat import read_scheduler_heartbeat
+        hb = read_scheduler_heartbeat()
+        return float(hb.get("consecutive_failures", 0)) if hb else 0.0
+
+    def _exec_drift() -> float:
+        from app.runtime.scheduler_heartbeat import read_scheduler_heartbeat
+        hb = read_scheduler_heartbeat()
+        if not hb:
+            return 0.0
+        v = hb.get("execution_drift_seconds")
+        return float(v) if v is not None else 0.0
+
+    scheduler_heartbeat_age_seconds.set_function(_hb_age)
+    scheduler_consecutive_failures.set_function(_consec_failures)
+    scheduler_execution_drift_seconds.set_function(_exec_drift)
+
+    # ── Queue lag (DB-backed, evaluated at scrape time) ───────────────────────
+    _q_modules = ("ecommerce", "crypto", "real_estate", "trading")
+
+    def _with_db(fn):
+        from database.session import SessionLocal as _SL
+        db = _SL()
+        try:
+            return fn(db)
+        except Exception:
+            return None
+        finally:
+            db.close()
+
+    for module in _q_modules:
+        def _backlog(m=module) -> float:
+            from sqlalchemy import func as _f
+            from app.raw.models import RawCollection as _RC
+            r = _with_db(lambda db, _m=m: db.query(_f.count(_RC.id))
+                         .filter(_RC.module == _m, _RC.processing_status == "normalization_pending")
+                         .scalar())
+            return float(r or 0)
+
+        def _oldest_pending_age(m=module) -> float:
+            from datetime import datetime, timezone as _tz
+            from sqlalchemy import func as _f
+            from app.raw.models import RawCollection as _RC
+            oldest = _with_db(lambda db, _m=m: db.query(_f.min(_RC.collected_at))
+                              .filter(_RC.module == _m, _RC.processing_status == "normalization_pending")
+                              .scalar())
+            if not oldest:
+                return 0.0
+            if hasattr(oldest, "tzinfo") and oldest.tzinfo is None:
+                from datetime import timezone
+                oldest = oldest.replace(tzinfo=timezone.utc)
+            return max(0.0, (datetime.now(_tz.utc) - oldest).total_seconds())
+
+        def _oldest_any_age(m=module) -> float:
+            from datetime import datetime, timezone as _tz
+            from sqlalchemy import func as _f
+            from app.raw.models import RawCollection as _RC
+            oldest = _with_db(lambda db, _m=m: db.query(_f.min(_RC.collected_at))
+                              .filter(_RC.module == _m).scalar())
+            if not oldest:
+                return 0.0
+            if hasattr(oldest, "tzinfo") and oldest.tzinfo is None:
+                from datetime import timezone
+                oldest = oldest.replace(tzinfo=timezone.utc)
+            return max(0.0, (datetime.now(_tz.utc) - oldest).total_seconds())
+
+        queue_backlog_total.labels(module=module).set_function(_backlog)
+        queue_lag_seconds.labels(module=module).set_function(_oldest_pending_age)
+        queue_oldest_job_age_seconds.labels(module=module).set_function(_oldest_any_age)
+
+
+_wire_reliability_metrics()
