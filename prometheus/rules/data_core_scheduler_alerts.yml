@@ -1,0 +1,179 @@
+groups:
+  - name: data-core-scheduler-watchdog
+    interval: 30s
+    rules:
+      - alert: DataCoreSchedulerMemoryHigh
+        expr: data_core_scheduler_memory_usage_ratio > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Data-core scheduler memory above 75%"
+          description: "Scheduler memory usage has been above 75% for 10 minutes. Check trend, cycle duration, backlog, and host memory before changing runtime limits."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulermemoryhigh"
+
+      - alert: DataCoreSchedulerMemoryCritical
+        expr: data_core_scheduler_memory_usage_ratio > 0.90
+        for: 3m
+        labels:
+          severity: critical
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Data-core scheduler memory above 90%"
+          description: "Scheduler is near its memory limit. Inspect logs, OOM counters, and recent cycle behavior before any manual restart."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulermemorycritical"
+
+      - alert: DataCoreSchedulerSwapElevated
+        expr: data_core_scheduler_swap_usage_ratio > 0.20
+        for: 10m
+        labels:
+          severity: warning
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Data-core scheduler swap usage elevated"
+          description: "Scheduler swap usage is above 20% for 10 minutes. Correlate with host swap and memory growth."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulerswapelevated"
+
+      - alert: DataCoreSchedulerOomRecent
+        expr: data_core_scheduler_state == 4
+        for: 0m
+        labels:
+          severity: critical
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Recent scheduler OOM detected"
+          description: "The scheduler watchdog detected a new cgroup OOM event. Confirm container health and preserve logs before mitigation."
+          runbook_url: "docs/scheduler-incident-response.md#datacorescheduleroomrecent"
+
+      - alert: DataCoreSchedulerRestartCountIncreasing
+        expr: increase(data_core_scheduler_restart_count[15m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler restart count increased"
+          description: "The scheduler restart count increased in the last 15 minutes. Investigate OOM, crash loops, and deployment drift."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulerrestartcountincreasing"
+
+      - alert: DataCoreSchedulerPossibleMemoryLeak
+        expr: data_core_scheduler_growth_rate > 524288 and data_core_scheduler_memory_usage_ratio > 0.60
+        for: 15m
+        labels:
+          severity: warning
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler memory growth suggests possible leak"
+          description: "Memory is growing by more than 512 KiB/s while usage is above 60%. Validate whether this is a burst or persistent growth."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulerpossiblememoryleak"
+
+      - alert: DataCoreSchedulerBacklogHigh
+        expr: data_core_scheduler_backlog_score > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler backlog score high"
+          description: "Backlog score is above 0.75 for 10 minutes. Inspect pending normalization records and recent pipeline failures."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulerbackloghigh"
+
+      - alert: DataCoreSchedulerStateNotHealthy
+        expr: data_core_scheduler_state != 0
+        for: 10m
+        labels:
+          severity: warning
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler watchdog state is not healthy"
+          description: "Scheduler has stayed outside SCHEDULER_HEALTHY for more than 10 minutes. Use the diagnosis endpoint for precise state and recommendation."
+          runbook_url: "docs/scheduler-incident-response.md#datacoreschedulerstatenothealthy"
+
+  - name: data-core-scheduler-forensics
+    interval: 30s
+    rules:
+      - alert: SchedulerRestartLoopCritical
+        expr: scheduler_restart_loop_total > 0
+        for: 5m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler restart-loop diagnosis active"
+          description: "Informational forensic alert. Restart-loop diagnosis is active only when hardened provenance supports real restarts."
+
+      - alert: RuntimeMemoryPressureHigh
+        expr: runtime_memory_pressure_score > 0.75
+        for: 10m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Runtime memory pressure is high"
+          description: "Informational capacity alert. Correlate memory pressure with drift, swap growth, and restart provenance before mitigation."
+
+      - alert: SwapGrowthCritical
+        expr: runtime_swap_growth_bytes > 104857600
+        for: 5m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler swap growth is elevated"
+          description: "Informational capacity alert. Swap growth exceeded 100 MiB between samples."
+
+      - alert: SchedulerHeartbeatStale
+        expr: scheduler_heartbeat_age_seconds > 180
+        for: 5m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Scheduler heartbeat is stale"
+          description: "Informational watchdog alert. Distinguish stale heartbeat from real process restart before changing runtime behavior."
+
+      - alert: ExecutionDriftCritical
+        expr: scheduler_execution_drift_seconds > 300
+        for: 5m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "APScheduler execution drift is high"
+          description: "Informational drift alert. Correlate with CPU, memory, queue lag, and missed schedules."
+
+      - alert: WatchdogFalsePositiveSpike
+        expr: scheduler_false_restart_total > 0 and watchdog_confidence_score < 0.8
+        for: 5m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Watchdog rejected untrusted restart-loop evidence"
+          description: "Informational forensic alert. Legacy/probe-local restart counts are present without real restart provenance."
+
+      - alert: RuntimeCapacityDegraded
+        expr: runtime_memory_pressure_score > 0.60 or scheduler_execution_drift_seconds > 120
+        for: 15m
+        labels:
+          severity: info
+          service: data-core
+          component: scheduler
+        annotations:
+          summary: "Runtime capacity is degraded"
+          description: "Informational capacity alert. Use the root-cause report and memory pressure report before applying manual mitigation."

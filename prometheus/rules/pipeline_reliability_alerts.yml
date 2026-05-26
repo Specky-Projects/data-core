@@ -1,0 +1,190 @@
+groups:
+  # ── Phase 11: Pipeline Reliability & Self-Healing Alerts ──────────────────
+  - name: pipeline-liveness
+    rules:
+
+      # Pipeline completely dead (no success in > 10× expected interval)
+      - alert: PipelineDead
+        expr: pipeline_liveness_status == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: data-core
+          category: pipeline-liveness
+        annotations:
+          summary: "Pipeline {{ $labels.pipeline_id }} is DEAD"
+          description: >
+            Pipeline {{ $labels.pipeline_id }} has status=DEAD (no successful run
+            in > 10× its expected interval). Immediate investigation required.
+
+      # Pipeline blocked (erroring, never succeeds)
+      - alert: PipelineBlocked
+        expr: pipeline_liveness_status == 2
+        for: 10m
+        labels:
+          severity: warning
+          service: data-core
+          category: pipeline-liveness
+        annotations:
+          summary: "Pipeline {{ $labels.pipeline_id }} is BLOCKED"
+          description: >
+            Pipeline {{ $labels.pipeline_id }} has been erroring without a successful
+            completion. Check pipeline_failures table and scheduler logs.
+
+      # Pipeline stalled (overdue but not yet dead)
+      - alert: PipelineStalled
+        expr: pipeline_liveness_status == 3
+        for: 15m
+        labels:
+          severity: warning
+          service: data-core
+          category: pipeline-liveness
+        annotations:
+          summary: "Pipeline {{ $labels.pipeline_id }} is STALLED"
+          description: >
+            Pipeline {{ $labels.pipeline_id }} has not produced output within its
+            expected window. Lag = {{ $value }}s.
+
+      # Normalization lag too high (ecommerce: > 2h)
+      - alert: NormalizationLagCritical
+        expr: pipeline_liveness_lag_seconds{pipeline_id="normalize_ecommerce"} > 7200
+        for: 5m
+        labels:
+          severity: critical
+          service: data-core
+          category: normalization
+        annotations:
+          summary: "Ecommerce normalization lag is critical"
+          description: >
+            normalize_ecommerce pipeline lag is {{ $value | humanizeDuration }}.
+            raw_collections are accumulating without normalization.
+            Check SCHEDULER_PIPELINE_ENABLED and normalize_job execution.
+
+      # Analytics lag too high (ecommerce: > 4h)
+      - alert: AnalyticsLagCritical
+        expr: pipeline_liveness_lag_seconds{pipeline_id="analytics_ecommerce"} > 14400
+        for: 5m
+        labels:
+          severity: warning
+          service: data-core
+          category: analytics
+        annotations:
+          summary: "Ecommerce analytics pipeline lag is critical"
+          description: >
+            analytics_ecommerce pipeline lag is {{ $value | humanizeDuration }}.
+            price analytics may be stale.
+
+  # ── Scheduler Heartbeat ──────────────────────────────────────────────────
+  - name: scheduler-heartbeat
+    rules:
+
+      # Heartbeat not updated for 10+ minutes (scheduler frozen or dead)
+      - alert: SchedulerHeartbeatMissing
+        expr: scheduler_heartbeat_age_seconds > 600 or scheduler_heartbeat_age_seconds == -1
+        for: 2m
+        labels:
+          severity: critical
+          service: data-core
+          category: scheduler
+        annotations:
+          summary: "Scheduler proof-of-execution heartbeat is stale"
+          description: >
+            The scheduler heartbeat file has not been updated in
+            {{ $value | humanizeDuration }}.
+            This means APScheduler may be frozen even if the container is alive.
+            Check: docker logs data-core-scheduler-1
+
+      # Consecutive failures indicate a stuck job
+      - alert: SchedulerConsecutiveFailures
+        expr: scheduler_consecutive_failures >= 3
+        for: 0m
+        labels:
+          severity: warning
+          service: data-core
+          category: scheduler
+        annotations:
+          summary: "Scheduler has {{ $value }} consecutive failures"
+          description: >
+            The scheduler has recorded {{ $value }} consecutive failed jobs.
+            Check scheduler logs and pipeline_failures table.
+
+      # Execution drift > 5 minutes (scheduler is running late)
+      - alert: SchedulerExecutionDrift
+        expr: scheduler_execution_drift_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: data-core
+          category: scheduler
+        annotations:
+          summary: "Scheduler execution drift is {{ $value | humanizeDuration }}"
+          description: >
+            The scheduler is firing jobs {{ $value }}s late versus their
+            expected interval. Possible causes: resource contention, OOM,
+            or a long-running job blocking the executor pool.
+
+  # ── Queue Backlog ─────────────────────────────────────────────────────────
+  - name: queue-backlog
+    rules:
+
+      # Backlog explosion — ecommerce
+      - alert: QueueBacklogExploding
+        expr: queue_backlog_total{module="ecommerce"} > 500
+        for: 10m
+        labels:
+          severity: critical
+          service: data-core
+          category: backlog
+        annotations:
+          summary: "Ecommerce normalization backlog has {{ $value }} pending records"
+          description: >
+            {{ $value }} raw_collection records are pending normalization for
+            ecommerce. normalize_job may be stalled or SCHEDULER_PIPELINE_ENABLED=false.
+
+      # Backlog growing — warning threshold
+      - alert: QueueBacklogElevated
+        expr: queue_backlog_total{module="ecommerce"} > 50
+        for: 20m
+        labels:
+          severity: warning
+          service: data-core
+          category: backlog
+        annotations:
+          summary: "Ecommerce normalization backlog is {{ $value }} (elevated)"
+          description: >
+            {{ $value }} raw records are pending normalization for ecommerce.
+            Normalization is running slowly or intermittently.
+
+      # Oldest pending raw is very old
+      - alert: QueueOldestJobAgeCritical
+        expr: queue_lag_seconds{module="ecommerce"} > 14400
+        for: 5m
+        labels:
+          severity: critical
+          service: data-core
+          category: backlog
+        annotations:
+          summary: "Oldest pending ecommerce raw is {{ $value | humanizeDuration }} old"
+          description: >
+            The oldest normalization_pending raw record for ecommerce is
+            {{ $value | humanizeDuration }} old. Data freshness is severely degraded.
+
+  # ── Self-Healing Activity ─────────────────────────────────────────────────
+  - name: self-healing
+    rules:
+
+      # Rate limiter is firing — self-healing loop detected
+      - alert: SelfHealingThrottleLoop
+        expr: increase(self_healing_throttled_total[30m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          service: data-core
+          category: self-healing
+        annotations:
+          summary: "Self-healing is being throttled (possible recovery loop)"
+          description: >
+            {{ $value }} self-healing actions were suppressed by the rate limiter
+            in the last 30 minutes. The self-healing system detected a stalled
+            pipeline repeatedly — the root cause has not been resolved.
+            DO NOT restart automatically. Investigate the underlying pipeline.
