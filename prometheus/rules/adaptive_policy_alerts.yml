@@ -1,0 +1,117 @@
+groups:
+  - name: adaptive_policy
+    interval: 30s
+    rules:
+
+      # ── Calibration degraded ────────────────────────────────────────────────
+
+      - alert: AdaptivePolicyCalibrationDegraded
+        expr: |
+          adaptive_policy_confidence_score < 60
+          and adaptive_policy_boost_blocked == 1
+        for: 10m
+        labels:
+          severity: warning
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: calibration degraded, BOOST blocked"
+          description: >
+            Adaptive policy confidence score is {{ $value }}/100 and BOOST is blocked.
+            The confidence calibration may be unreliable — check /adaptive-policy/hints
+            and /adaptive-intelligence/calibration for details.
+
+      # ── Confidence drift spike ─────────────────────────────────────────────
+
+      - alert: AdaptivePolicyConfidenceDriftSpike
+        expr: |
+          increase(adaptive_policy_confidence_penalty_total{penalty_type="total"}[15m]) > 20
+        for: 0m
+        labels:
+          severity: warning
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: confidence penalty spike detected"
+          description: >
+            {{ $value }} confidence penalty points applied in the last 15 minutes.
+            Possible calibration drift, overconfidence, or replayability degradation.
+            Investigate /adaptive-policy/report for penalty breakdown.
+
+      # ── Replayability unsafe ───────────────────────────────────────────────
+
+      - alert: AdaptivePolicyReplayabilityUnsafe
+        expr: |
+          adaptive_policy_replayability_score < 60
+        for: 5m
+        labels:
+          severity: warning
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: replayability score below safe threshold"
+          description: >
+            Replayability score is {{ $value }}/100 (threshold: 60).
+            BOOST is blocked and confidence penalties are applied.
+            Check /health/replayability for sequence gaps.
+
+      # ── Quant/entropy critical ─────────────────────────────────────────────
+
+      - alert: AdaptivePolicyEntropyCritical
+        expr: |
+          adaptive_policy_quant_reliability_score < 40
+        for: 5m
+        labels:
+          severity: critical
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: quant reliability critically low"
+          description: >
+            Quant reliability (entropy proxy) is {{ $value }}/100 (critical threshold: 40).
+            Signal quality is unreliable. BOOST is blocked and safe_mode hints are active.
+            Investigate /health/quant and signal entropy metrics.
+
+      # ── Policy fail_closed ────────────────────────────────────────────────
+
+      - alert: AdaptivePolicyFailClosed
+        expr: |
+          adaptive_policy_fail_closed == 1
+        for: 2m
+        labels:
+          severity: critical
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy is in FAIL_CLOSED mode"
+          description: >
+            The adaptive policy contract has escalated to FAIL_CLOSED mode.
+            position_open actions are recommended to be blocked.
+            Current risk is CRITICAL. Investigate /adaptive-policy/report.
+
+      # ── Repeated BOOST blocks ─────────────────────────────────────────────
+
+      - alert: AdaptivePolicyRepeatedBoostBlocks
+        expr: |
+          increase(adaptive_policy_boost_blocked_total[30m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: BOOST blocked repeatedly"
+          description: >
+            BOOST has been blocked {{ $value }} times in the last 30 minutes.
+            This may indicate persistent calibration or replayability issues.
+            Check /adaptive-policy/hints for current block reasons.
+
+      # ── Safe mode sustained ────────────────────────────────────────────────
+
+      - alert: AdaptivePolicySafeModeSustained
+        expr: |
+          adaptive_policy_safe_mode == 1
+        for: 30m
+        labels:
+          severity: warning
+          layer: adaptive_policy
+        annotations:
+          summary: "Adaptive policy: safe_mode active for 30+ minutes"
+          description: >
+            The adaptive policy has recommended safe_mode for 30+ minutes.
+            Position sizing hints are reduced. Investigate root cause via
+            /adaptive-policy/report and /health/operational.

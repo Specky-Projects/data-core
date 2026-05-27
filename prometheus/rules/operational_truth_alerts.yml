@@ -1,0 +1,200 @@
+groups:
+  - name: operational_truth
+    interval: 30s
+    rules:
+
+      # ── Operational Confidence ─────────────────────────────────────────────
+
+      - alert: OperationalConfidenceCritical
+        expr: optruth_operational_confidence_score < 30
+        for: 2m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Operational confidence critically low"
+          description: "Operational confidence score is {{ $value }}/100 — system may be in UNSAFE or CRITICAL state."
+
+      - alert: OperationalConfidenceLow
+        expr: optruth_operational_confidence_score < 60
+        for: 5m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Operational confidence degraded"
+          description: "Operational confidence score is {{ $value }}/100 — degradation detected."
+
+      # ── Safe Mode ──────────────────────────────────────────────────────────
+
+      - alert: SafeModeActivated
+        expr: optruth_safe_mode_active == 1
+        for: 1m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Safe mode is active"
+          description: "Runtime safe mode has been activated — operational confidence below threshold."
+
+      # ── Runtime ───────────────────────────────────────────────────────────
+
+      - alert: RuntimeScoreCritical
+        expr: optruth_runtime_truth_score < 30
+        for: 3m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Runtime score critically low"
+          description: "Runtime truth score is {{ $value }}/100 — scheduler or worker may be dead."
+
+      - alert: SchedulerHeartbeatStale
+        expr: optruth_scheduler_heartbeat_age_seconds > 600
+        for: 2m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Scheduler heartbeat is stale"
+          description: "Scheduler heartbeat is {{ $value }}s old — scheduler may have stalled."
+
+      - alert: SchedulerHeartbeatDead
+        expr: optruth_scheduler_heartbeat_age_seconds > 1800
+        for: 1m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Scheduler heartbeat is dead"
+          description: "Scheduler heartbeat is {{ $value }}s old (>30m) — scheduler is likely dead."
+
+      - alert: QueuePressureHigh
+        expr: optruth_queue_pressure_score >= 75
+        for: 5m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Queue backlog pressure is high"
+          description: "Queue pressure score is {{ $value }}/100 — normalization backlog growing."
+
+      - alert: QueueExplosion
+        expr: optruth_queue_pressure_score >= 100
+        for: 2m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Queue explosion detected"
+          description: "Normalization queue is overloaded (pressure score {{ $value }}/100)."
+
+      # ── Datasets ──────────────────────────────────────────────────────────
+
+      - alert: DatasetScoreCritical
+        expr: optruth_dataset_truth_score < 40
+        for: 5m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Dataset truth score critically low"
+          description: "Dataset score is {{ $value }}/100 — ingestion lag or data corruption risk."
+
+      - alert: CryptoRawDataStale
+        expr: optruth_dataset_latest_age_seconds{module="crypto"} > 3600
+        for: 5m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Crypto raw data is stale"
+          description: "Latest crypto raw record is {{ $value }}s old."
+
+      - alert: CryptoRawDataCriticallyStale
+        expr: optruth_dataset_latest_age_seconds{module="crypto"} > 86400
+        for: 2m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Crypto raw data critically stale (>24h)"
+          description: "Latest crypto raw record is {{ $value }}s old — ingestion appears broken."
+
+      # ── Replayability ────────────────────────────────────────────────────
+
+      - alert: ReplayabilityScoreDegraded
+        expr: optruth_replayability_score < 60
+        for: 10m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Replayability score degraded"
+          description: "Replayability score is {{ $value }}/100 — sequence gaps or stale snapshots."
+
+      - alert: DeterminismDegraded
+        expr: optruth_determinism_score < 50
+        for: 10m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Determinism score degraded"
+          description: "Determinism score is {{ $value }}/100 — replay fidelity may be compromised."
+
+      - alert: ReplaySnapshotStale
+        expr: optruth_replayability_age_seconds > 3600
+        for: 5m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Replay snapshot is stale"
+          description: "Most recent replay snapshot is {{ $value }}s old."
+
+      # ── Quant ─────────────────────────────────────────────────────────────
+
+      - alert: QuantReliabilityDegraded
+        expr: optruth_quant_reliability_score < 50
+        for: 10m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Quant reliability score degraded"
+          description: "Quant reliability score is {{ $value }}/100 — signal or calibration issues."
+
+      - alert: InvalidDecisionRatioHigh
+        expr: optruth_invalid_decision_ratio > 0.6
+        for: 5m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "High invalid decision ratio in signals"
+          description: "Invalid decision ratio is {{ $value | humanizePercentage }} — calibration may be off."
+
+      # ── Infra ─────────────────────────────────────────────────────────────
+
+      - alert: InfraScoreCritical
+        expr: optruth_infra_score < 40
+        for: 1m
+        labels:
+          severity: critical
+          layer: operational_truth
+        annotations:
+          summary: "Infrastructure score critically low"
+          description: "Infra score is {{ $value }}/100 — PostgreSQL or Redis may be down."
+
+      # ── Degradation ───────────────────────────────────────────────────────
+
+      - alert: DegradationDetected
+        expr: optruth_degradation_detected == 1
+        for: 15m
+        labels:
+          severity: warning
+          layer: operational_truth
+        annotations:
+          summary: "Operational degradation detected (sustained)"
+          description: "Platform has been in a degraded operational state for 15+ minutes."

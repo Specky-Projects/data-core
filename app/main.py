@@ -37,6 +37,10 @@ from app.watchdog.api import router as watchdog_router
 import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
 from app.modules.trading.validation.api import router as trading_validation_router
 import app.modules.trading.validation.models  # noqa: F401 — ensure TradingSignalOutcome table registered
+from app.operational_truth.api import router as operational_truth_router
+from app.operational_truth.policy.api import router as operational_policy_router
+from app.adaptive_intelligence.api import router as adaptive_intelligence_router
+from app.adaptive_policy.api import router as adaptive_policy_router
 from app.normalization import models as normalization_models
 from app.pipeline import models as pipeline_models  # ensure tables are registered
 from app.raw import models as raw_models
@@ -237,5 +241,14 @@ def create_app() -> FastAPI:
     app.include_router(runtime_router, dependencies=auth_dep)
     app.include_router(watchdog_router, dependencies=auth_dep)
     app.include_router(trading_validation_router, dependencies=auth_dep)
+    # Operational Truth Layer — /health/operational, /health/runtime, etc.
+    # No auth_dep: health endpoints are intentionally public (monitored by Prometheus/Grafana).
+    app.include_router(operational_truth_router)
+    # Operational Policy — /policy/operational (public, consumed by downstream services).
+    app.include_router(operational_policy_router)
+    # Adaptive Intelligence — /adaptive-intelligence/* (public, advisory-only).
+    app.include_router(adaptive_intelligence_router)
+    # Adaptive Policy Contract — /adaptive-policy/* (public, advisory-only).
+    app.include_router(adaptive_policy_router)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app

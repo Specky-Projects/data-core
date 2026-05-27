@@ -1,0 +1,187 @@
+{
+  "title": "Operational Truth Dashboard",
+  "uid": "operational-truth-v1",
+  "version": 1,
+  "schemaVersion": 38,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "tags": ["operational-truth", "production-readiness", "platform"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Operational Confidence Score",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0, "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 40 },
+              { "color": "yellow", "value": 60 },
+              { "color": "green", "value": 80 }
+            ]
+          }
+        }
+      },
+      "targets": [{ "expr": "optruth_operational_confidence_score", "legendFormat": "Confidence" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Operational Status",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "CRITICAL", "color": "red" }, "2": { "text": "UNSAFE", "color": "orange" }, "3": { "text": "PARTIALLY_UNSAFE", "color": "yellow" }, "4": { "text": "DEGRADED", "color": "blue" }, "5": { "text": "HEALTHY", "color": "green" } } }
+          ]
+        }
+      },
+      "targets": [{ "expr": "optruth_operational_status", "legendFormat": "Status" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Safe Mode",
+      "gridPos": { "x": 8, "y": 0, "w": 3, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "OFF", "color": "green" }, "1": { "text": "ACTIVE", "color": "red" } } }]
+        }
+      },
+      "targets": [{ "expr": "optruth_safe_mode_active", "legendFormat": "Safe Mode" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Degradation Detected",
+      "gridPos": { "x": 11, "y": 0, "w": 3, "h": 4 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "0": { "text": "NOMINAL", "color": "green" }, "1": { "text": "DEGRADED", "color": "orange" } } }]
+        }
+      },
+      "targets": [{ "expr": "optruth_degradation_detected", "legendFormat": "Degradation" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Operational Confidence — All Dimensions",
+      "gridPos": { "x": 0, "y": 4, "w": 14, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100 } },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "targets": [
+        { "expr": "optruth_operational_confidence_score", "legendFormat": "Overall Confidence" },
+        { "expr": "optruth_runtime_truth_score", "legendFormat": "Runtime" },
+        { "expr": "optruth_dataset_truth_score", "legendFormat": "Datasets" },
+        { "expr": "optruth_replayability_score", "legendFormat": "Replayability" },
+        { "expr": "optruth_quant_reliability_score", "legendFormat": "Quant Reliability" },
+        { "expr": "optruth_infra_score", "legendFormat": "Infra" },
+        { "expr": "optruth_security_score", "legendFormat": "Security" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Runtime Score",
+      "gridPos": { "x": 0, "y": 12, "w": 3, "h": 3 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } } },
+      "targets": [{ "expr": "optruth_runtime_truth_score", "legendFormat": "Runtime" }]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Dataset Score",
+      "gridPos": { "x": 3, "y": 12, "w": 3, "h": 3 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } } },
+      "targets": [{ "expr": "optruth_dataset_truth_score", "legendFormat": "Dataset" }]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Replayability Score",
+      "gridPos": { "x": 6, "y": 12, "w": 3, "h": 3 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } } },
+      "targets": [{ "expr": "optruth_replayability_score", "legendFormat": "Replayability" }]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Quant Reliability Score",
+      "gridPos": { "x": 9, "y": 12, "w": 3, "h": 3 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] } } },
+      "targets": [{ "expr": "optruth_quant_reliability_score", "legendFormat": "Quant" }]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Scheduler Heartbeat Age",
+      "gridPos": { "x": 0, "y": 15, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 600 }, { "color": "red", "value": 1800 }] } } },
+      "targets": [{ "expr": "optruth_scheduler_heartbeat_age_seconds", "legendFormat": "Heartbeat Age" }]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Queue Pressure Score",
+      "gridPos": { "x": 7, "y": 15, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 75 }] } } },
+      "targets": [{ "expr": "optruth_queue_pressure_score", "legendFormat": "Queue Pressure" }]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Dataset Latest Age by Module",
+      "gridPos": { "x": 0, "y": 21, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 3600 }, { "color": "red", "value": 86400 }] } } },
+      "targets": [{ "expr": "optruth_dataset_latest_age_seconds", "legendFormat": "{{ module }}" }]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Determinism & Replayability",
+      "gridPos": { "x": 7, "y": 21, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100 } },
+      "targets": [
+        { "expr": "optruth_replayability_score", "legendFormat": "Replayability" },
+        { "expr": "optruth_determinism_score", "legendFormat": "Determinism" }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Invalid Decision Ratio",
+      "gridPos": { "x": 0, "y": 27, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 0.7 }] } } },
+      "targets": [{ "expr": "optruth_invalid_decision_ratio", "legendFormat": "Invalid Decision Ratio" }]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Operational Confidence — Degradation Timeline",
+      "gridPos": { "x": 7, "y": 27, "w": 7, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "max": 100 } },
+      "options": { "fillOpacity": 20 },
+      "targets": [
+        { "expr": "optruth_operational_confidence_score", "legendFormat": "Confidence" },
+        { "expr": "optruth_safe_mode_active * 40", "legendFormat": "Safe Mode Zone" }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "logs",
+      "title": "Operational Truth — Event Log",
+      "gridPos": { "x": 0, "y": 33, "w": 24, "h": 5 },
+      "options": { "showLabels": true, "showTime": true, "wrapLogMessage": true },
+      "targets": [{ "expr": "{job=\"data-core-api\"} |= \"operational_truth\"" }]
+    }
+  ]
+}

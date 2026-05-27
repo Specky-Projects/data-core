@@ -14,6 +14,7 @@ services:
     environment:
       SCHEDULER_ENABLED: "false"
       POUPI_LEGACY_BACKEND_DIR: /app/poupi-baby/backend
+      POUPI_CRYPTO_INTERNAL_URL: http://poupi-crypto-api:8002
     depends_on:
       postgres:
         condition: service_healthy

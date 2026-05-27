@@ -73,6 +73,22 @@ class Settings(BaseSettings):
     # poupi-baby URL (used by watchdog to optionally query poupi-baby health)
     poupi_baby_url: str = ""
 
+    # Adaptive Policy Contract (Phase 10)
+    # Rollout phases: 1=OBSERVE_ONLY, 2=WARN_ONLY, 3=SAFE_MODE_HINTS, 4=FAIL_CLOSED_CRITICAL_ONLY
+    adaptive_policy_rollout_phase: int = 1
+    adaptive_policy_enabled: bool = True
+
+    # Telegram Longitudinal Summary (Phase 11)
+    # Master switch: must be True AND telegram_enabled=True for any message to be sent.
+    # Type-specific flags allow disabling individual summary categories independently.
+    telegram_summary_enabled: bool = False
+    telegram_summary_operational_enabled: bool = True   # hourly operational health
+    telegram_summary_quant_enabled: bool = True         # 6h quant/adaptive intelligence
+    telegram_summary_longitudinal_enabled: bool = True  # daily 24h vs 7d digest
+    telegram_summary_alerts_enabled: bool = True        # immediate alerts (with cooldown)
+    # Cron hour for the daily longitudinal digest (UTC, 0-23)
+    telegram_summary_longitudinal_cron_hour: int = 8
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 

@@ -1,0 +1,125 @@
+groups:
+  - name: enforcement_layer
+    interval: 30s
+    rules:
+
+      # ── Policy fetch health ────────────────────────────────────────────────
+
+      - alert: EnforcementPolicyFetchFailures
+        expr: |
+          rate(enforcement_policy_fetch_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement policy fetch failures detected"
+          description: >
+            {{ $value | humanize }} policy fetch failures/s in the last 5 minutes.
+            Downstream services may be running on stale or fallback policies.
+
+      - alert: EnforcementUsingFallback
+        expr: enforcement_policy_using_fallback == 1
+        for: 3m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement layer using conservative fallback policy"
+          description: >
+            data-core /policy/operational is unreachable for 3+ minutes.
+            Downstream enforcement is running on the conservative fallback (safe_mode).
+
+      - alert: EnforcementPolicyCacheStale
+        expr: enforcement_policy_cache_age_seconds > 180
+        for: 2m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement policy cache is stale"
+          description: >
+            Cached policy is {{ $value }}s old (>3min).
+            The client may be failing to re-fetch from data-core.
+
+      # ── Kill switch ────────────────────────────────────────────────────────
+
+      - alert: EnforcementKillSwitchActivated
+        expr: increase(enforcement_kill_switch_blocks_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          layer: enforcement
+        annotations:
+          summary: "Enforcement kill-switch blocked a critical action"
+          description: >
+            kill_switch has blocked {{ $value }} action(s) in the last 5 minutes.
+            Operational confidence is critically low — investigate immediately.
+
+      # ── Blocked actions ────────────────────────────────────────────────────
+
+      - alert: EnforcementBlockingPositions
+        expr: |
+          increase(enforcement_blocked_actions_total{action="position_open"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement is blocking position opens"
+          description: >
+            {{ $value }} position_open actions blocked in the last 10 minutes.
+            Current enforcement mode is blocking new paper positions.
+
+      - alert: EnforcementBlockingSignals
+        expr: |
+          increase(enforcement_blocked_actions_total{action="signal_generate"}[10m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          layer: enforcement
+        annotations:
+          summary: "Enforcement is blocking signal generation"
+          description: >
+            {{ $value }} signal_generate actions blocked in the last 10 minutes.
+            System is in emergency_kill_switch mode.
+
+      # ── Mode escalation ────────────────────────────────────────────────────
+
+      - alert: EnforcementModeEscalatedToFailClosed
+        expr: enforcement_current_mode >= 4
+        for: 5m
+        labels:
+          severity: critical
+          layer: enforcement
+        annotations:
+          summary: "Enforcement mode escalated to fail_closed or emergency"
+          description: >
+            Enforcement mode is {{ $value }} (4=fail_closed, 5=emergency_kill_switch).
+            New paper positions are blocked. Investigate operational confidence.
+
+      - alert: EnforcementModeEscalatedToSafeMode
+        expr: enforcement_current_mode == 3
+        for: 10m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement mode escalated to safe_mode"
+          description: >
+            Enforcement mode has been safe_mode for 10+ minutes.
+            Position sizing is reduced and confidence threshold is raised.
+
+      # ── Confidence threshold ───────────────────────────────────────────────
+
+      - alert: EnforcementConfidenceLow
+        expr: enforcement_current_confidence_score < 50
+        for: 10m
+        labels:
+          severity: warning
+          layer: enforcement
+        annotations:
+          summary: "Enforcement confidence score below 50 for 10 minutes"
+          description: >
+            Operational confidence in enforcement client is {{ $value }}/100.
+            This may indicate sustained platform degradation.

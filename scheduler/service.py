@@ -22,6 +22,11 @@ from scheduler.jobs import (
     signal_outcomes_job,
     watchdog_heartbeat_job,
 )
+from app.telegram_summary.jobs import (
+    daily_longitudinal_summary_job,
+    hourly_operational_summary_job,
+    six_hour_quant_summary_job,
+)
 from scheduler.retry import with_retry
 from app.runtime.scheduler_reliability import SchedulerReliabilityEngine
 from app.runtime.scheduler_watchdog import record_scheduler_execution_event
@@ -263,6 +268,39 @@ def create_scheduler() -> BackgroundScheduler:
             max_instances=1,
             coalesce=True,
         )
+
+    # ── Telegram Longitudinal Summary (Phase 11) ──────────────────────────────
+    # Master switch: settings.telegram_summary_enabled (default False).
+    # Jobs always register so toggling the flag at runtime takes effect next fire;
+    # each job checks the flag itself and no-ops when disabled.
+    scheduler.add_job(
+        lambda: with_retry(hourly_operational_summary_job, job_name="hourly_operational_summary_job"),
+        "interval",
+        hours=1,
+        id="telegram_summary:hourly_operational",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        lambda: with_retry(six_hour_quant_summary_job, job_name="six_hour_quant_summary_job"),
+        "interval",
+        hours=6,
+        id="telegram_summary:six_hour_quant",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        daily_longitudinal_summary_job,
+        "cron",
+        hour=settings.telegram_summary_longitudinal_cron_hour,
+        minute=0,
+        id="telegram_summary:daily_longitudinal",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
 
     # ── Dataset quality — candle freshness/coverage scoring (every 30 min) ────
     # Runs in both scheduler and worker containers (pipeline must be enabled to have
