@@ -73,7 +73,7 @@ adaptive_policy_quant_reliability_score_gauge = Gauge(
 )
 
 adaptive_policy_boost_blocked_gauge = Gauge(
-    "adaptive_policy_boost_blocked",
+    "adaptive_policy_boost_blocked_state",
     "1 if BOOST is currently blocked by the safety validator, 0 otherwise",
 )
 

@@ -8,7 +8,7 @@ groups:
       - alert: AdaptivePolicyCalibrationDegraded
         expr: |
           adaptive_policy_confidence_score < 60
-          and adaptive_policy_boost_blocked == 1
+          and adaptive_policy_boost_blocked_state == 1
         for: 10m
         labels:
           severity: warning

@@ -117,7 +117,7 @@
           ]
         }
       },
-      "targets": [{ "expr": "adaptive_policy_boost_blocked", "legendFormat": "BOOST" }]
+      "targets": [{ "expr": "adaptive_policy_boost_blocked_state", "legendFormat": "BOOST" }]
     },
     {
       "id": 6,
