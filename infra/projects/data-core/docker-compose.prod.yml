@@ -20,8 +20,13 @@ services:
     expose:
       - "8000"
     command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    # ── Resource limits ───────────────────────────────────────────────────────
+    # api: FastAPI + SQLAlchemy pool (5 conns). 512 MiB is comfortable headroom;
+    # memswap = limit + 256 MiB swap buffer so an occasional spike doesn't OOM.
+    mem_limit: 512m
+    memswap_limit: 768m
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5).read()\""]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\", timeout=5).read()'"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -63,6 +68,32 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     command: sh -c "python -m app.jobs.scheduler_runner"
+    # ── Resource limits ───────────────────────────────────────────────────────
+    # scheduler: APScheduler + persistent async loop + collector threads.
+    # 768 MiB is the OOM-kill safety net; with the Phase 0.6 asyncio.run() fix
+    # steady-state RSS is ~180 MiB so this gives 4× headroom.
+    # memswap = 1024 MiB (limit + 256 MiB swap) to survive transient bursts
+    # without killing the container outright.
+    mem_limit: 768m
+    memswap_limit: 1024m
+    healthcheck:
+      # Pass if scheduler_heartbeat.json was written within the last 10 minutes.
+      # The heartbeat job fires every 5 min; 10 min tolerance covers one missed tick.
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c '
+          import json, datetime, pathlib;
+          p = pathlib.Path("/app/runtime-data/scheduler_heartbeat.json");
+          d = json.loads(p.read_text());
+          t = datetime.datetime.fromisoformat(d["written_at"][:26]);
+          age = (datetime.datetime.utcnow() - t).total_seconds();
+          assert age < 600, f"stale: {age:.0f}s"
+          '
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     depends_on:
       api:
         condition: service_healthy
@@ -93,6 +124,28 @@ services:
       POUPI_LEGACY_BACKEND_DIR: ${POUPI_LEGACY_BACKEND_DIR:-/app/domains/poupi_baby/backend}
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
     command: sh -c "python -m app.jobs.worker --interval $${WORKER_PIPELINE_INTERVAL_SECONDS:-300}"
+    # ── Resource limits ───────────────────────────────────────────────────────
+    # worker: pipeline normalize/analytics batches. 512 MiB handles peak batch
+    # loads; memswap = 768 MiB.
+    mem_limit: 512m
+    memswap_limit: 768m
+    healthcheck:
+      # Pass if worker_heartbeat.json epoch timestamp is less than ~11.5 min old.
+      # Worker heartbeat fires every 5 min; 700s tolerance covers one missed tick.
+      test:
+        - CMD-SHELL
+        - >-
+          python3 -c '
+          import json, time, pathlib;
+          p = pathlib.Path("/app/runtime-data/worker_heartbeat.json");
+          d = json.loads(p.read_text());
+          age = time.time() - float(d["timestamp_epoch"]);
+          assert age < 700, f"stale: {age:.0f}s"
+          '
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     depends_on:
       api:
         condition: service_healthy
