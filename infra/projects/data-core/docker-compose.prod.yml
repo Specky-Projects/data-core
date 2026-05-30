@@ -74,8 +74,8 @@ services:
     # steady-state RSS is ~180 MiB so this gives 4× headroom.
     # memswap = 1024 MiB (limit + 256 MiB swap) to survive transient bursts
     # without killing the container outright.
-    mem_limit: 768m
-    memswap_limit: 1024m
+    mem_limit: 1024m
+    memswap_limit: 1280m
     healthcheck:
       # Pass if scheduler_heartbeat.json was written within the last 10 minutes.
       # The heartbeat job fires every 5 min; 10 min tolerance covers one missed tick.
