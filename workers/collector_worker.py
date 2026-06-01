@@ -17,6 +17,7 @@ from database.models import (
 )
 from utils.hashing import stable_payload_hash
 from utils.retry import retry_async
+from utils.sanitization import sanitize_for_postgres
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,9 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
     db.add(run)
     db.commit()
     db.refresh(run)
+    # db.refresh() opens a transaction in SQLAlchemy. Long-running collectors can
+    # then leave the connection idle in transaction until Postgres terminates it.
+    db.rollback()
 
     try:
         items = await retry_async(
@@ -57,6 +61,7 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
         domain_label = metadata.domain.value
         for item in items:
             item_saved = collector.save_raw(db, [item])
+            payload = sanitize_for_postgres(item.payload)
             raw_saved += item_saved
             if item_saved:
                 # Increment Prometheus counter — wired here for Phase E (E-01 fix).
@@ -71,15 +76,15 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
                     domain=domain_label,
                     collector_name=metadata.name,
                 ).inc()
-            payload_hash = stable_payload_hash(item.payload)
+            payload_hash = stable_payload_hash(payload)
             record = CollectedRecord(
                 run_id=run.id,
                 collector_name=metadata.name,
                 domain=metadata.domain,
                 source=metadata.source,
-                external_id=item.external_id,
-                source_url=item.source_url,
-                payload=item.payload,
+                external_id=sanitize_for_postgres(item.external_id),
+                source_url=sanitize_for_postgres(item.source_url),
+                payload=payload,
                 payload_hash=payload_hash,
             )
             try:
@@ -108,7 +113,7 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
         db.rollback()
         run = db.merge(run)
         run.status = RunStatus.failed
-        run.error_message = str(exc)
+        run.error_message = sanitize_for_postgres(str(exc))
         run.error_count = 1
         run.finished_at = datetime.now(timezone.utc)
         db.add(
@@ -116,9 +121,9 @@ async def run_collector_by_name(collector_name: str, db: Session) -> CollectionR
                 run_id=run.id,
                 collector_name=metadata.name,
                 error_type=type(exc).__name__,
-                message=str(exc),
-                traceback=traceback.format_exc(),
-                context={"collector": metadata.name},
+                message=sanitize_for_postgres(str(exc)),
+                traceback=sanitize_for_postgres(traceback.format_exc()),
+                context=sanitize_for_postgres({"collector": metadata.name}),
             )
         )
         db.commit()

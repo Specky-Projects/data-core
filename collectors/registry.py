@@ -2,6 +2,9 @@ from collectors.base import BaseCollector
 from collectors.crypto.crypto_coin_ohlcv import CryptoCoinOHLCVCollector
 from collectors.crypto.generic_price import GenericCryptoPriceCollector
 from collectors.ecommerce.generic_product import GenericProductCollector
+from collectors.jobs.greenhouse_collector import GreenhouseCollector
+from collectors.jobs.gupy_collector import GupyCollector
+from collectors.real_estate.direct_agencies_collector import DirectAgenciesCollector
 from collectors.real_estate.generic_listing import GenericRealEstateCollector
 from collectors.sports_betting.generic_odds import GenericSportsOddsCollector
 
@@ -29,8 +32,16 @@ class CollectorRegistry:
 
 
 registry = CollectorRegistry()
-registry.register(GenericRealEstateCollector)
+
+# ── Existing verticals ────────────────────────────────────────────────────────
+registry.register(GenericRealEstateCollector)   # mock/demo — schedulable=False
 registry.register(GenericProductCollector)
 registry.register(GenericCryptoPriceCollector)
 registry.register(CryptoCoinOHLCVCollector)
 registry.register(GenericSportsOddsCollector)
+
+# Server-first collection profile: only proven bounded collectors are registered
+# for now. Portals/ATS integrations can be added back after individual smokes.
+registry.register(DirectAgenciesCollector)
+registry.register(GupyCollector)
+registry.register(GreenhouseCollector)

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from database.models import CollectionRun, RunStatus
 from app.raw.models import CollectorVersion, RawCollection
 from app.raw.repository import RawRepository
+from utils.sanitization import sanitize_for_postgres
 
 logger = logging.getLogger(__name__)
 
@@ -214,19 +215,28 @@ class RawCollectionService:
         )
 
     def save(self, item: RawCollectionInput) -> RawCollection:
+        raw_content = sanitize_for_postgres(item.raw_content)
+        raw_json = sanitize_for_postgres(item.raw_json)
+        request_params_json = sanitize_for_postgres(item.request_params_json)
+        request_headers_json = sanitize_for_postgres(item.request_headers_json)
+        response_headers_json = sanitize_for_postgres(item.response_headers_json)
+        metadata_json = sanitize_for_postgres(item.metadata_json)
+        collection_metadata_json = sanitize_for_postgres(
+            item.collection_metadata_json or item.metadata_json
+        )
         checksum = self.calculate_checksum(
-            raw_content=item.raw_content,
-            raw_json=item.raw_json,
+            raw_content=raw_content,
+            raw_json=raw_json,
             metadata={
                 "module": item.module,
-                "source_id": item.source_id,
-                "source_name": item.source_name,
-                "collector_name": item.collector_name,
-                "collector_version": item.collector_version,
-                "raw_schema_name": item.raw_schema_name,
-                "raw_schema_version": item.raw_schema_version,
-                "target_url": item.target_url,
-                "endpoint": item.endpoint,
+                "source_id": sanitize_for_postgres(item.source_id),
+                "source_name": sanitize_for_postgres(item.source_name),
+                "collector_name": sanitize_for_postgres(item.collector_name),
+                "collector_version": sanitize_for_postgres(item.collector_version),
+                "raw_schema_name": sanitize_for_postgres(item.raw_schema_name),
+                "raw_schema_version": sanitize_for_postgres(item.raw_schema_version),
+                "target_url": sanitize_for_postgres(item.target_url),
+                "endpoint": sanitize_for_postgres(item.endpoint),
             },
         )
         existing = (
@@ -257,28 +267,28 @@ class RawCollectionService:
             module=item.module,
             source_name=item.source_name,
             source_type=item.source_type,
-            source_id=item.source_id,
-            collector_name=item.collector_name,
-            collector_version=item.collector_version,
-            raw_schema_name=item.raw_schema_name,
-            raw_schema_version=item.raw_schema_version,
-            target_url=item.target_url,
-            url=item.target_url,
-            endpoint=item.endpoint,
-            method=item.method,
-            request_params_json=item.request_params_json,
-            request_headers_json=item.request_headers_json,
+            source_id=sanitize_for_postgres(item.source_id),
+            collector_name=sanitize_for_postgres(item.collector_name),
+            collector_version=sanitize_for_postgres(item.collector_version),
+            raw_schema_name=sanitize_for_postgres(item.raw_schema_name),
+            raw_schema_version=sanitize_for_postgres(item.raw_schema_version),
+            target_url=sanitize_for_postgres(item.target_url),
+            url=sanitize_for_postgres(item.target_url),
+            endpoint=sanitize_for_postgres(item.endpoint),
+            method=sanitize_for_postgres(item.method),
+            request_params_json=request_params_json,
+            request_headers_json=request_headers_json,
             response_status=item.response_status,
-            response_headers_json=item.response_headers_json,
-            content_type=item.content_type,
-            raw_content=item.raw_content,
-            raw_json=item.raw_json,
+            response_headers_json=response_headers_json,
+            content_type=sanitize_for_postgres(item.content_type),
+            raw_content=raw_content,
+            raw_json=raw_json,
             checksum=checksum,
             processing_status="normalization_pending" if item.error_message is None else "ignored",
             collected_at=item.collected_at or datetime.now(timezone.utc),
-            error_message=item.error_message,
-            metadata_json=item.metadata_json,
-            collection_metadata_json=item.collection_metadata_json or item.metadata_json,
+            error_message=sanitize_for_postgres(item.error_message),
+            metadata_json=metadata_json,
+            collection_metadata_json=collection_metadata_json,
         )
         self.ensure_collector_version(
             module=item.module,

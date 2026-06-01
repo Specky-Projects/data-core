@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.raw.service import RawCollectionInput, RawService
 from database.models import CollectorDomain
+from utils.sanitization import sanitize_for_postgres
 
 
 @dataclass(frozen=True)
@@ -59,10 +60,10 @@ class BaseCollector(ABC):
                     endpoint=item.source_url,
                     method="GET",
                     content_type="application/json",
-                    raw_json=item.payload,
+                    raw_json=sanitize_for_postgres(item.payload),
                     metadata_json={
                         "collector": self.metadata.name,
-                        **item.metadata,
+                        **sanitize_for_postgres(item.metadata),
                     },
                 )
             )

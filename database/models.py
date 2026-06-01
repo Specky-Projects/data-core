@@ -18,6 +18,7 @@ class CollectorDomain(str, enum.Enum):
     ecommerce = "ecommerce"
     crypto = "crypto"
     sports_betting = "sports_betting"
+    jobs = "jobs"
 
 
 class RunStatus(str, enum.Enum):
