@@ -1,7 +1,6 @@
+import threading
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-import threading
-import time
 
 from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse
@@ -10,45 +9,46 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from api.auth import verify_api_key
-from api.rate_limit import limiter
-from api.routes import router as api_router
 import api.live_metrics  # noqa: F401 — registers Phase Q Prometheus Gauges in this process
+import app.incident_bus.models  # noqa: F401 — ensure incident_events table is registered
+import app.incident_history.models  # noqa: F401 — ensure incident_history + incident_patterns tables registered
+import app.modules.trading.validation.models  # noqa: F401 — ensure TradingSignalOutcome table registered
+import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
+import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
+from api.auth import verify_api_key
 from api.live_metrics_updater import refresh_live_metrics
 from api.poupi_baby_routes import router as poupi_baby_router
+from api.rate_limit import limiter
+from api.routes import router as api_router
 from api.schemas import DependencyStatus, HealthResponse
+from app.adaptive_intelligence.api import router as adaptive_intelligence_router
+from app.adaptive_policy.api import router as adaptive_policy_router
 from app.analytics import models as analytics_models
 from app.data_quality import models as data_quality_models
 from app.data_quality.api import router as data_quality_router
 from app.documentation import models as documentation_models
 from app.documentation.api import router as documentation_router
+from app.incident_bus.router import router as incident_bus_router
+from app.incident_history.router import router as incident_history_router
 from app.middleware.correlation import CorrelationMiddleware
 from app.modules.crypto.api import router as crypto_router
-from app.modules.real_estate.api import router as real_estate_router
 from app.modules.real_estate import models as real_estate_models
+from app.modules.real_estate.api import router as real_estate_router
 from app.modules.registry import register_pipeline_modules
-from app.modules.sports_odds.api import router as sports_odds_router
 from app.modules.sports_odds import models as sports_odds_models
-from app.runtime.api import router as runtime_router
-from app.scrapers.api import router as scrapers_router
-from app.system_status import build_system_status, router as system_status_router
-import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
-from app.watchdog.api import router as watchdog_router
-import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
+from app.modules.sports_odds.api import router as sports_odds_router
 from app.modules.trading.validation.api import router as trading_validation_router
-import app.modules.trading.validation.models  # noqa: F401 — ensure TradingSignalOutcome table registered
+from app.normalization import models as normalization_models
 from app.operational_truth.api import router as operational_truth_router
 from app.operational_truth.policy.api import router as operational_policy_router
-from app.adaptive_intelligence.api import router as adaptive_intelligence_router
-from app.adaptive_policy.api import router as adaptive_policy_router
-from app.incident_bus.router import router as incident_bus_router
-import app.incident_bus.models  # noqa: F401 — ensure incident_events table is registered
-from app.incident_history.router import router as incident_history_router
-import app.incident_history.models  # noqa: F401 — ensure incident_history + incident_patterns tables registered
-from app.normalization import models as normalization_models
 from app.pipeline import models as pipeline_models  # ensure tables are registered
-from app.raw import models as raw_models
 from app.pipeline_api import router as pipeline_router
+from app.raw import models as raw_models
+from app.runtime.api import router as runtime_router
+from app.scrapers.api import router as scrapers_router
+from app.system_status import build_system_status
+from app.system_status import router as system_status_router
+from app.watchdog.api import router as watchdog_router
 from core.config import settings
 from database.models import Base
 from database.session import SessionLocal, engine
@@ -211,7 +211,7 @@ def create_app() -> FastAPI:
             with SessionLocal() as db:
                 operational = build_system_status(db)
             checks["operational"] = str(operational.get("status"))
-            if operational.get("status") != "READY":
+            if operational.get("status") in ("NO-GO", "BLOCKED"):
                 ready = False
         except Exception as exc:
             checks["operational"] = f"error: {exc}"
