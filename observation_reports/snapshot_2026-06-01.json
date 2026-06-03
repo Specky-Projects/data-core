@@ -1,0 +1,43 @@
+{
+  "date": "2026-06-01",
+  "jobs": {
+    "totals": {
+      "greenhouse": 1704,
+      "gupy": 1323,
+      "lever": 225,
+      "smartrecruiters": 125,
+      "recruitee": 110,
+      "teamtailor": 47
+    },
+    "total": 3534,
+    "hhi": 3790.9,
+    "top_source": "greenhouse",
+    "top_share": 48.22,
+    "without_greenhouse": {
+      "total": 1830,
+      "hhi": 5467.1
+    }
+  },
+  "real_estate": {
+    "totals": {
+      "apolar": 1600,
+      "razao": 597,
+      "gonzaga": 76,
+      "imobiliariapacheco": 35,
+      "imobiliariamaringa": 28,
+      "cadena": 15,
+      "prates": 10,
+      "cibraco": 10,
+      "noruega": 10
+    },
+    "total": 2381,
+    "hhi": 5159.0,
+    "top_source": "apolar",
+    "top_share": 67.2,
+    "without_apolar": {
+      "total": 781,
+      "hhi": 5979.4
+    }
+  },
+  "alerts": []
+}
