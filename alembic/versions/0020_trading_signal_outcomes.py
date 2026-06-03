@@ -9,8 +9,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0020_trading_signal_outcomes"
-down_revision: str | None = "0019_crypto_dataset_quality_scores"
+revision: str = "0020_signal_outcomes"
+down_revision: str | None = "0019_dataset_quality"
 branch_labels = None
 depends_on = None
 

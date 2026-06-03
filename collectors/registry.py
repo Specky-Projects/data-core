@@ -4,6 +4,10 @@ from collectors.crypto.generic_price import GenericCryptoPriceCollector
 from collectors.ecommerce.generic_product import GenericProductCollector
 from collectors.jobs.greenhouse_collector import GreenhouseCollector
 from collectors.jobs.gupy_collector import GupyCollector
+from collectors.jobs.lever_collector import LeverCollector
+from collectors.jobs.recruitee_collector import RecruiteeCollector
+from collectors.jobs.smartrecruiters_collector import SmartRecruitersCollector
+from collectors.jobs.teamtailor_collector import TeamtailorCollector
 from collectors.real_estate.direct_agencies_collector import DirectAgenciesCollector
 from collectors.real_estate.generic_listing import GenericRealEstateCollector
 from collectors.sports_betting.generic_odds import GenericSportsOddsCollector
@@ -40,8 +44,12 @@ registry.register(GenericCryptoPriceCollector)
 registry.register(CryptoCoinOHLCVCollector)
 registry.register(GenericSportsOddsCollector)
 
-# Server-first collection profile: only proven bounded collectors are registered
-# for now. Portals/ATS integrations can be added back after individual smokes.
 registry.register(DirectAgenciesCollector)
+# Jobs — ativos (auto-scheduler 6h interval cada)
 registry.register(GupyCollector)
 registry.register(GreenhouseCollector)
+registry.register(LeverCollector)
+registry.register(SmartRecruitersCollector)
+registry.register(RecruiteeCollector)
+registry.register(TeamtailorCollector)
+# workable: REMOVIDO 2026-06-01 — 0 output em validação; slugs BR inexistentes na plataforma

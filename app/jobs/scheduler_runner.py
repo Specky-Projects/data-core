@@ -1,16 +1,19 @@
 import signal
 import time
 
+from app.runtime.scheduler_watchdog import (
+    append_scheduler_lifecycle_event,
+    start_scheduler_watchdog_probe,
+)
 from logs.config import configure_logging
-from app.runtime.scheduler_watchdog import append_scheduler_lifecycle_event, start_scheduler_watchdog_probe
 from scheduler.async_runner import shutdown_loop
-from scheduler.service import create_scheduler, start_scheduler, stop_scheduler
+from scheduler.service import create_configured_scheduler, start_scheduler, stop_scheduler
 
 
 def main() -> None:
     configure_logging()
     append_scheduler_lifecycle_event("scheduler_runner_starting")
-    scheduler = create_scheduler()
+    scheduler = create_configured_scheduler()
     running = True
 
     def stop(_signum: int, _frame: object) -> None:

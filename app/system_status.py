@@ -322,13 +322,32 @@ def _collection_readiness_summary(db: Session) -> dict[str, Any]:
     active_targets = db.query(CollectionTarget).filter(CollectionTarget.active.is_(True)).count()
     raw_pending = db.query(RawCollection).filter(RawCollection.processing_status == "normalization_pending").count()
     raw_failed = db.query(RawCollection).filter(RawCollection.processing_status == "normalization_failed").count()
-    unresolved_errors = db.query(CollectorError).filter(CollectorError.resolved_at.is_(None)).count()
+    unresolved_errors = db.query(CollectorError).filter(CollectorError.resolved_at.is_(None)).all()
+    blocking_errors = 0
+    recovered_errors = 0
+    for error in unresolved_errors:
+        success_after_error = (
+            db.query(CollectionRun.id)
+            .filter(
+                CollectionRun.collector_name == error.collector_name,
+                CollectionRun.status == RunStatus.success,
+                CollectionRun.finished_at.is_not(None),
+                CollectionRun.finished_at >= error.created_at,
+            )
+            .first()
+        )
+        if success_after_error:
+            recovered_errors += 1
+        else:
+            blocking_errors += 1
     return {
         "active_targets": active_targets,
         "raw_pending": raw_pending,
         "raw_failed": raw_failed,
-        "unresolved_collector_errors": unresolved_errors,
-        "ready": active_targets > 0 and raw_pending == 0 and raw_failed == 0 and unresolved_errors == 0,
+        "unresolved_collector_errors": len(unresolved_errors),
+        "blocking_collector_errors": blocking_errors,
+        "recovered_unresolved_collector_errors": recovered_errors,
+        "ready": active_targets > 0 and raw_pending == 0 and raw_failed == 0 and blocking_errors == 0,
     }
 
 

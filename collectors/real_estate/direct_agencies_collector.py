@@ -55,161 +55,29 @@ _AGENCIES: list[dict[str, Any]] = [
         # Actual URL format: /alugar/curitiba/<bairro>/<slug>-<codigo>
         "item_url_pattern": r"/(?:alugar|comprar)/curitiba/[^/]+/[a-z].*-\d+$",
     },
-    # ── REMOVIDAS — audit 2026-05-30 ─────────────────────────────────────────
-    # novolar: SPA sem links /imovel/; empresa de BH (não Curitiba); sem dados úteis
-    # bairro: bairro.com.br é domínio parqueado com anti-bot (data-adblockkey);
-    #         36 registros coletados são páginas de anti-bot, NÃO imóveis reais
+    # ── REMOVIDAS — audit 2026-06-01 (probe HTTP) ────────────────────────────
+    # avanti:             404 + Cloudflare bot (avantiimoveis.com.br)
+    # newside:            404 sem conteúdo (newside.com.br)
+    # portobelo:          404 na rota de listagem (portobelo.com.br)
+    # globalcuritiba:     DNS failure — domínio não resolve
+    # imobiliariabaldo:   DNS failure — domínio não resolve
+    # melimobiliaria:     DNS failure — domínio não resolve
+    # patrimonioimobiliaria: home 200 mas sem links /imovel/, /imoveis retorna 404
+    # imobiliariasoldado: DNS failure — domínio não resolve
+    # imobiliariafontana: DNS failure — domínio não resolve
+    # almarcuritiba:      DNS failure — domínio não resolve
+    # inmobi:             DNS failure — domínio não resolve
+    # chavesprimo:        DNS failure — domínio não resolve
+    # ordelimoveis:       DNS failure — domínio não resolve
+    # imobiliariagondek:  DNS failure — domínio não resolve
+    # gruposvx:           DNS failure — domínio não resolve
+    # imobiliariaatp:     DNS failure — domínio não resolve
     # ─────────────────────────────────────────────────────────────────────────
-    {
-        "id": "avanti",
-        "name": "Avanti Imóveis",
-        "listing_urls": [
-            "https://www.avantiimoveis.com.br/imoveis/comprar/curitiba",
-            "https://www.avantiimoveis.com.br/imoveis/alugar/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "newside",
-        "name": "Newside Imóveis",
-        "listing_urls": [
-            "https://www.newside.com.br/imoveis/venda/pr/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "portobelo",
-        "name": "Porto Belo Imóveis",
-        "listing_urls": [
-            "https://www.portobelo.com.br/imoveis/venda/curitiba-pr",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "globalcuritiba",
-        "name": "Global Imobiliária Curitiba",
-        "listing_urls": [
-            "https://www.globalimobiliaria.com.br/imoveis/venda/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "imobiliariabaldo",
-        "name": "Imobiliária Baldo",
-        "listing_urls": [
-            "https://www.imobiliariabaldo.com.br/imoveis/venda",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "melimobiliaria",
-        "name": "Mel Imobiliária",
-        "listing_urls": [
-            "https://www.melimobiliaria.com.br/imoveis/venda",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "patrimonioimobiliaria",
-        "name": "Patrimônio Imobiliária",
-        "listing_urls": [
-            "https://www.patrimoniourbano.com.br/imoveis/venda/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "imobiliariasoldado",
-        "name": "Imobiliária Soldado",
-        "listing_urls": [
-            "https://www.imobiliariasoldado.com.br/imoveis",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "imobiliariafontana",
-        "name": "Imobiliária Fontana",
-        "listing_urls": [
-            "https://www.imobiliariafontana.com.br/imoveis/venda",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "almarcuritiba",
-        "name": "Almar Imóveis",
-        "listing_urls": [
-            "https://www.almar.com.br/imoveis/venda/curitiba-pr",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "inmobi",
-        "name": "Inmobi Curitiba",
-        "listing_urls": [
-            "https://www.inmobi.com.br/imoveis/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "chavesprimo",
-        "name": "Chaves Primo",
-        "listing_urls": [
-            "https://www.chavesprimo.com.br/imoveis/venda/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "ordelimoveis",
-        "name": "Ordel Imóveis",
-        "listing_urls": [
-            "https://www.ordelimoveis.com.br/imoveis/venda/curitiba/pr",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "imobiliariagondek",
-        "name": "Imobiliária Gondek",
-        "listing_urls": [
-            "https://www.imobiliariagondek.com.br/imoveis",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
     {
         "id": "imobiliariapacheco",
         "name": "Imobiliária Pacheco",
         "listing_urls": [
             "https://www.imobiliariapacheco.com.br/imoveis/venda",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "gruposvx",
-        "name": "Grupo SVX Imóveis",
-        "listing_urls": [
-            "https://www.gruposvx.com.br/imoveis/venda/curitiba",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-    },
-    {
-        "id": "imobiliariaatp",
-        "name": "Imobiliária ATP",
-        "listing_urls": [
-            "https://www.imobiliariaatp.com.br/imoveis/venda",
         ],
         "sitemap": None,
         "item_url_pattern": r"/imovel/.+",
@@ -284,31 +152,27 @@ _AGENCIES: list[dict[str, Any]] = [
         "sitemap": None,
         "item_url_pattern": r"/imovel/.+",
     },
-    # Razão — JSON-LD, /imoveis 37 links, 824KB
+    # Razão — JSON-LD, âncora secundária (597 recs, 25% share).
+    # razaoimoveis.com.br redireciona para irazao.com.br — usar URL canônica direta.
+    # Probe 2026-06-01: irazao.com.br/imoveis → 120 links /imovel/ por página.
     {
         "id": "razao",
         "name": "Imobiliária Razão",
         "listing_urls": [
-            "https://www.razaoimoveis.com.br/imoveis",
+            "https://irazao.com.br/imoveis/venda",
+            "https://irazao.com.br/imoveis/alugar",
         ],
         "sitemap": None,
         "item_url_pattern": r"/imovel/.+",
-        # Proven useful non-Apolar source: each page exposes 24 JSON-LD
-        # listings, most with offers.price. Crawl deeper to reduce Apolar skew.
         "max_pages": 25,
     },
-    # J8 (Jota8) — SPA, root 200 mas paths de listagem 404; tenta a home
-    {
-        "id": "j8",
-        "name": "J8 Imóveis",
-        "listing_urls": [
-            "https://www.j8.com.br/",
-        ],
-        "sitemap": None,
-        "item_url_pattern": r"/imovel/.+",
-        # nota: j8imoveis.com.br → SSL mismatch; www.j8.com.br funciona
-    },
+    # ── FASE 3 — REMOVIDAS 2026-06-01 (validação: 0 output) ─────────────────────
+    # alencar:       DNS failure (alencar.imb.br não resolve)
+    # lello:         HTTP 403 + Cloudflare bot protection
+    # remax_curitiba: HTTP 200 + Cloudflare JS challenge, sem links /imovel/
     # ── BLOQUEADAS — documentar motivo ───────────────────────────────────────
+    # j8 (Jota8): REMOVIDA 2026-06-01 — SPA sem rota de listagem; raw_html binário
+    #   sem conteúdo de imóveis. 10 registros purgados do banco (source_name='j8').
     # tantus: DNS resolution failure (tantusimoveis.com.br não resolve)
     # bellos: Cloudflare WAF + parked domain no sedo.com
     # galvao: galvaoimoveis.com.br serve imóveis de Jundiaí/SP, não Curitiba

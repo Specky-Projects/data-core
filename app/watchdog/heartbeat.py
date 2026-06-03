@@ -148,11 +148,17 @@ class HeartbeatFormatter:
 
 def format_alert_message(alert_code: str, title: str, message: str, severity: str) -> str:
     """Format a standalone critical/warning alert Telegram message."""
-    emoji = "🔴" if severity == "critical" else "⚠️"
+    emoji = "&#128680;" if severity == "critical" else "&#9888;&#65039;"
+    urgency = "CRITICA" if severity == "critical" else "MEDIA"
     return (
-        f"{emoji} <b>{title}</b>\n\n"
-        f"{message}\n\n"
-        f"<code>code: {alert_code}</code>\n"
+        f"{emoji} <b>ALERTA</b>\n\n"
+        "<b>Sistema:</b>\nData Core / Watchdog\n\n"
+        f"<b>Problema:</b>\n{title}\n\n"
+        f"<b>Impacto:</b>\n{message}\n\n"
+        f"<b>Urgencia:</b>\n{urgency}\n\n"
+        "<b>Acao:</b>\nVerificar o check afetado, logs do scheduler/API e dependencias relacionadas.\n\n"
+        f"<b>Evidencia:</b>\n<code>code: {alert_code}</code>\n\n"
+        "<b>Dashboard:</b>\nData Core / Operational Watchdog\n\n"
         f"<i>{datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</i>"
     )
 

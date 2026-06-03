@@ -41,6 +41,10 @@ from app.operational_truth.api import router as operational_truth_router
 from app.operational_truth.policy.api import router as operational_policy_router
 from app.adaptive_intelligence.api import router as adaptive_intelligence_router
 from app.adaptive_policy.api import router as adaptive_policy_router
+from app.incident_bus.router import router as incident_bus_router
+import app.incident_bus.models  # noqa: F401 — ensure incident_events table is registered
+from app.incident_history.router import router as incident_history_router
+import app.incident_history.models  # noqa: F401 — ensure incident_history + incident_patterns tables registered
 from app.normalization import models as normalization_models
 from app.pipeline import models as pipeline_models  # ensure tables are registered
 from app.raw import models as raw_models
@@ -250,5 +254,10 @@ def create_app() -> FastAPI:
     app.include_router(adaptive_intelligence_router)
     # Adaptive Policy Contract — /adaptive-policy/* (public, advisory-only).
     app.include_router(adaptive_policy_router)
+    # Incident Event Bus — /api/v1/incidents/* (webhook receiver + query API).
+    # Webhook endpoint é público (sem auth) para receber do Alertmanager.
+    app.include_router(incident_bus_router)
+    # Incident History — /api/v1/incidents/history/* (memória operacional + patterns).
+    app.include_router(incident_history_router)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app

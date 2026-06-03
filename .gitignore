@@ -1,4 +1,8 @@
 .env
+.env.local
+.env.*.local
+# Permitir templates de cloud (apenas placeholders, sem segredos reais)
+!deploy/env.cloud.template
 __pycache__/
 *.py[cod]
 .pytest_cache/

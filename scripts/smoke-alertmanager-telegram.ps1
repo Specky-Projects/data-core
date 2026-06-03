@@ -56,6 +56,12 @@ if ($dockerInfoExitCode -ne 0) {
   throw "Docker is not available. Start Docker Desktop and re-run this script."
 }
 
+$alertmanagerUri = [System.Uri]$AlertmanagerUrl
+$hostPort = $alertmanagerUri.Port
+if ($hostPort -le 0) {
+  throw "AlertmanagerUrl must include an explicit port."
+}
+
 New-Item -ItemType Directory -Force -Path runtime-data | Out-Null
 
 $renderedConfig = Get-Content -LiteralPath "alertmanager\alertmanager.telegram-first.yml" -Raw
@@ -74,7 +80,7 @@ services:
   alertmanager-telegram-smoke:
     image: prom/alertmanager:v0.27.0
     ports:
-      - "9094:9093"
+      - "__HOST_PORT__:9093"
     volumes:
       - __RENDERED_CONFIG__:/etc/alertmanager/alertmanager.yml:ro
       - __TEMPLATE_FILE__:/etc/alertmanager/templates/poupi_telegram.tmpl:ro
@@ -84,6 +90,7 @@ services:
 '@
 $composeConfig = $composeConfig.Replace("__RENDERED_CONFIG__", $renderedConfigMount)
 $composeConfig = $composeConfig.Replace("__TEMPLATE_FILE__", $templateMount)
+$composeConfig = $composeConfig.Replace("__HOST_PORT__", [string]$hostPort)
 Set-Content -Path $ComposeProjectFile -Value $composeConfig -Encoding ASCII
 
 try {

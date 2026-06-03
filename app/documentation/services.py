@@ -757,7 +757,7 @@ def _apply_updates(row: object, payload: dict[str, Any], fields: set[str]) -> No
 
 
 def _pipeline_modules() -> list[str]:
-    return ["ecommerce", "real_estate", "crypto", "trading", "sports_odds"]
+    return ["ecommerce", "real_estate", "crypto", "trading", "sports_odds", "jobs"]
 
 
 def _source_sla_defaults() -> list[dict[str, str]]:

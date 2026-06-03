@@ -173,6 +173,41 @@ class NormalizedSportsOdd(Base):
     )
 
 
+class NormalizedJobPosting(Base):
+    __tablename__ = "normalized_job_postings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    raw_collection_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("raw_collections.id"), index=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    source: Mapped[str] = mapped_column(String(80), index=True)
+    company_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    department: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    remote: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    employment_type: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    tags: Mapped[list] = mapped_column(JSONB, default=list)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    analytics_status: Mapped[str] = mapped_column(String(40), default="pending", index=True)
+    normalizer_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    normalizer_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    normalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    normalization_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    source_raw_schema_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    source_raw_schema_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    source_collector_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    source_collector_version: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+
+    __table_args__ = (
+        Index("ix_norm_job_source_company_collected", "source", "company_id", "collected_at"),
+        Index("ix_norm_job_title_country_collected", "title", "country", "collected_at"),
+    )
+
+
 class NormalizerVersion(Base):
     __tablename__ = "normalizer_versions"
 

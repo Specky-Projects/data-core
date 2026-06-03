@@ -9,7 +9,7 @@ from scheduler.jobs import (
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run Data Core jobs manually.")
-    parser.add_argument("--module", required=True, choices=["ecommerce", "real_estate", "sports_odds", "crypto", "trading"])
+    parser.add_argument("--module", required=True, choices=["ecommerce", "real_estate", "sports_odds", "crypto", "trading", "jobs"])
     parser.add_argument("--source", required=False)
     parser.add_argument("--skip-normalize", action="store_true")
     parser.add_argument("--skip-analytics", action="store_true")

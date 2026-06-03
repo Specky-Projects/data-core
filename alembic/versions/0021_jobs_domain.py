@@ -12,7 +12,7 @@ from __future__ import annotations
 from alembic import op
 
 revision: str = "0021_jobs_domain"
-down_revision: str | None = "0020_trading_signal_outcomes"
+down_revision: str | None = "0020_signal_outcomes"
 branch_labels = None
 depends_on = None
 

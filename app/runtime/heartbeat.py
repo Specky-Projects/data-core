@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
 
+logger = logging.getLogger(__name__)
 RUNTIME_DATA_DIR = Path(os.getenv("RUNTIME_DATA_DIR", "runtime-data"))
 WORKER_HEARTBEAT_PATH = Path(
     os.getenv("DATA_CORE_WORKER_HEARTBEAT_PATH", str(RUNTIME_DATA_DIR / "worker_heartbeat.json"))
@@ -22,10 +25,15 @@ def write_worker_heartbeat(*, status: str, details: dict[str, Any] | None = None
         "pid": os.getpid(),
         "details": details or {},
     }
-    WORKER_HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = WORKER_HEARTBEAT_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
-    tmp.replace(WORKER_HEARTBEAT_PATH)
+    try:
+        WORKER_HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = WORKER_HEARTBEAT_PATH.with_name(
+            f".{WORKER_HEARTBEAT_PATH.name}.{os.getpid()}.{time.time_ns()}.tmp"
+        )
+        tmp.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        tmp.replace(WORKER_HEARTBEAT_PATH)
+    except OSError as exc:
+        logger.warning("worker heartbeat write failed: %s", exc)
 
 
 def read_worker_heartbeat() -> dict[str, Any] | None:
@@ -35,4 +43,3 @@ def read_worker_heartbeat() -> dict[str, Any] | None:
         return json.loads(WORKER_HEARTBEAT_PATH.read_text(encoding="utf-8"))
     except Exception:
         return None
-

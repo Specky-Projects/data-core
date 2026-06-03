@@ -243,7 +243,7 @@ class AutoTuner:
         accepted = val_result["return_pct"] >= self.min_val_return and val_result["trades"] >= 2
 
         if accepted and update_env_file:
-            self.logger.info("✅ Parâmetros aceitos — atualizando .env...")
+            self.logger.info("[ok] Parametros aceitos -- atualizando .env...")
             update_env(best)
             self.logger.info("   .env atualizado com sucesso.")
         elif not accepted:

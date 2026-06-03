@@ -78,6 +78,7 @@ _JOB_EXPECTED_INTERVALS: dict[str, int] = {
     "cleanup_stale_runs_job": 15 * 60,
     "data_retention_job": 7 * 24 * 3600,
     "alert_webhook_job": 60 * 60,
+    "auto_healing_watchdog_job": 2 * 3600,
 }
 
 

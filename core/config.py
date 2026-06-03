@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     scheduler_pipeline_module: str | None = None
     scheduler_domain_jobs_enabled: bool = True
     scheduler_timezone: str = "America/Sao_Paulo"
+    scheduler_jobstore_enabled: bool = False
+    scheduler_jobstore_url: str | None = None
+    scheduler_jobstore_table: str = "apscheduler_jobs"
+    scheduler_misfire_grace_seconds: int = 30
     worker_concurrency: int = 2
     worker_pipeline_interval_seconds: int = 300
 
@@ -49,13 +53,17 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""  # alert/ops chat; can be group or personal
 
+    # Canal centralizado — todos os alertas vão para este chat_id
+    # Deixar vazio usa telegram_chat_id como fallback
+    telegram_system_chat_id: str = ""
+
     # Watchdog thresholds
-    watchdog_collection_stale_hours: int = 3       # alert if no new raw in this window
+    watchdog_collection_stale_hours: int = 3  # alert if no new raw in this window
     watchdog_normalization_backlog_minutes: int = 45  # alert if raw pending > this
-    watchdog_publication_stale_hours: int = 6      # alert if no Telegram publication
-    watchdog_heartbeat_hours: int = 6              # send heartbeat every N hours
-    watchdog_quality_score_threshold: int = 50     # alert if avg quality below this
-    watchdog_anti_bot_hourly_threshold: int = 3    # alert if anti-bot rate > N/h
+    watchdog_publication_stale_hours: int = 6  # alert if no Telegram publication
+    watchdog_heartbeat_hours: int = 6  # send heartbeat every N hours
+    watchdog_quality_score_threshold: int = 50  # alert if avg quality below this
+    watchdog_anti_bot_hourly_threshold: int = 3  # alert if anti-bot rate > N/h
     watchdog_enabled: bool = True
 
     # Scheduler reliability protection layer. Defaults are observe-only.
@@ -82,12 +90,24 @@ class Settings(BaseSettings):
     # Master switch: must be True AND telegram_enabled=True for any message to be sent.
     # Type-specific flags allow disabling individual summary categories independently.
     telegram_summary_enabled: bool = False
-    telegram_summary_operational_enabled: bool = True   # hourly operational health
-    telegram_summary_quant_enabled: bool = True         # 6h quant/adaptive intelligence
+    telegram_summary_operational_enabled: bool = True  # hourly operational health
+    telegram_summary_quant_enabled: bool = True  # 6h quant/adaptive intelligence
     telegram_summary_longitudinal_enabled: bool = True  # daily 24h vs 7d digest
-    telegram_summary_alerts_enabled: bool = True        # immediate alerts (with cooldown)
+    telegram_summary_alerts_enabled: bool = True  # immediate alerts (with cooldown)
     # Cron hour for the daily longitudinal digest (UTC, 0-23)
     telegram_summary_longitudinal_cron_hour: int = 8
+
+    # Auto-Healing Watchdog (safe-by-default operational routine)
+    auto_healing_enabled: bool = False
+    auto_healing_dry_run: bool = True
+    auto_healing_interval_minutes: int = 120
+    auto_healing_telegram_report: bool = True
+    auto_healing_history_path: str = "runtime-data/auto_healing_watchdog.jsonl"
+    auto_healing_history_max_mb: int = 10
+    auto_healing_alert_window_hours: int = 24
+    auto_healing_telegram_cooldown_minutes: int = 120
+    auto_healing_service_urls: str = ""
+    poupi_crypto_internal_url: str = "http://poupi-crypto-api:8002"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

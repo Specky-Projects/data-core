@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.watchdog.checks import CheckResult, WatchdogAlert
 from core.config import settings
 from app.raw.models import RawCollection
-from database.models import CollectionTarget
+from database.models import CollectionRun, CollectionTarget, RunStatus
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +163,70 @@ class CollectionHealthChecker:
                     "Scheduler parado ou banco indisponível?"
                 ),
                 context={"stale_hours": stale_hours, "known_sources": sorted(known_sources)},
+            ))
+
+        # ── M1. Source concentration: source_share > 60% in last 24h ────────────
+        rows_24h = (
+            db.query(
+                RawCollection.source_name,
+                func.count().label("cnt"),
+            )
+            .filter(
+                RawCollection.collected_at >= now - timedelta(hours=24),
+                RawCollection.module.in_(["jobs", "real_estate"]),
+            )
+            .group_by(RawCollection.source_name)
+            .all()
+        )
+        total_24h = sum(r.cnt for r in rows_24h)
+        if total_24h > 0:
+            for r in rows_24h:
+                share = r.cnt / total_24h
+                if share > 0.60:
+                    alerts.append(WatchdogAlert(
+                        severity="warning",
+                        code="source_concentration_high",
+                        title=f"Concentração alta: {r.source_name} ({share:.0%})",
+                        message=(
+                            f"Fonte '{r.source_name}' representa {share:.0%} dos registros "
+                            f"das últimas 24h ({r.cnt}/{total_24h}). "
+                            "HHI em risco — verificar outras fontes ativas."
+                        ),
+                        source_name=r.source_name,
+                        context={"share": round(share, 3), "count": r.cnt, "total": total_24h},
+                    ))
+
+        # ── M2. Collector com 0 records em run agendado ───────────────────────
+        # Alerta se um coletor ativo completou 0 raw_saved_count E 0 items_collected
+        # nas últimas 2x o seu intervalo default (janela mínima de 3h).
+        _ZERO_RUN_WINDOW_HOURS = 3
+        zero_runs = (
+            db.query(CollectionRun.collector_name, func.count().label("runs"))
+            .filter(
+                CollectionRun.started_at >= now - timedelta(hours=_ZERO_RUN_WINDOW_HOURS),
+                CollectionRun.status == RunStatus.success,
+                CollectionRun.items_collected == 0,
+                CollectionRun.raw_saved_count == 0,
+            )
+            .group_by(CollectionRun.collector_name)
+            .all()
+        )
+        # Only alert for collectors we know are supposed to produce data
+        _SUSPENDED_COLLECTORS = {"jobs.gupy", "jobs.workday"}
+        for r in zero_runs:
+            if r.collector_name in _SUSPENDED_COLLECTORS:
+                continue
+            alerts.append(WatchdogAlert(
+                severity="warning",
+                code="collector_zero_output",
+                title=f"Coletor sem output: {r.collector_name}",
+                message=(
+                    f"'{r.collector_name}' completou {r.runs} run(s) com 0 registros "
+                    f"nas últimas {_ZERO_RUN_WINDOW_HOURS}h. "
+                    "Fonte offline, bloqueio ou bug de persistência?"
+                ),
+                source_name=r.collector_name,
+                context={"zero_runs": r.runs, "window_hours": _ZERO_RUN_WINDOW_HOURS},
             ))
 
         # ── 5. Active targets with no recent activity ─────────────────────────

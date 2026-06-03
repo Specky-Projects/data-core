@@ -14,6 +14,7 @@ from app.telegram_summary.jobs import daily_longitudinal_summary_job
 from collectors.registry import registry
 from core.config import settings
 from scheduler.job_wrappers import (
+    run_incident_history_aggregation,
     run_alert_webhook_reliable,
     run_analytics_reliable,
     run_auto_healing_watchdog_reliable,
@@ -198,6 +199,19 @@ def create_scheduler(
         "interval",
         hours=1,
         id="maintenance:alert_webhook",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
+    # Incident History — agrega eventos resolvidos em histórico + patterns
+    _add_job_preserving_persisted(
+        scheduler,
+        run_incident_history_aggregation,
+        "interval",
+        hours=1,
+        minutes=15,  # offset de 15min para não colidir com alert_webhook
+        id="maintenance:incident_history_aggregation",
         replace_existing=True,
         max_instances=1,
         coalesce=True,

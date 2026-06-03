@@ -153,7 +153,7 @@ class WeeklyScheduler:
                 from domains.crypto_coin.config.settings import load_config
 
                 bot.cfg = load_config()
-                self.logger.info("✅ Configurações recarregadas. Bot continua operando.")
+                self.logger.info("[ok] Configuracoes recarregadas. Bot continua operando.")
 
             return True
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0019_crypto_dataset_quality_scores"
+revision: str = "0019_dataset_quality"
 down_revision: str | None = "0018_watchdog"
 branch_labels = None
 depends_on = None

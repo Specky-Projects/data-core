@@ -38,7 +38,7 @@ class ReconnectionManager:
     def reset(self):
         """Chama após sucesso para zerar o contador de erros."""
         if self._consecutive_errors > 0:
-            self.logger.info(f"✅ Conexão restaurada após {self._consecutive_errors} erros.")
+            self.logger.info(f"[ok] Conexao restaurada apos {self._consecutive_errors} erros.")
         self._consecutive_errors = 0
 
     def _wait_time(self) -> float:

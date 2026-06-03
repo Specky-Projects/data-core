@@ -6,6 +6,7 @@ from app.modules.ecommerce.normalizers.product_normalizer import EcommerceProduc
 from app.modules.ecommerce.normalizers.poupi_legacy_scraped_product_v1_normalizer import (
     PoupiLegacyScrapedProductV1Normalizer,
 )
+from app.modules.jobs.normalizers.job_posting_normalizer import JobPostingNormalizer
 from app.modules.real_estate.analytics.processor import RealEstateAnalyticsProcessor
 from app.modules.real_estate.normalizers.listing_normalizer import RealEstateListingNormalizer
 from app.modules.sports_odds.analytics.processor import SportsOddsAnalyticsProcessor
@@ -16,6 +17,7 @@ from app.normalization.registry import normalizer_registry
 
 
 def register_pipeline_modules() -> None:
+    normalizer_registry.register("jobs", JobPostingNormalizer)
     normalizer_registry.register("ecommerce", PoupiLegacyScrapedProductV1Normalizer)
     normalizer_registry.register("ecommerce", EcommerceProductNormalizer)
     normalizer_registry.register("real_estate", RealEstateListingNormalizer)

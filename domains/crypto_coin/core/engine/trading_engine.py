@@ -202,7 +202,7 @@ class TradingBot:
 
         # 4. Limite de perda diária
         if self._daily_loss_breached():
-            self.logger.warning("🚨 Limite de perda diária atingido!")
+            self.logger.warning("[ALERTA] Limite de perda diaria atingido!")
             await self.notifier.send("🚨 PERDA DIÁRIA MÁXIMA ATINGIDA — bot pausado até meia-noite.")
             await asyncio.sleep(self._seconds_until_midnight())
             return
@@ -231,7 +231,7 @@ class TradingBot:
 
         # 7. Sinal
         signal = get_signal(ind, self.in_position, self.buy_price, self.cfg, strategy_return_pct)
-        self.logger.info(f"📊 {signal_description(signal, ind)}")
+        self.logger.info(f"[sinal] {signal_description(signal, ind)}")
         self._save_equity_point(candle_time, price, quote_free, current_total)
         setup = compute_setup_score(ind, mtf_bias.value)
 
@@ -386,7 +386,7 @@ class TradingBot:
             self.logger.warning(f"Ordem muito pequena ou saldo insuficiente ({spend:.2f} {qc}).")
             return
 
-        self.logger.info(f"💡 {self.sizer.explain(confidence)} → {spend:.2f} {qc}")
+        self.logger.info(f"[size] {self.sizer.explain(confidence)} -> {spend:.2f} {qc}")
 
         result = await self.reconnect.execute(
             self.connector.buy, spend, label="ordem de compra"

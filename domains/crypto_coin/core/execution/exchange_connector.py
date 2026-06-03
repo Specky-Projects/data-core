@@ -27,7 +27,7 @@ class ExchangeConnector:
         if self.cfg.paper_trading:
             qc = self.cfg.quote_currency
             self.logger.info(
-                f"📄 Paper trading ativo — saldo inicial: "
+                f"[paper] Paper trading ativo -- saldo inicial: "
                 f"{self.cfg.paper_initial_balance:,.2f} {qc}"
             )
             return
@@ -55,7 +55,7 @@ class ExchangeConnector:
         try:
             await self.exchange.load_markets()
             self.logger.info(
-                f"✅ Conectado à {self.cfg.exchange.upper()} — {self.cfg.symbol}"
+                f"[ok] Conectado a {self.cfg.exchange.upper()} -- {self.cfg.symbol}"
             )
         except Exception as e:
             raise ConnectionError(f"Falha ao conectar na exchange: {e}") from e
@@ -128,7 +128,7 @@ class ExchangeConnector:
             order = await self.exchange.create_market_buy_order(
                 self.cfg.symbol, float(qty)
             )
-            self.logger.info(f"✅ Ordem de compra executada: {order}")
+            self.logger.info(f"[ok] Ordem de compra executada: {order}")
             return {
                 "price": price,
                 "amount": float(qty),
@@ -152,7 +152,7 @@ class ExchangeConnector:
             order = await self.exchange.create_market_sell_order(
                 self.cfg.symbol, float(qty)
             )
-            self.logger.info(f"✅ Ordem de venda executada: {order}")
+            self.logger.info(f"[ok] Ordem de venda executada: {order}")
             return {"price": price, "amount": asset_amount, "order_id": order["id"]}
         except Exception as e:
             self.logger.error(f"Erro ao executar venda: {e}")
