@@ -19,14 +19,15 @@ import json
 import logging
 import os
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 UTC = timezone.utc
 from uuid import uuid4
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("backfill")
 
-SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT"]
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ADA/USDT", "DOGE/USDT", "XRP/USDT"]
 SOURCE_NAME = "crypto_coin_exchange"
 MODULE = "crypto"
 RAW_SCHEMA_NAME = "marketCandle"
@@ -54,7 +55,6 @@ async def fetch_ohlcv_paginated(exchange, symbol: str, timeframe: str, since_ms:
 
 def insert_bars(db, bars: list, symbol: str, timeframe: str) -> tuple[int, int]:
     from sqlalchemy import text
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     raw_inserted = 0
     candle_inserted = 0
@@ -169,6 +169,7 @@ def trigger_analytics(pending_count: int) -> dict:
 
 async def main(days: int, timeframes: list[str]) -> None:
     import ccxt.async_support as ccxt
+
     from database.session import SessionLocal
 
     since_ms = int((datetime.now(UTC) - timedelta(days=days)).timestamp() * 1000)
