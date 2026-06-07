@@ -18,9 +18,9 @@ scrape_configs:
 
   # poupi-jobs-api REMOVIDO — projeto não existe (Phase D Fase 6).
 
-  - job_name: poupi-crypto-api
+  - job_name: crypto-api
     static_configs:
-      - targets: ["poupi-crypto-api:8002"]
+      - targets: ["crypto-api:8002"]
         labels:
           runtime_id: "main"
     metrics_path: /metrics

@@ -18,7 +18,7 @@ groups:
 
       - alert: VolatileSchedulerJobFailing
         expr: >
-          increase(poupi_crypto_scheduler_job_failures_total{job="poupi-crypto-volatile"}[30m]) > 3
+          increase(crypto_scheduler_job_failures_total{job="poupi-crypto-volatile"}[30m]) > 3
         for: 0m
         labels:
           severity: warning
@@ -55,7 +55,7 @@ groups:
 
       - alert: VolatileNoSignalsAccepted
         expr: >
-          increase(poupi_crypto_signals_generated_total{job="poupi-crypto-volatile"}[48h]) == 0
+          increase(crypto_signals_generated_total{job="poupi-crypto-volatile"}[48h]) == 0
         for: 0m
         labels:
           severity: warning
