@@ -3,14 +3,17 @@ NBA game data collector.
 
 Source priority:
 1. Ball Don't Lie v2 (BALLDONTLIE_API_KEY set) — https://api.balldontlie.io/v1/
-2. NBA Stats API (no key required)             — https://stats.nba.com/stats/
+2. ESPN Scoreboard API (no key, works from VPS) — https://site.api.espn.com/
 
 BDL v1 (https://www.balldontlie.io/api/v1/) was shut down — do not use.
+stats.nba.com is blocked on datacenter IPs — do not use as primary source.
 """
+from __future__ import annotations
+
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy.orm import Session
@@ -27,24 +30,21 @@ _BASE_URL = _BASE_URL_V2 if _API_KEY else _BASE_URL_V1
 _PER_PAGE = 100
 _RATE_LIMIT_DELAY = 0.12 if _API_KEY else 1.1
 
-# ── NBA Stats API ─────────────────────────────────────────────────────────────
-_NBA_STATS_BASE = "https://stats.nba.com/stats"
-_NBA_STATS_HEADERS = {
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
-    "Host": "stats.nba.com",
-    "Origin": "https://www.nba.com",
-    "Referer": "https://www.nba.com/",
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "x-nba-stats-origin": "stats",
-    "x-nba-stats-token": "true",
+# ── ESPN Scoreboard API ───────────────────────────────────────────────────────
+_ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+_ESPN_DELAY = 0.3   # 200 req/min — stay conservative
+_ESPN_CHUNK = 14    # days per request window
+
+# NBA regular season windows per season-start year
+# Format: (start_date, end_date) — inclusive, includes playoffs
+_NBA_SEASON_WINDOWS: dict[int, tuple[str, str]] = {
+    2019: ("2019-10-22", "2020-10-11"),
+    2020: ("2020-12-22", "2021-07-20"),
+    2021: ("2021-10-19", "2022-06-16"),
+    2022: ("2022-10-18", "2023-06-12"),
+    2023: ("2023-10-24", "2024-06-17"),
+    2024: ("2024-10-22", "2025-06-22"),
 }
-_NBA_STATS_DELAY = 0.6  # ~100 req/min stay well under NBA throttle
 
 # ── Full team name map (abbreviation → canonical full name) ───────────────────
 _TEAM_NAMES: dict[str, str] = {
@@ -90,7 +90,292 @@ def _season_str(season: int) -> str:
     return f"{season}-{str(season + 1)[-2:]}"
 
 
-# ── BDL helpers ───────────────────────────────────────────────────────────────
+def _date_chunks(start: date, end: date, chunk_days: int = _ESPN_CHUNK) -> list[tuple[date, date]]:
+    """Split a date range into chunks of at most chunk_days days."""
+    chunks = []
+    cur = start
+    while cur <= end:
+        chunk_end = min(cur + timedelta(days=chunk_days - 1), end)
+        chunks.append((cur, chunk_end))
+        cur = chunk_end + timedelta(days=1)
+    return chunks
+
+
+# ── Shared upsert ─────────────────────────────────────────────────────────────
+
+def _upsert_game_record(  # noqa: PLR0913
+    db: Session,
+    *,
+    external_id: str,
+    season: int,
+    game_date: datetime,
+    home_name: str,
+    away_name: str,
+    home_score: int | None,
+    away_score: int | None,
+    status: GameStatus,
+) -> NbaGame:
+    """Core upsert logic shared by all collectors."""
+    existing = db.query(NbaGame).filter(NbaGame.external_id == external_id).first()
+    if existing:
+        existing.home_score = home_score
+        existing.away_score = away_score
+        existing.status = status
+        existing.updated_at = datetime.now(timezone.utc)
+        return existing
+
+    existing_by_matchup = (
+        db.query(NbaGame)
+        .filter(
+            NbaGame.home_team == home_name,
+            NbaGame.away_team == away_name,
+            NbaGame.game_date == game_date,
+        )
+        .first()
+    )
+    if existing_by_matchup:
+        existing_by_matchup.external_id = external_id
+        existing_by_matchup.home_score = home_score
+        existing_by_matchup.away_score = away_score
+        existing_by_matchup.status = status
+        return existing_by_matchup
+
+    game = NbaGame(
+        external_id=external_id,
+        season=season,
+        game_date=game_date,
+        home_team=home_name,
+        away_team=away_name,
+        home_score=home_score,
+        away_score=away_score,
+        status=status,
+    )
+    db.add(game)
+    return game
+
+
+def _parse_game_date(date_str: str | None) -> datetime | None:
+    if not date_str:
+        return None
+    try:
+        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+# ── ESPN Scoreboard collector ─────────────────────────────────────────────────
+
+def _parse_espn_event(event: dict, season: int) -> tuple[str, datetime, str, str, int | None, int | None, GameStatus] | None:  # noqa: E501
+    """
+    Parse one ESPN scoreboard event into (ext_id, date, home, away, home_score, away_score, status).
+    Returns None if data is incomplete.
+    """
+    comps = event.get("competitions", [])
+    if not comps:
+        return None
+    comp = comps[0]
+
+    competitors = comp.get("competitors", [])
+    home_team = next((c for c in competitors if c.get("homeAway") == "home"), None)
+    away_team = next((c for c in competitors if c.get("homeAway") == "away"), None)
+    if not home_team or not away_team:
+        return None
+
+    home_name = home_team.get("team", {}).get("displayName", "")
+    away_name = away_team.get("team", {}).get("displayName", "")
+    if not home_name or not away_name:
+        return None
+
+    event_date_str = event.get("date", "")
+    game_date = _parse_game_date(event_date_str)
+    if not game_date:
+        return None
+
+    status_name = comp.get("status", {}).get("type", {}).get("name", "")
+    if status_name == "STATUS_FINAL":
+        status = GameStatus.final
+    elif status_name in ("STATUS_IN_PROGRESS", "STATUS_HALFTIME", "STATUS_END_PERIOD"):
+        status = GameStatus.live
+    else:
+        status = GameStatus.scheduled
+
+    def _score(competitor: dict) -> int | None:
+        s = competitor.get("score")
+        if s is None:
+            return None
+        try:
+            return int(s)
+        except (ValueError, TypeError):
+            return None
+
+    home_score = _score(home_team)
+    away_score = _score(away_team)
+
+    ext_id = f"espn_{event.get('id', '')}"
+    return ext_id, game_date, home_name, away_name, home_score, away_score, status
+
+
+def _fetch_espn_window(client: httpx.Client, start: date, end: date) -> list[dict]:
+    """Fetch ESPN scoreboard events for a date window."""
+    dates_param = f"{start.strftime('%Y%m%d')}-{end.strftime('%Y%m%d')}"
+    resp = client.get(
+        _ESPN_BASE,
+        params={"dates": dates_param, "limit": "1000"},
+        timeout=20.0,
+    )
+    resp.raise_for_status()
+    return resp.json().get("events", [])
+
+
+def _fetch_season_espn(db: Session, season: int) -> int:
+    """
+    Fetch a complete NBA season from the ESPN Scoreboard API.
+
+    Iterates the season window in 14-day chunks. No auth required.
+    """
+    from app.modules.nba.quant.metrics import nba_q_games_collected_total
+
+    if season not in _NBA_SEASON_WINDOWS:
+        raise ValueError(f"No season window defined for season {season}. "
+                         f"Available: {sorted(_NBA_SEASON_WINDOWS)}")
+
+    season_start_str, season_end_str = _NBA_SEASON_WINDOWS[season]
+    season_start = date.fromisoformat(season_start_str)
+    season_end = date.fromisoformat(season_end_str)
+    # Don't fetch future dates
+    season_end = min(season_end, date.today())
+
+    chunks = _date_chunks(season_start, season_end)
+    logger.info(
+        "ESPN fetch_season start",
+        extra={"season": season, "chunks": len(chunks), "start": season_start_str},
+    )
+
+    collected = 0
+    batch_count = 0
+
+    with httpx.Client() as client:
+        for chunk_start, chunk_end in chunks:
+            try:
+                events = _fetch_espn_window(client, chunk_start, chunk_end)
+            except Exception as exc:
+                logger.warning(
+                    "ESPN chunk fetch failed",
+                    extra={"start": str(chunk_start), "end": str(chunk_end), "error": str(exc)},
+                )
+                time.sleep(1.0)
+                continue
+
+            for event in events:
+                parsed = _parse_espn_event(event, season)
+                if not parsed:
+                    continue
+                ext_id, game_date, home_name, away_name, home_score, away_score, status = parsed
+                _upsert_game_record(
+                    db,
+                    external_id=ext_id,
+                    season=season,
+                    game_date=game_date,
+                    home_name=home_name,
+                    away_name=away_name,
+                    home_score=home_score,
+                    away_score=away_score,
+                    status=status,
+                )
+                collected += 1
+                batch_count += 1
+
+            if batch_count >= 100:
+                db.commit()
+                batch_count = 0
+
+            time.sleep(_ESPN_DELAY)
+
+    db.commit()
+    nba_q_games_collected_total.labels(season=str(season)).inc(collected)
+    logger.info(
+        "ESPN fetch_season done",
+        extra={"season": season, "games": collected},
+    )
+    return collected
+
+
+def _fetch_recent_espn(db: Session, days_back: int = 14) -> int:
+    """Fetch recent games from ESPN to update live scores."""
+    from app.modules.nba.quant.metrics import nba_q_games_collected_total
+
+    today = date.today()
+    start = today - timedelta(days=days_back)
+    # Determine current season
+    season = today.year if today.month >= 10 else today.year - 1
+
+    logger.info("ESPN fetch_recent start", extra={"days_back": days_back, "start": str(start)})
+
+    chunks = _date_chunks(start, today)
+    collected = 0
+    batch_count = 0
+
+    with httpx.Client() as client:
+        for chunk_start, chunk_end in chunks:
+            try:
+                events = _fetch_espn_window(client, chunk_start, chunk_end)
+            except Exception as exc:
+                logger.warning("ESPN recent chunk failed", extra={"error": str(exc)})
+                continue
+
+            for event in events:
+                parsed = _parse_espn_event(event, season)
+                if not parsed:
+                    continue
+                ext_id, game_date, home_name, away_name, home_score, away_score, status = parsed
+                _upsert_game_record(
+                    db,
+                    external_id=ext_id,
+                    season=season,
+                    game_date=game_date,
+                    home_name=home_name,
+                    away_name=away_name,
+                    home_score=home_score,
+                    away_score=away_score,
+                    status=status,
+                )
+                collected += 1
+                batch_count += 1
+
+            if batch_count >= 100:
+                db.commit()
+                batch_count = 0
+
+            time.sleep(_ESPN_DELAY)
+
+    db.commit()
+    nba_q_games_collected_total.labels(season="recent").inc(collected)
+    return collected
+
+
+# ── Public API — auto-select source ──────────────────────────────────────────
+
+def fetch_season(db: Session, season: int) -> int:
+    """
+    Fetch all regular-season games for *season*.
+    Uses BDL v2 if BALLDONTLIE_API_KEY is set, otherwise ESPN Scoreboard API.
+    """
+    if _API_KEY:
+        return _fetch_season_bdl(db, season)
+    return _fetch_season_espn(db, season)
+
+
+def fetch_recent(db: Session, days_back: int = 14) -> int:
+    """
+    Refresh recent game scores.
+    Uses BDL v2 if BALLDONTLIE_API_KEY is set, otherwise ESPN Scoreboard API.
+    """
+    if _API_KEY:
+        return _fetch_recent_bdl(db, days_back)
+    return _fetch_recent_espn(db, days_back)
+
+
+# ── BDL v2 implementations ────────────────────────────────────────────────────
 
 def _make_headers() -> dict:
     if _API_KEY:
@@ -102,15 +387,6 @@ def _get_json_bdl(client: httpx.Client, url: str, params: dict) -> dict:
     resp = client.get(url, params=params, headers=_make_headers(), timeout=15.0)
     resp.raise_for_status()
     return resp.json()
-
-
-def _parse_game_date(date_str: str | None) -> datetime | None:
-    if not date_str:
-        return None
-    try:
-        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-    except ValueError:
-        return None
 
 
 def _upsert_game(db: Session, raw: dict) -> NbaGame | None:
@@ -152,203 +428,6 @@ def _upsert_game(db: Session, raw: dict) -> NbaGame | None:
     )
 
 
-def _upsert_game_record(  # noqa: PLR0913
-    db: Session,
-    *,
-    external_id: str,
-    season: int,
-    game_date: datetime,
-    home_name: str,
-    away_name: str,
-    home_score: int | None,
-    away_score: int | None,
-    status: GameStatus,
-) -> NbaGame:
-    """Core upsert logic shared by BDL and NBA Stats collectors."""
-    existing = db.query(NbaGame).filter(NbaGame.external_id == external_id).first()
-    if existing:
-        existing.home_score = home_score
-        existing.away_score = away_score
-        existing.status = status
-        existing.updated_at = datetime.now(timezone.utc)
-        return existing
-
-    existing_by_matchup = (
-        db.query(NbaGame)
-        .filter(
-            NbaGame.home_team == home_name,
-            NbaGame.away_team == away_name,
-            NbaGame.game_date == game_date,
-        )
-        .first()
-    )
-    if existing_by_matchup:
-        existing_by_matchup.external_id = external_id
-        existing_by_matchup.home_score = home_score
-        existing_by_matchup.away_score = away_score
-        existing_by_matchup.status = status
-        return existing_by_matchup
-
-    game = NbaGame(
-        external_id=external_id,
-        season=season,
-        game_date=game_date,
-        home_team=home_name,
-        away_team=away_name,
-        home_score=home_score,
-        away_score=away_score,
-        status=status,
-    )
-    db.add(game)
-    return game
-
-
-# ── NBA Stats API collector ───────────────────────────────────────────────────
-
-def _fetch_season_nba_stats(db: Session, season: int) -> int:
-    """
-    Fetch a full NBA regular season from stats.nba.com/stats/leaguegamelog.
-
-    No API key required. Returns number of game records upserted.
-    Each game appears as two rows (home team + away team); we pair them by
-    GAME_ID and determine home/away from the MATCHUP column ("vs." = home).
-    """
-    from app.modules.nba.quant.metrics import nba_q_games_collected_total
-
-    season_str = _season_str(season)
-    logger.info(
-        "NBA Stats fetch_season start",
-        extra={"season": season, "season_str": season_str},
-    )
-
-    params = {
-        "LeagueID": "00",
-        "Season": season_str,
-        "SeasonType": "Regular Season",
-        "PlayerOrTeam": "T",
-        "Direction": "ASC",
-        "Sorter": "DATE",
-    }
-
-    with httpx.Client() as client:
-        resp = client.get(
-            f"{_NBA_STATS_BASE}/leaguegamelog",
-            params=params,
-            headers=_NBA_STATS_HEADERS,
-            timeout=45.0,
-            follow_redirects=True,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-    result_set = data["resultSets"][0]
-    col = {h: i for i, h in enumerate(result_set["headers"])}
-    rows = result_set["rowSet"]
-
-    # Group by GAME_ID — each game has 2 rows
-    games_by_id: dict[str, list[dict]] = {}
-    for row in rows:
-        gid = row[col["GAME_ID"]]
-        games_by_id.setdefault(gid, []).append(row)
-
-    collected = 0
-    batch_count = 0
-
-    for game_id, team_rows in games_by_id.items():
-        if len(team_rows) != 2:
-            continue
-
-        r0, r1 = team_rows
-        matchup0 = r0[col["MATCHUP"]]  # e.g. "LAL vs. BOS" or "LAL @ BOS"
-
-        # "vs." means this team is home; "@" means this team is away
-        if "vs." in matchup0:
-            home_row, away_row = r0, r1
-        else:
-            away_row, home_row = r0, r1
-
-        home_abbr = home_row[col["TEAM_ABBREVIATION"]]
-        away_abbr = away_row[col["TEAM_ABBREVIATION"]]
-        home_name = _team_full_name(home_abbr)
-        away_name = _team_full_name(away_abbr)
-
-        game_date_str = home_row[col["GAME_DATE"]]  # "2023-10-24"
-        game_date = datetime.fromisoformat(game_date_str).replace(tzinfo=timezone.utc)
-
-        home_pts = home_row[col["PTS"]]
-        away_pts = away_row[col["PTS"]]
-        home_score = int(home_pts) if home_pts is not None else None
-        away_score = int(away_pts) if away_pts is not None else None
-
-        # WL column: "W" or "L" → game is final; None → future/live
-        wl = home_row[col["WL"]]
-        status = GameStatus.final if wl in ("W", "L") else GameStatus.scheduled
-
-        _upsert_game_record(
-            db,
-            external_id=f"nba_stats_{game_id}",
-            season=season,
-            game_date=game_date,
-            home_name=home_name,
-            away_name=away_name,
-            home_score=home_score,
-            away_score=away_score,
-            status=status,
-        )
-        collected += 1
-        batch_count += 1
-
-        if batch_count >= 50:
-            db.commit()
-            batch_count = 0
-
-    db.commit()
-    nba_q_games_collected_total.labels(season=str(season)).inc(collected)
-    logger.info(
-        "NBA Stats fetch_season done",
-        extra={"season": season, "games": collected},
-    )
-    return collected
-
-
-def _fetch_recent_nba_stats(db: Session, days_back: int = 14) -> int:
-    """
-    Refresh scores for recent games using stats.nba.com.
-    Re-fetches the current season to pick up newly finalised scores.
-    """
-    from datetime import date
-
-    current_month = date.today().month
-    current_year = date.today().year
-    # NBA season spans Oct–Jun; determine which season year we're in
-    season = current_year if current_month >= 10 else current_year - 1
-    return _fetch_season_nba_stats(db, season)
-
-
-# ── Public API — auto-select source ──────────────────────────────────────────
-
-def fetch_season(db: Session, season: int) -> int:
-    """
-    Fetch all regular-season games for *season*.
-    Uses BDL v2 if BALLDONTLIE_API_KEY is set, otherwise NBA Stats API.
-    """
-    if _API_KEY:
-        return _fetch_season_bdl(db, season)
-    return _fetch_season_nba_stats(db, season)
-
-
-def fetch_recent(db: Session, days_back: int = 7) -> int:
-    """
-    Refresh recent game scores.
-    Uses BDL v2 if BALLDONTLIE_API_KEY is set, otherwise NBA Stats API.
-    """
-    if _API_KEY:
-        return _fetch_recent_bdl(db, days_back)
-    return _fetch_recent_nba_stats(db, days_back)
-
-
-# ── BDL v2 implementations ────────────────────────────────────────────────────
-
 def _fetch_season_bdl(db: Session, season: int) -> int:
     """Fetch all games for a given NBA season from Ball Don't Lie v2 API."""
     from app.modules.nba.quant.metrics import nba_q_games_collected_total
@@ -389,8 +468,6 @@ def _fetch_season_bdl(db: Session, season: int) -> int:
 
 def _fetch_recent_bdl(db: Session, days_back: int = 7) -> int:
     """Fetch recent games (last N days) from BDL v2 and update scores."""
-    from datetime import timedelta
-
     from app.modules.nba.quant.metrics import nba_q_games_collected_total
 
     collected = 0
@@ -424,3 +501,12 @@ def _fetch_recent_bdl(db: Session, days_back: int = 7) -> int:
 
     nba_q_games_collected_total.labels(season="recent").inc(collected)
     return collected
+
+
+# ── NBA Stats API (disabled on VPS — datacenter IPs blocked) ─────────────────
+# Kept for reference / local dev where stats.nba.com is accessible.
+
+def _fetch_season_nba_stats(db: Session, season: int) -> int:  # noqa: ARG001
+    raise NotImplementedError(
+        "stats.nba.com is blocked on datacenter IPs. Use fetch_season_espn instead."
+    )

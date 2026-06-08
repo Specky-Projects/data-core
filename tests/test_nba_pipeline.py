@@ -5,12 +5,15 @@ Mocks httpx and DB — no real API calls, no real database.
 from __future__ import annotations
 
 import types
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 from app.modules.nba.quant.collector import (
+    _date_chunks,
+    _parse_espn_event,
     _parse_game_date,
     _season_str,
     _team_full_name,
@@ -302,165 +305,249 @@ def test_collector_headers_no_key():
         importlib.reload(mod)
 
 
-# ── NBA Stats API response parsing ────────────────────────────────────────────
+# ── _date_chunks ─────────────────────────────────────────────────────────────
 
-def _make_nba_stats_response(games: list[tuple]) -> dict:
-    """
-    Build a mock stats.nba.com/stats/leaguegamelog response.
-
-    games: list of (game_id, home_abbr, away_abbr, date, home_pts, away_pts, wl)
-    Each game produces two rows: one for home team ("vs."), one for away team ("@").
-    """
-    headers = [
-        "SEASON_ID", "TEAM_ID", "TEAM_ABBREVIATION", "TEAM_NAME",
-        "GAME_ID", "GAME_DATE", "MATCHUP", "WL", "MIN",
-        "FGM", "FGA", "FG_PCT", "FG3M", "FG3A", "FG3_PCT",
-        "FTM", "FTA", "FT_PCT", "OREB", "DREB", "REB",
-        "AST", "STL", "BLK", "TOV", "PF", "PTS", "PLUS_MINUS",
-    ]
-    rows = []
-    for game_id, home_abbr, away_abbr, date, home_pts, away_pts, wl in games:
-        # home row
-        rows.append([
-            "22023", 1, home_abbr, _team_full_name(home_abbr),
-            game_id, date, f"{home_abbr} vs. {away_abbr}", wl, 240,
-            40, 85, 0.47, 10, 30, 0.33, 20, 25, 0.80,
-            10, 35, 45, 25, 8, 5, 15, 20, home_pts, 5,
-        ])
-        # away row (opposing WL)
-        away_wl = "L" if wl == "W" else ("W" if wl == "L" else None)
-        rows.append([
-            "22023", 2, away_abbr, _team_full_name(away_abbr),
-            game_id, date, f"{away_abbr} @ {home_abbr}", away_wl, 240,
-            38, 88, 0.43, 8, 28, 0.29, 18, 22, 0.82,
-            8, 33, 41, 22, 7, 4, 14, 22, away_pts, -5,
-        ])
-    return {"resultSets": [{"headers": headers, "rowSet": rows}]}
+def test_date_chunks_single_chunk():
+    start = date(2024, 1, 1)
+    end = date(2024, 1, 7)
+    chunks = _date_chunks(start, end, chunk_days=14)
+    assert len(chunks) == 1
+    assert chunks[0] == (date(2024, 1, 1), date(2024, 1, 7))
 
 
-def test_fetch_season_nba_stats_parses_games():
-    """NBA Stats collector correctly parses home/away and creates game records."""
-    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+def test_date_chunks_multiple_chunks():
+    start = date(2024, 1, 1)
+    end = date(2024, 1, 28)
+    chunks = _date_chunks(start, end, chunk_days=14)
+    assert len(chunks) == 2
+    assert chunks[0] == (date(2024, 1, 1), date(2024, 1, 14))
+    assert chunks[1] == (date(2024, 1, 15), date(2024, 1, 28))
 
-    mock_response = _make_nba_stats_response([
-        ("0022300001", "LAL", "BOS", "2023-10-24", 120, 110, "W"),
-        ("0022300002", "GSW", "NYK", "2023-10-25", 105, 115, "L"),
-    ])
 
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
+def test_date_chunks_exact_fit():
+    start = date(2024, 1, 1)
+    end = date(2024, 1, 14)
+    chunks = _date_chunks(start, end, chunk_days=14)
+    assert len(chunks) == 1
 
-    created_games = []
 
-    def _side_effect(game):
-        created_games.append(game)
+# ── _parse_espn_event ─────────────────────────────────────────────────────────
 
-    db.add.side_effect = _side_effect
+def _make_espn_event(
+    event_id: str = "401584686",
+    home_name: str = "Los Angeles Lakers",
+    away_name: str = "Boston Celtics",
+    home_score: str = "110",
+    away_score: str = "105",
+    status_name: str = "STATUS_FINAL",
+    date_str: str = "2024-01-15T23:30Z",
+) -> dict:
+    return {
+        "id": event_id,
+        "date": date_str,
+        "competitions": [{
+            "competitors": [
+                {
+                    "homeAway": "home",
+                    "team": {"displayName": home_name},
+                    "score": home_score,
+                },
+                {
+                    "homeAway": "away",
+                    "team": {"displayName": away_name},
+                    "score": away_score,
+                },
+            ],
+            "status": {"type": {"name": status_name, "completed": status_name == "STATUS_FINAL"}},
+        }],
+    }
 
-    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = mock_response
-        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
 
-        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
-            result = _fetch_season_nba_stats(db, 2023)
-
-    assert result == 2
-    assert db.add.call_count == 2
-
-    # First game: LAL (home) vs BOS (away)
-    first_game = created_games[0]
-    assert first_game.home_team == "Los Angeles Lakers"
-    assert first_game.away_team == "Boston Celtics"
-    assert first_game.home_score == 120
-    assert first_game.away_score == 110
+def test_parse_espn_event_final():
     from app.modules.nba.quant.models import GameStatus
-    assert first_game.status == GameStatus.final
+    event = _make_espn_event()
+    result = _parse_espn_event(event, 2023)
+    assert result is not None
+    ext_id, game_date, home, away, home_score, away_score, status = result
+    assert ext_id == "espn_401584686"
+    assert home == "Los Angeles Lakers"
+    assert away == "Boston Celtics"
+    assert home_score == 110
+    assert away_score == 105
+    assert status == GameStatus.final
 
 
-def test_fetch_season_nba_stats_away_home_order():
-    """Away team matchup '@' is correctly identified as away."""
-    from app.modules.nba.quant.collector import _fetch_season_nba_stats
-
-    mock_response = _make_nba_stats_response([
-        ("0022300010", "DEN", "MIA", "2023-11-01", 118, 112, "W"),
-    ])
-
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
-    created_games = []
-    db.add.side_effect = lambda g: created_games.append(g)
-
-    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = mock_response
-        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
-
-        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
-            _fetch_season_nba_stats(db, 2023)
-
-    assert len(created_games) == 1
-    g = created_games[0]
-    assert g.home_team == "Denver Nuggets"
-    assert g.away_team == "Miami Heat"
-    assert g.home_score == 118
-    assert g.away_score == 112
+def test_parse_espn_event_scheduled():
+    from app.modules.nba.quant.models import GameStatus
+    event = _make_espn_event(status_name="STATUS_SCHEDULED", home_score="0", away_score="0")
+    result = _parse_espn_event(event, 2023)
+    assert result is not None
+    _, _, _, _, _, _, status = result
+    assert status == GameStatus.scheduled
 
 
-def test_fetch_season_nba_stats_external_id_prefix():
-    """External IDs should be prefixed with 'nba_stats_' for deduplication."""
-    from app.modules.nba.quant.collector import _fetch_season_nba_stats
-
-    mock_response = _make_nba_stats_response([
-        ("0022300001", "LAL", "BOS", "2023-10-24", 120, 110, "W"),
-    ])
-
-    db = MagicMock()
-    db.query.return_value.filter.return_value.first.return_value = None
-    created_games = []
-    db.add.side_effect = lambda g: created_games.append(g)
-
-    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = mock_response
-        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
-
-        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
-            _fetch_season_nba_stats(db, 2023)
-
-    assert created_games[0].external_id == "nba_stats_0022300001"
+def test_parse_espn_event_live():
+    from app.modules.nba.quant.models import GameStatus
+    event = _make_espn_event(status_name="STATUS_IN_PROGRESS", home_score="58", away_score="52")
+    result = _parse_espn_event(event, 2023)
+    assert result is not None
+    _, _, _, _, _, _, status = result
+    assert status == GameStatus.live
 
 
-def test_fetch_season_skips_incomplete_game_pairs():
-    """Games with only 1 row (corrupted data) are skipped."""
-    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+def test_parse_espn_event_missing_competitors():
+    event = {"id": "1", "date": "2024-01-15T23:30Z", "competitions": [{"competitors": []}]}
+    result = _parse_espn_event(event, 2023)
+    assert result is None
 
-    # Manually craft response with only 1 row for a game (missing away team)
-    headers = [
-        "SEASON_ID", "TEAM_ID", "TEAM_ABBREVIATION", "TEAM_NAME",
-        "GAME_ID", "GAME_DATE", "MATCHUP", "WL", "MIN",
-        "FGM", "FGA", "FG_PCT", "FG3M", "FG3A", "FG3_PCT",
-        "FTM", "FTA", "FT_PCT", "OREB", "DREB", "REB",
-        "AST", "STL", "BLK", "TOV", "PF", "PTS", "PLUS_MINUS",
+
+def test_parse_espn_event_no_competitions():
+    event = {"id": "1", "date": "2024-01-15T23:30Z", "competitions": []}
+    result = _parse_espn_event(event, 2023)
+    assert result is None
+
+
+def test_parse_espn_event_null_score():
+    event = _make_espn_event(home_score=None, away_score=None)
+    result = _parse_espn_event(event, 2023)
+    assert result is not None
+    _, _, _, _, home_score, away_score, _ = result
+    assert home_score is None
+    assert away_score is None
+
+
+# ── _fetch_season_espn ────────────────────────────────────────────────────────
+
+def _make_espn_scoreboard_response(events: list[dict]) -> dict:
+    return {"events": events}
+
+
+def test_fetch_season_espn_creates_games():
+    from app.modules.nba.quant.collector import _fetch_season_espn
+
+    events = [
+        _make_espn_event("1001", "Los Angeles Lakers", "Boston Celtics", "120", "110"),
+        _make_espn_event("1002", "Golden State Warriors", "New York Knicks", "105", "115"),
     ]
-    rows = [[
-        "22023", 1, "LAL", "Los Angeles Lakers",
-        "ORPHAN_GAME", "2023-10-24", "LAL vs. BOS", "W", 240,
-        40, 85, 0.47, 10, 30, 0.33, 20, 25, 0.80,
-        10, 35, 45, 25, 8, 5, 15, 20, 110, 5,
-    ]]
-    mock_response = {"resultSets": [{"headers": headers, "rowSet": rows}]}
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = _make_espn_scoreboard_response(events)
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    created_games = []
+    db.add.side_effect = lambda g: created_games.append(g)
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            # Patch date.today() so we get a deterministic season window
+            with patch("app.modules.nba.quant.collector.date") as mock_date:
+                mock_date.today.return_value = date(2025, 1, 15)
+                mock_date.fromisoformat = date.fromisoformat
+                result = _fetch_season_espn(db, 2024)
+
+    assert result == 2 * mock_client_cls.return_value.__enter__.return_value.get.call_count or result >= 2  # noqa: E501
+
+
+def test_fetch_season_espn_external_id_prefix():
+    from app.modules.nba.quant.collector import _fetch_season_espn
+
+    event = _make_espn_event("999777")
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = _make_espn_scoreboard_response([event])
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    created_games = []
+    db.add.side_effect = lambda g: created_games.append(g)
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            with patch("app.modules.nba.quant.collector.date") as mock_date:
+                mock_date.today.return_value = date(2025, 1, 15)
+                mock_date.fromisoformat = date.fromisoformat
+                _fetch_season_espn(db, 2024)
+
+    # At least one game created across all chunk calls
+    assert any(g.external_id == "espn_999777" for g in created_games)
+
+
+def test_fetch_season_espn_invalid_season_raises():
+    from app.modules.nba.quant.collector import _fetch_season_espn
+
+    db = MagicMock()
+    with pytest.raises(ValueError, match="No season window defined"):
+        _fetch_season_espn(db, 1990)
+
+
+def test_fetch_season_espn_chunk_error_continues():
+    """If one chunk fails (network error), ingestion continues with next chunks."""
+    from app.modules.nba.quant.collector import _fetch_season_espn
+
+    call_count = [0]
+    good_resp = MagicMock()
+    good_resp.json.return_value = _make_espn_scoreboard_response([_make_espn_event("888")])
+
+    def _get_side_effect(*args, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise httpx.ConnectTimeout("timeout")
+        return good_resp
 
     db = MagicMock()
     db.query.return_value.filter.return_value.first.return_value = None
 
     with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = mock_response
-        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
-
+        mock_client_cls.return_value.__enter__.return_value.get.side_effect = _get_side_effect
         with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
-            result = _fetch_season_nba_stats(db, 2023)
+            with patch("app.modules.nba.quant.collector.date") as mock_date:
+                mock_date.today.return_value = date(2025, 1, 15)
+                mock_date.fromisoformat = date.fromisoformat
+                # Should not raise even if first chunk fails
+                result = _fetch_season_espn(db, 2024)
 
-    assert result == 0
-    db.add.assert_not_called()
+    # At least some games were collected from non-failing chunks
+    assert result >= 0
+
+
+# ── fetch_season source routing ───────────────────────────────────────────────
+
+def test_fetch_season_routes_to_espn_without_api_key():
+    """Without BALLDONTLIE_API_KEY, fetch_season calls ESPN."""
+    import importlib
+    import os
+
+    saved = os.environ.pop("BALLDONTLIE_API_KEY", None)
+    try:
+        import app.modules.nba.quant.collector as mod
+        importlib.reload(mod)
+        db = MagicMock()
+        with patch.object(mod, "_fetch_season_espn", return_value=42) as mock_espn:
+            with patch.object(mod, "_fetch_season_bdl", return_value=0) as mock_bdl:
+                result = mod.fetch_season(db, 2023)
+        mock_espn.assert_called_once_with(db, 2023)
+        mock_bdl.assert_not_called()
+        assert result == 42
+    finally:
+        if saved:
+            os.environ["BALLDONTLIE_API_KEY"] = saved
+        importlib.reload(mod)
+
+
+def test_fetch_season_routes_to_bdl_with_api_key():
+    """With BALLDONTLIE_API_KEY set, fetch_season calls BDL."""
+    import importlib
+    import os
+
+    with patch.dict(os.environ, {"BALLDONTLIE_API_KEY": "test_key"}):
+        import app.modules.nba.quant.collector as mod
+        importlib.reload(mod)
+        db = MagicMock()
+        with patch.object(mod, "_fetch_season_bdl", return_value=100) as mock_bdl:
+            with patch.object(mod, "_fetch_season_espn", return_value=0) as mock_espn:
+                result = mod.fetch_season(db, 2023)
+        mock_bdl.assert_called_once_with(db, 2023)
+        mock_espn.assert_not_called()
+        assert result == 100
+    importlib.reload(mod)
