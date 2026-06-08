@@ -28,7 +28,8 @@ from app.modules.nba.quant.models import (
 )
 
 _STANDARD_ODD = -110.0
-_LEAGUE_AVG_PACE = 220.0  # avg total points per game proxy
+_LEAGUE_AVG_PACE = 220.0   # avg total points per game proxy
+_DEFAULT_SPREAD = -3.5     # fallback spread when no real odds available
 
 
 @dataclass
@@ -50,18 +51,24 @@ def _home_ml_odd(odds: list[NbaOdds], home_team: str) -> float | None:
     return None
 
 
-def _home_spread(odds: list[NbaOdds], home_team: str) -> tuple[float | None, float]:
+def _home_spread(odds: list[NbaOdds], home_team: str) -> tuple[float, float]:
+    """Return (line, odd) for home spread. Falls back to _DEFAULT_SPREAD when no odds."""
     for o in odds:
         if o.market_type == MarketType.spread and o.selection == home_team:
-            return float(o.line) if o.line is not None else None, float(o.odd)
-    return None, _STANDARD_ODD
+            line = float(o.line) if o.line is not None else _DEFAULT_SPREAD
+            return line, float(o.odd)
+    return _DEFAULT_SPREAD, _STANDARD_ODD
 
 
-def _total_over(odds: list[NbaOdds]) -> tuple[float | None, float]:
+def _total_over(
+    odds: list[NbaOdds], fallback_line: float | None = None
+) -> tuple[float | None, float]:
+    """Return (line, odd) for Over. Uses fallback_line when no real odds available."""
     for o in odds:
         if o.market_type == MarketType.totals and "over" in o.selection.lower():
-            return float(o.line) if o.line is not None else None, float(o.odd)
-    return None, _STANDARD_ODD
+            line = float(o.line) if o.line is not None else fallback_line
+            return line, float(o.odd)
+    return fallback_line, _STANDARD_ODD
 
 
 # ── Rules ─────────────────────────────────────────────────────────────────────
@@ -110,6 +117,7 @@ def _rest_advantage_v1(
         return None
 
     line, odd = _home_spread(odds, game.home_team)
+    # line is guaranteed non-None (defaults to _DEFAULT_SPREAD = -3.5)
 
     return SignalResult(
         setup_name="REST_ADVANTAGE_V1",
@@ -170,12 +178,14 @@ def _pace_over_v1(
     if avg_pace <= _LEAGUE_AVG_PACE:
         return None
 
-    total_line, total_odd = _total_over(odds)
+    # Use avg_pace as the line when no real odds available.
+    # The edge thesis is that the game will go OVER our pace estimate.
+    total_line, total_odd = _total_over(odds, fallback_line=round(avg_pace, 1))
 
     return SignalResult(
         setup_name="PACE_OVER_V1",
         market_type=MarketType.totals,
-        selection=f"Over {total_line}" if total_line else "Over",
+        selection=f"Over {total_line}",
         line=total_line,
         odd=total_odd,
         direction=SignalDirection.over,
