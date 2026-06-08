@@ -10,7 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.modules.nba.quant.collector import _parse_game_date, _upsert_game
+from app.modules.nba.quant.collector import (
+    _parse_game_date,
+    _season_str,
+    _team_full_name,
+    _upsert_game,
+)
 from app.modules.nba.quant.pipeline import PipelineResult, run_full_pipeline
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -246,32 +251,30 @@ def test_run_full_pipeline_success_status_ok():
     mocks["nba_q_pipeline_runs_total"].labels.assert_called_with(status="ok")
 
 
-# ── Collector env var ─────────────────────────────────────────────────────────
+# ── Collector helpers ─────────────────────────────────────────────────────────
 
-def test_collector_uses_v2_url_when_api_key_set():
-    import importlib
-    import os
-    with patch.dict(os.environ, {"BALLDONTLIE_API_KEY": "test_key_123"}):
-        import app.modules.nba.quant.collector as mod
-        importlib.reload(mod)
-        assert mod._API_KEY == "test_key_123"
-        assert mod._BASE_URL == mod._BASE_URL_V2
-        assert mod._RATE_LIMIT_DELAY < 1.0  # faster rate limit for v2
-    # Restore
-    importlib.reload(mod)
+def test_season_str():
+    assert _season_str(2023) == "2023-24"
+    assert _season_str(2024) == "2024-25"
+    assert _season_str(2022) == "2022-23"
 
 
-def test_collector_uses_v1_url_when_no_api_key():
-    import importlib
-    import os
-    with patch.dict(os.environ, {}, clear=False):
-        os.environ.pop("BALLDONTLIE_API_KEY", None)
-        import app.modules.nba.quant.collector as mod
-        importlib.reload(mod)
-        if not mod._API_KEY:
-            assert mod._BASE_URL == mod._BASE_URL_V1
-    importlib.reload(mod)
+def test_team_full_name_known():
+    assert _team_full_name("LAL") == "Los Angeles Lakers"
+    assert _team_full_name("BOS") == "Boston Celtics"
+    assert _team_full_name("GSW") == "Golden State Warriors"
 
+
+def test_team_full_name_unknown_returns_abbr():
+    assert _team_full_name("XYZ") == "XYZ"
+
+
+def test_team_full_name_case_insensitive():
+    assert _team_full_name("lal") == "Los Angeles Lakers"
+    assert _team_full_name("Bos") == "Boston Celtics"
+
+
+# ── BDL headers ───────────────────────────────────────────────────────────────
 
 def test_collector_headers_with_key():
     import importlib
@@ -297,3 +300,167 @@ def test_collector_headers_no_key():
         if saved:
             os.environ["BALLDONTLIE_API_KEY"] = saved
         importlib.reload(mod)
+
+
+# ── NBA Stats API response parsing ────────────────────────────────────────────
+
+def _make_nba_stats_response(games: list[tuple]) -> dict:
+    """
+    Build a mock stats.nba.com/stats/leaguegamelog response.
+
+    games: list of (game_id, home_abbr, away_abbr, date, home_pts, away_pts, wl)
+    Each game produces two rows: one for home team ("vs."), one for away team ("@").
+    """
+    headers = [
+        "SEASON_ID", "TEAM_ID", "TEAM_ABBREVIATION", "TEAM_NAME",
+        "GAME_ID", "GAME_DATE", "MATCHUP", "WL", "MIN",
+        "FGM", "FGA", "FG_PCT", "FG3M", "FG3A", "FG3_PCT",
+        "FTM", "FTA", "FT_PCT", "OREB", "DREB", "REB",
+        "AST", "STL", "BLK", "TOV", "PF", "PTS", "PLUS_MINUS",
+    ]
+    rows = []
+    for game_id, home_abbr, away_abbr, date, home_pts, away_pts, wl in games:
+        # home row
+        rows.append([
+            "22023", 1, home_abbr, _team_full_name(home_abbr),
+            game_id, date, f"{home_abbr} vs. {away_abbr}", wl, 240,
+            40, 85, 0.47, 10, 30, 0.33, 20, 25, 0.80,
+            10, 35, 45, 25, 8, 5, 15, 20, home_pts, 5,
+        ])
+        # away row (opposing WL)
+        away_wl = "L" if wl == "W" else ("W" if wl == "L" else None)
+        rows.append([
+            "22023", 2, away_abbr, _team_full_name(away_abbr),
+            game_id, date, f"{away_abbr} @ {home_abbr}", away_wl, 240,
+            38, 88, 0.43, 8, 28, 0.29, 18, 22, 0.82,
+            8, 33, 41, 22, 7, 4, 14, 22, away_pts, -5,
+        ])
+    return {"resultSets": [{"headers": headers, "rowSet": rows}]}
+
+
+def test_fetch_season_nba_stats_parses_games():
+    """NBA Stats collector correctly parses home/away and creates game records."""
+    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+
+    mock_response = _make_nba_stats_response([
+        ("0022300001", "LAL", "BOS", "2023-10-24", 120, 110, "W"),
+        ("0022300002", "GSW", "NYK", "2023-10-25", 105, 115, "L"),
+    ])
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    created_games = []
+
+    def _side_effect(game):
+        created_games.append(game)
+
+    db.add.side_effect = _side_effect
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            result = _fetch_season_nba_stats(db, 2023)
+
+    assert result == 2
+    assert db.add.call_count == 2
+
+    # First game: LAL (home) vs BOS (away)
+    first_game = created_games[0]
+    assert first_game.home_team == "Los Angeles Lakers"
+    assert first_game.away_team == "Boston Celtics"
+    assert first_game.home_score == 120
+    assert first_game.away_score == 110
+    from app.modules.nba.quant.models import GameStatus
+    assert first_game.status == GameStatus.final
+
+
+def test_fetch_season_nba_stats_away_home_order():
+    """Away team matchup '@' is correctly identified as away."""
+    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+
+    mock_response = _make_nba_stats_response([
+        ("0022300010", "DEN", "MIA", "2023-11-01", 118, 112, "W"),
+    ])
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    created_games = []
+    db.add.side_effect = lambda g: created_games.append(g)
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            _fetch_season_nba_stats(db, 2023)
+
+    assert len(created_games) == 1
+    g = created_games[0]
+    assert g.home_team == "Denver Nuggets"
+    assert g.away_team == "Miami Heat"
+    assert g.home_score == 118
+    assert g.away_score == 112
+
+
+def test_fetch_season_nba_stats_external_id_prefix():
+    """External IDs should be prefixed with 'nba_stats_' for deduplication."""
+    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+
+    mock_response = _make_nba_stats_response([
+        ("0022300001", "LAL", "BOS", "2023-10-24", 120, 110, "W"),
+    ])
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+    created_games = []
+    db.add.side_effect = lambda g: created_games.append(g)
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            _fetch_season_nba_stats(db, 2023)
+
+    assert created_games[0].external_id == "nba_stats_0022300001"
+
+
+def test_fetch_season_skips_incomplete_game_pairs():
+    """Games with only 1 row (corrupted data) are skipped."""
+    from app.modules.nba.quant.collector import _fetch_season_nba_stats
+
+    # Manually craft response with only 1 row for a game (missing away team)
+    headers = [
+        "SEASON_ID", "TEAM_ID", "TEAM_ABBREVIATION", "TEAM_NAME",
+        "GAME_ID", "GAME_DATE", "MATCHUP", "WL", "MIN",
+        "FGM", "FGA", "FG_PCT", "FG3M", "FG3A", "FG3_PCT",
+        "FTM", "FTA", "FT_PCT", "OREB", "DREB", "REB",
+        "AST", "STL", "BLK", "TOV", "PF", "PTS", "PLUS_MINUS",
+    ]
+    rows = [[
+        "22023", 1, "LAL", "Los Angeles Lakers",
+        "ORPHAN_GAME", "2023-10-24", "LAL vs. BOS", "W", 240,
+        40, 85, 0.47, 10, 30, 0.33, 20, 25, 0.80,
+        10, 35, 45, 25, 8, 5, 15, 20, 110, 5,
+    ]]
+    mock_response = {"resultSets": [{"headers": headers, "rowSet": rows}]}
+
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = None
+
+    with patch("app.modules.nba.quant.collector.httpx.Client") as mock_client_cls:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        with patch("app.modules.nba.quant.metrics.nba_q_games_collected_total"):
+            result = _fetch_season_nba_stats(db, 2023)
+
+    assert result == 0
+    db.add.assert_not_called()
