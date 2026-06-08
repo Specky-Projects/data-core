@@ -313,6 +313,41 @@ def settle_bets(
     return {"settled": total}
 
 
+@router.post("/pipeline/run")
+def run_pipeline(
+    backfill: bool = False,
+    seasons: str | None = None,
+    db: Session = Depends(db_session),  # noqa: B008
+) -> dict[str, Any]:
+    """
+    Trigger the full NBA quant pipeline.
+
+    - backfill=false (default): daily update only (recent games, no historical fetch)
+    - backfill=true: full historical ingest + pipeline
+    - seasons: comma-separated list of seasons to backfill (e.g. "2022,2023,2024")
+    """
+    from app.modules.nba.quant.pipeline import run_backfill, run_daily_update
+
+    if backfill:
+        season_list = [int(s.strip()) for s in seasons.split(",")] if seasons else None
+        result = run_backfill(db, seasons=season_list)
+    else:
+        result = run_daily_update(db)
+
+    return {
+        "status": "ok" if result.ok else "partial_error",
+        "duration_seconds": round(result.duration_seconds, 2),
+        "seasons_fetched": result.seasons_fetched,
+        "games_ingested": result.games_ingested,
+        "recent_updated": result.recent_updated,
+        "features_computed": result.features_computed,
+        "signals_generated": result.signals_generated,
+        "bets_settled": result.bets_settled,
+        "edge_registry_refreshed": result.edge_registry_refreshed,
+        "errors": result.errors,
+    }
+
+
 # ── Metrics helpers ────────────────────────────────────────────────────────────
 
 def _update_global_metrics(stats: GlobalAnalytics) -> None:

@@ -10,11 +10,9 @@ from apscheduler.schedulers.base import STATE_PAUSED
 from app.auto_healing.scheduler import effective_auto_healing_interval_minutes
 from app.runtime.scheduler_heartbeat import boot_heartbeat, record_job_execution
 from app.runtime.scheduler_watchdog import record_scheduler_execution_event
-from app.telegram_summary.jobs import daily_longitudinal_summary_job
 from collectors.registry import registry
 from core.config import settings
 from scheduler.job_wrappers import (
-    run_incident_history_aggregation,
     run_alert_webhook_reliable,
     run_analytics_reliable,
     run_auto_healing_watchdog_reliable,
@@ -23,16 +21,15 @@ from scheduler.job_wrappers import (
     run_dataset_integrity_with_retry,
     run_dataset_quality_crypto_reliable,
     run_ecommerce_url_targets_reliable,
-    run_hourly_operational_summary_with_retry,
+    run_incident_history_aggregation,
+    run_nba_quant_pipeline_reliable,
     run_normalize_reliable,
     run_operational_watchdog_with_retry,
     run_poupi_baby_coverage_intelligence_reliable,
     run_real_estate_daily_reliable,
     run_real_estate_enrichment_with_retry,
     run_signal_outcomes_reliable,
-    run_six_hour_quant_summary_with_retry,
     run_source_health_with_retry,
-    run_watchdog_heartbeat_with_retry,
 )
 from scheduler.jobs import (
     cleanup_stale_runs_job,
@@ -330,18 +327,7 @@ def create_scheduler(
             max_instances=1,
             coalesce=True,
         )
-        _add_job_preserving_persisted(
-            scheduler,
-            run_watchdog_heartbeat_with_retry,
-            "interval",
-            hours=settings.watchdog_heartbeat_hours,
-            id="platform:watchdog_heartbeat",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
 
-    # ── Telegram Longitudinal Summary (Phase 11) ──────────────────────────────
     # Auto-Healing Watchdog (safe-by-default; job no-ops while disabled)
     _add_job_preserving_persisted(
         scheduler,
@@ -349,41 +335,6 @@ def create_scheduler(
         "interval",
         minutes=effective_auto_healing_interval_minutes(),
         id="platform:auto_healing_watchdog",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-
-    # Master switch: settings.telegram_summary_enabled (default False).
-    # Jobs always register so toggling the flag at runtime takes effect next fire;
-    # each job checks the flag itself and no-ops when disabled.
-    _add_job_preserving_persisted(
-        scheduler,
-        run_hourly_operational_summary_with_retry,
-        "interval",
-        hours=1,
-        id="telegram_summary:hourly_operational",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    _add_job_preserving_persisted(
-        scheduler,
-        run_six_hour_quant_summary_with_retry,
-        "interval",
-        hours=6,
-        id="telegram_summary:six_hour_quant",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    _add_job_preserving_persisted(
-        scheduler,
-        daily_longitudinal_summary_job,
-        "cron",
-        hour=settings.telegram_summary_longitudinal_cron_hour,
-        minute=0,
-        id="telegram_summary:daily_longitudinal",
         replace_existing=True,
         max_instances=1,
         coalesce=True,
@@ -437,6 +388,20 @@ def create_scheduler(
         max_instances=1,
         coalesce=True,
     )
+
+    # ── NBA Quant — daily incremental update at 09:00 BRT (12:00 UTC) ────────
+    if settings.scheduler_domain_jobs_enabled:
+        _add_job_preserving_persisted(
+            scheduler,
+            run_nba_quant_pipeline_reliable,
+            "cron",
+            hour=12,
+            minute=0,
+            id="nba:quant_pipeline_daily",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
 
     # ── FASE 3/4/5 — Source Health, Dataset Integrity, Daily Snapshots ───────
     # compute_source_health_job   : a cada 4h — saude operacional por coletor
@@ -496,8 +461,8 @@ def _record_scheduler_drift(event: object) -> None:
     # Return freed memory to the OS after each job. Python's pymalloc pool
     # retains pages indefinitely; calling gc + malloc_trim releases them.
     # With PYTHONMALLOC=malloc (set in scheduler env) this covers all allocations.
-    import gc
     import ctypes
+    import gc
     gc.collect()
     try:
         ctypes.CDLL("libc.so.6").malloc_trim(0)

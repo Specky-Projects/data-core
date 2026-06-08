@@ -7,10 +7,6 @@ from app.auto_healing.scheduler import auto_healing_watchdog_job
 from app.modules.real_estate.scheduler import run_real_estate_daily_collection
 from app.runtime.scheduler_heartbeat import record_job_execution
 from app.runtime.scheduler_reliability import SchedulerReliabilityEngine
-from app.telegram_summary.jobs import (
-    hourly_operational_summary_job,
-    six_hour_quant_summary_job,
-)
 from core.config import settings
 from scheduler.jobs import (
     alert_webhook_job,
@@ -26,7 +22,6 @@ from scheduler.jobs import (
     run_real_estate_enrichment_job,
     signal_outcomes_job,
     take_daily_snapshot_job,
-    watchdog_heartbeat_job,
 )
 from scheduler.retry import with_retry
 
@@ -164,20 +159,8 @@ def run_operational_watchdog_with_retry() -> None:
     with_retry(operational_watchdog_job, job_name="operational_watchdog_job")
 
 
-def run_watchdog_heartbeat_with_retry() -> None:
-    with_retry(watchdog_heartbeat_job, job_name="watchdog_heartbeat_job")
-
-
 def run_auto_healing_watchdog_reliable() -> None:
     _with_heartbeat("auto_healing_watchdog_job", _run_auto_healing_watchdog_with_retry)
-
-
-def run_hourly_operational_summary_with_retry() -> None:
-    with_retry(hourly_operational_summary_job, job_name="hourly_operational_summary_job")
-
-
-def run_six_hour_quant_summary_with_retry() -> None:
-    with_retry(six_hour_quant_summary_job, job_name="six_hour_quant_summary_job")
 
 
 def run_dataset_quality_crypto_reliable() -> None:
@@ -214,3 +197,8 @@ def run_daily_snapshot_with_retry() -> None:
 def run_incident_history_aggregation() -> None:
     from app.incident_history.job import incident_history_aggregation_job
     with_retry(incident_history_aggregation_job, job_name="incident_history_aggregation_job")
+
+
+def run_nba_quant_pipeline_reliable() -> None:
+    from scheduler.jobs import nba_quant_pipeline_job
+    with_retry(nba_quant_pipeline_job, job_name="nba_quant_pipeline_job")

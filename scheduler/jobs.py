@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func, outerjoin
+from sqlalchemy import func
 
 from app.analytics.registry import analytics_registry
 from app.modules.registry import register_pipeline_modules
@@ -959,7 +959,10 @@ def _run_poupi_legacy_targets(
     delay_seconds: float = 0.0,
     timeout_seconds: int | None = None,
 ) -> dict[str, int]:
-    from app.modules.ecommerce.collectors.poupi_legacy_collector import LegacyPoupiTarget, PoupiLegacyRawCollector
+    from app.modules.ecommerce.collectors.poupi_legacy_collector import (
+        LegacyPoupiTarget,
+        PoupiLegacyRawCollector,
+    )
 
     collector = PoupiLegacyRawCollector(
         db,
@@ -1071,11 +1074,11 @@ def data_retention_job(
       7. CryptoDatasetQualityScore evaluated > quality_score_retention_days
       8. TradingSignalOutcome evaluated > signal_outcome_retention_days
     """
-    from app.normalization.models import NormalizedProduct
     from app.analytics.models import ProductPriceAnalytics
-    from app.documentation.models import DataLineage
     from app.data_quality.crypto.models import CryptoDatasetQualityScore
+    from app.documentation.models import DataLineage
     from app.modules.trading.validation.models import TradingSignalOutcome
+    from app.normalization.models import NormalizedProduct
 
     now = datetime.now(timezone.utc)
     cutoff_raw = now - timedelta(days=raw_retention_days)
@@ -1243,8 +1246,8 @@ def backfill_canonical_product_id_job(batch_size: int = 500) -> dict[str, int]:
 
     Safe to run multiple times — only touches NULL rows.
     """
-    from app.normalization.models import NormalizedProduct
     from app.modules.ecommerce.normalizers.product_normalizer import _title_slug
+    from app.normalization.models import NormalizedProduct
 
     db = SessionLocal()
     updated_source = 0
@@ -1318,7 +1321,7 @@ def analytics_job(module: str | None = None, limit: int = 100) -> None:
 
 
 def operational_watchdog_job() -> None:
-    """Run all watchdog checks every 30-60 min and send immediate Telegram alerts.
+    """Run all watchdog checks every 30-60 min.
 
     Checks:
       1. Collection freshness per domain
@@ -1326,8 +1329,7 @@ def operational_watchdog_job() -> None:
       3. Scraper quality scores, anti-bot detections, structural drift
       4. Telegram publication age (via poupi-baby callback events)
 
-    Sends Telegram immediately for critical alerts.  Persists WatchdogRun to DB.
-    Updates Prometheus metrics for Grafana dashboards.
+    Persists WatchdogRun to DB. Updates Prometheus metrics for Grafana dashboards.
     """
     if not settings.watchdog_enabled:
         logger.debug("operational_watchdog_job: watchdog disabled via settings")
@@ -1336,12 +1338,10 @@ def operational_watchdog_job() -> None:
     from app.watchdog.service import WatchdogService
 
     run_id = str(uuid.uuid4())
-    started_at = time.monotonic()
     logger.info(
         "Job run started",
         extra={"run_id": run_id, "job": "operational_watchdog_job", "domain": "platform", "source": "watchdog"},
     )
-    error: Exception | None = None
     try:
         db = SessionLocal()
         try:
@@ -1363,7 +1363,6 @@ def operational_watchdog_job() -> None:
         finally:
             db.close()
     except Exception as exc:
-        error = exc
         logger.error(
             "Job run finished",
             extra={
@@ -1395,56 +1394,6 @@ def scheduler_heartbeat_job() -> None:
     )
     logger.debug("scheduler_heartbeat_job: heartbeat written")
 
-
-def watchdog_heartbeat_job() -> None:
-    """Send periodic Telegram health summary (every WATCHDOG_HEARTBEAT_HOURS hours).
-
-    Runs all checks and sends a formatted summary regardless of status:
-      ✅ Poupi saudável / ⚠️ Poupi — ATENÇÃO / 🔴 Poupi — CRÍTICO
-    """
-    if not settings.watchdog_enabled:
-        logger.debug("watchdog_heartbeat_job: watchdog disabled via settings")
-        return
-
-    from app.watchdog.service import WatchdogService
-
-    run_id = str(uuid.uuid4())
-    logger.info(
-        "Job run started",
-        extra={"run_id": run_id, "job": "watchdog_heartbeat_job", "domain": "platform", "source": "watchdog"},
-    )
-    try:
-        db = SessionLocal()
-        try:
-            svc = WatchdogService(db)
-            sent = svc.heartbeat()
-            logger.info(
-                "Job run finished",
-                extra={
-                    "run_id": run_id,
-                    "job": "watchdog_heartbeat_job",
-                    "domain": "platform",
-                    "source": "watchdog",
-                    "status": "success",
-                    "telegram_sent": sent,
-                    "last_success_at": datetime.now(timezone.utc).isoformat(),
-                },
-            )
-        finally:
-            db.close()
-    except Exception as exc:
-        logger.error(
-            "Job run finished",
-            extra={
-                "run_id": run_id,
-                "job": "watchdog_heartbeat_job",
-                "domain": "platform",
-                "source": "watchdog",
-                "status": "error",
-                "error": str(exc),
-                "last_failure_at": datetime.now(timezone.utc).isoformat(),
-            },
-        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1678,9 +1627,13 @@ def compute_source_health_job() -> None:
 
             # FASE 6 — field presence & drift detection for real_estate
             try:
-                from app.real_estate.drift import compute_field_presence, compute_dataset_drift_score
-                from app.observability.models import SourceHealth as SH
                 from sqlalchemy import text as sqla_text
+
+                from app.observability.models import SourceHealth as SH
+                from app.real_estate.drift import (
+                    compute_dataset_drift_score,
+                    compute_field_presence,
+                )
 
                 # Load baselines from source_health.details_json per agency
                 baselines: dict[str, dict[str, float]] = {}
@@ -1823,7 +1776,9 @@ def compute_dataset_integrity_job() -> None:
             # ── M3: HHI por dataset (últimas 24h de raw_collections) ─────────
             try:
                 from datetime import timedelta
+
                 from sqlalchemy import func as sqla_func
+
                 from app.raw.models import RawCollection as RC
 
                 _now = datetime.now(timezone.utc)
@@ -1853,7 +1808,9 @@ def compute_dataset_integrity_job() -> None:
             # ── B2: Dataset window — janela real de histórico ─────────────────
             try:
                 import calendar
+
                 from sqlalchemy import func as sqla_func_w
+
                 from app.raw.models import RawCollection as RC_w
 
                 for _dataset in ("jobs", "real_estate", "crypto", "ecommerce"):
@@ -1973,5 +1930,47 @@ def take_daily_snapshot_job() -> None:
             source="observability",
             started_at=started_at,
             collected_count=count,
+            error=error,
+        )
+
+
+def nba_quant_pipeline_job() -> None:
+    """Daily NBA Quant pipeline: recent game update → features → signals → settle → edge registry.
+
+    Runs every day at 09:00 BRT (12:00 UTC). Skips historical ingest — use
+    POST /api/v1/nba/quant/pipeline/run?backfill=true for initial backfill.
+    """
+    run_id = str(uuid.uuid4())
+    started_at = time.monotonic()
+    logger.info(
+        "Job run started",
+        extra={"run_id": run_id, "job": "nba_quant_pipeline_job", "domain": "nba", "source": "quant"},
+    )
+    signals_count = 0
+    error: Exception | None = None
+    try:
+        db = SessionLocal()
+        try:
+            from app.modules.nba.quant.pipeline import run_daily_update
+            result = run_daily_update(db)
+            signals_count = result.signals_generated
+            if result.errors:
+                logger.warning(
+                    "nba_quant_pipeline_job partial errors",
+                    extra={"run_id": run_id, "errors": result.errors},
+                )
+        finally:
+            db.close()
+    except Exception as exc:
+        error = exc
+        raise
+    finally:
+        _log_job_run(
+            job_name="nba_quant_pipeline_job",
+            run_id=run_id,
+            domain="nba",
+            source="quant",
+            started_at=started_at,
+            collected_count=signals_count,
             error=error,
         )

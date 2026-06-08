@@ -40,3 +40,21 @@ nba_q_global_roi = Gauge("nba_q_global_roi", "Global quant ROI (%)")
 nba_q_global_pnl = Gauge("nba_q_global_pnl", "Global quant PnL (units)")
 nba_q_total_games = Gauge("nba_q_total_games", "Total NBA games in DB")
 nba_q_total_signals = Gauge("nba_q_total_signals", "Total quant signals")
+
+nba_q_pipeline_runs_total = Counter(
+    "nba_q_pipeline_runs_total",
+    "Total NBA quant pipeline runs",
+    ["status"],
+)
+
+nba_q_pipeline_duration_seconds = Gauge(
+    "nba_q_pipeline_duration_seconds",
+    "Last NBA quant pipeline run duration (seconds)",
+)
+
+nba_q_features_computed_total = Counter(
+    "nba_q_features_computed_total",
+    "Total NBA game features computed",
+)
+
+nba_q_bets_pending = Gauge("nba_q_bets_pending", "Current pending NBA quant bets")

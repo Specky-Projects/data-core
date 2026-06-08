@@ -1,8 +1,15 @@
 """
-NBA game data collector using Ball Don't Lie API (free tier).
-https://www.balldontlie.io/api/v1/
-Rate limit: 60 req/min on free tier.
+NBA game data collector using Ball Don't Lie API.
+
+Supports two tiers:
+- v2 (recommended): https://api.balldontlie.io/v1/  — requires BALLDONTLIE_API_KEY
+- v1 (legacy free): https://www.balldontlie.io/api/v1/ — no key, lower rate limit
+
+Set env var BALLDONTLIE_API_KEY to enable v2.
+Rate limit: 60 req/min (v1 free) / 600 req/min (v2 paid).
 """
+import logging
+import os
 import time
 from datetime import datetime, timezone
 
@@ -11,13 +18,25 @@ from sqlalchemy.orm import Session
 
 from app.modules.nba.quant.models import GameStatus, NbaGame
 
-_BASE_URL = "https://www.balldontlie.io/api/v1"
+logger = logging.getLogger(__name__)
+
+_API_KEY = os.environ.get("BALLDONTLIE_API_KEY", "")
+_BASE_URL_V2 = "https://api.balldontlie.io/v1"
+_BASE_URL_V1 = "https://www.balldontlie.io/api/v1"
+_BASE_URL = _BASE_URL_V2 if _API_KEY else _BASE_URL_V1
 _PER_PAGE = 100
-_RATE_LIMIT_DELAY = 1.1  # seconds between requests to stay under 60/min
+# v2 allows up to 600 req/min; v1 free tier 60 req/min
+_RATE_LIMIT_DELAY = 0.12 if _API_KEY else 1.1
+
+
+def _make_headers() -> dict:
+    if _API_KEY:
+        return {"Authorization": _API_KEY}
+    return {}
 
 
 def _get_json(client: httpx.Client, url: str, params: dict) -> dict:
-    resp = client.get(url, params=params, timeout=15.0)
+    resp = client.get(url, params=params, headers=_make_headers(), timeout=15.0)
     resp.raise_for_status()
     return resp.json()
 
@@ -98,6 +117,7 @@ def fetch_season(db: Session, season: int) -> int:
     """Fetch all games for a given NBA season from Ball Don't Lie API."""
     from app.modules.nba.quant.metrics import nba_q_games_collected_total
 
+    logger.info("BDL fetch_season start", extra={"season": season, "api": "v2" if _API_KEY else "v1"})  # noqa: E501
     collected = 0
     page = 1
 
