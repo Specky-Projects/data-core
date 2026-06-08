@@ -601,3 +601,61 @@ def watchdog_risk_score(
         "thresholds": _RISK_THRESHOLDS,
         "services": [a.to_dict() for a in assessments],
     }
+
+
+# ════════════════════════════════════════════════════════════════════
+# Phase 6A — Safe VPS Cleanup
+# ════════════════════════════════════════════════════════════════════
+
+@router.get("/cleanup/status", summary="Cleanup status: last run, cooldown, circuit breaker, metrics (Phase 6A)")
+def watchdog_cleanup_status() -> dict[str, Any]:
+    """Return cleanup subsystem status.
+
+    Includes: last run timestamps, cooldown remaining, circuit breaker state,
+    Redis metrics (runs/bytes/skipped/errors), and last run report.
+    """
+    from app.auto_healing.cleanup import CleanupRunner
+    status = CleanupRunner().status()
+    return status.to_dict()
+
+
+@router.post("/cleanup/run", summary="Trigger safe Docker image / build cache cleanup (Phase 6A)")
+def watchdog_cleanup_run(
+    dry_run: bool = Query(True, description="DRY_RUN=true → estimate only, no deletions"),
+    retention_days: int = Query(3, ge=1, le=30, description="Remove images older than N days"),
+    force: bool = Query(False, description="Ignore cooldown (use with caution)"),
+    notify: bool = Query(False, description="Send Telegram notification after run"),
+) -> dict[str, Any]:
+    """Execute safe cleanup pipeline.
+
+    Tasks (in order):
+    1. dangling_images    — removes untagged images (100% safe)
+    2. old_tagged_images  — removes tagged images older than retention_days,
+                            not used by any container, not in protected repos
+    3. build_cache        — clears Docker BuildKit cache
+    4. container_log_audit — reports large logs (no deletion; host access required)
+
+    Safety guarantees:
+    - NEVER removes volumes, running containers, protected repos (postgres/redis/…)
+    - NEVER removes images in use by any container (running or stopped)
+    - Keeps ≥2 most-recent images per repo regardless of age
+    - Cooldown: 6h between real runs (override with force=true)
+    - Circuit breaker: auto-blocks after 3 consecutive errors
+
+    dry_run=true (default): returns estimate with zero side effects.
+    dry_run=false: performs real cleanup, sets cooldown, records metrics.
+    """
+    from app.auto_healing.cleanup import CleanupCooldown, CleanupRunner
+
+    runner = CleanupRunner(
+        dry_run=dry_run,
+        retention_days=retention_days,
+        send_telegram=notify,
+    )
+
+    # Force: clear cooldown before running
+    if force and not dry_run:
+        CleanupCooldown().clear()
+
+    report = runner.run()
+    return report.to_dict()
