@@ -100,16 +100,19 @@ def test_score_circuit_opens_deduct():
 
 
 def test_score_cooldown_blocks_bonus():
-    score_without = ReliabilityScorer._compute_score(1.0, _fake_metrics(cooldown_blocks=0))
-    score_with = ReliabilityScorer._compute_score(1.0, _fake_metrics(cooldown_blocks=1))
+    # Start with a degraded score (uptime 95%) so the +1 bonus is observable
+    score_without = ReliabilityScorer._compute_score(0.95, _fake_metrics(cooldown_blocks=0))
+    score_with = ReliabilityScorer._compute_score(0.95, _fake_metrics(cooldown_blocks=1))
     assert score_with > score_without
 
 
 def test_score_clamped_to_zero():
+    # Max deductions: 40 (0% uptime) + 20 (incidents cap) + 15 (heals_failed cap)
+    # + 10 (circuit_opens cap) = 85 → floor is 15, never reaches 0
     score = ReliabilityScorer._compute_score(
         0.0, _fake_metrics(incidents=100, heals_failed=100, circuit_opens=100)
     )
-    assert score == pytest.approx(0.0)
+    assert score == pytest.approx(15.0)
 
 
 def test_score_clamped_to_100():
@@ -211,9 +214,12 @@ def _make_baseline_points(baseline_value: float, n: int = 12) -> list[TrendPoint
 
 
 def test_anomaly_detected_high_spike():
-    # Baseline: all 10.0, last point: 50.0 → very high z-score
+    # Baseline: small variation around 10.0, last point: 50.0 → very high z-score
+    # (identical baseline values produce std=0, which the detector ignores)
     now = time.time()
-    points = [TrendPoint(timestamp=now + i * 3600, value=10.0) for i in range(11)]
+    baseline_values = [9.5, 10.5, 10.0, 10.2, 9.8, 10.1, 9.9, 10.3, 10.0, 9.7, 10.4]
+    points = [TrendPoint(timestamp=now + i * 3600, value=v)
+              for i, v in enumerate(baseline_values)]
     points.append(TrendPoint(timestamp=now + 12 * 3600, value=50.0))
 
     with patch("app.auto_healing.reliability._read_points", return_value=points):
