@@ -103,6 +103,10 @@ services:
     networks:
       app:
       infra_internal:
+    # Allow the app user to read the Docker socket (GID 988 = docker group on host).
+    # Required for container_healer.py to restart redis/scheduler/worker containers.
+    group_add:
+      - "988"
     volumes:
       - runtime-logs:/app/runtime-logs
       - runtime-data:/app/runtime-data
