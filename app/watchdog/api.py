@@ -8,6 +8,16 @@ GET  /api/v1/watchdog/status                     ← current status (last run)
 GET  /api/v1/watchdog/runs                       ← run history
 GET  /api/v1/watchdog/alerts                     ← aggregated alerts from last run
 POST /api/v1/watchdog/heartbeat/send             ← manual trigger heartbeat
+
+Phase 3 — Analytics
+GET  /api/v1/watchdog/stats                      ← global + per-service counters
+GET  /api/v1/watchdog/incidents                  ← incident list with MTTR
+GET  /api/v1/watchdog/healers                    ← per-healer attempt/success breakdown
+
+Phase 4 — Reliability & Forecasting
+GET  /api/v1/watchdog/reliability                ← 0-100 score per service
+GET  /api/v1/watchdog/forecast                   ← disk/queue/memory ETA forecasts
+GET  /api/v1/watchdog/anomalies                  ← detected metric spikes
 """
 
 from __future__ import annotations
@@ -16,7 +26,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -81,8 +91,9 @@ def _format_alertmanager_telegram(payload: AlertmanagerWebhookPayload) -> str:
 
 def _send_telegram_message(text: str) -> bool:
     """Send a Telegram message using the configured bot token and chat."""
-    import urllib.request
     import json as json_lib
+    import urllib.request
+
     from core.config import settings
 
     if not settings.telegram_enabled or not settings.telegram_bot_token:
@@ -336,4 +347,149 @@ def telegram_events(
             }
             for e in events
         ],
+    }
+
+
+# ════════════════════════════════════════════════════════════════════
+# Phase 3 — Analytics endpoints
+# ════════════════════════════════════════════════════════════════════
+
+@router.get("/stats", summary="Global + per-service heal/incident counters (Phase 3)")
+def watchdog_stats(
+    hours: int = Query(168, ge=1, le=8760, description="Window in hours (default 7 days)"),
+) -> dict[str, Any]:
+    """Return cumulative counters, heal success rate, recovery rate and MTTR."""
+    from app.auto_healing.analytics import HistoryReader, MetricsCollector
+    collector = MetricsCollector()
+    reader = HistoryReader()
+    metrics = collector.read_global_metrics(window_hours=hours)
+    result = metrics.to_dict()
+    mttr_map = reader.compute_mttr(window_hours=hours)
+    for svc, m_dict in result["by_service"].items():
+        if svc in mttr_map:
+            m_dict.update({
+                "mttr_history_avg_seconds": mttr_map[svc]["avg_seconds"],
+                "mttr_history_p95_seconds": mttr_map[svc].get("p95_seconds"),
+                "mttr_history_count": mttr_map[svc]["count"],
+            })
+    return result
+
+
+@router.get("/incidents", summary="Incident list with duration and heal outcomes (Phase 3)")
+def watchdog_incidents(
+    hours: int = Query(168, ge=1, le=8760),
+    service: str | None = Query(None, description="Filter by service name"),
+    outcome: str | None = Query(None, description="Filter: recovered | open | unresolved"),
+) -> dict[str, Any]:
+    """Return incidents reconstructed from the watchdog history file."""
+    from app.auto_healing.analytics import HistoryReader
+    reader = HistoryReader()
+    incidents = reader.extract_incidents(window_hours=hours)
+    if service:
+        incidents = [i for i in incidents if i.service == service]
+    if outcome:
+        incidents = [i for i in incidents if i.outcome == outcome]
+    mttr_map = reader.compute_mttr(window_hours=hours)
+    return {
+        "window_hours": hours,
+        "total": len(incidents),
+        "mttr_by_service": mttr_map,
+        "incidents": [i.to_dict() for i in incidents],
+    }
+
+
+@router.get("/healers", summary="Per-healer attempt / success / failure breakdown (Phase 3)")
+def watchdog_healers(
+    hours: int = Query(168, ge=1, le=8760),
+) -> dict[str, Any]:
+    """Return aggregated statistics for each healer from history."""
+    from app.auto_healing.analytics import HistoryReader
+    reader = HistoryReader()
+    stats = reader.healer_stats(window_hours=hours)
+    total_attempts = sum(s["attempts"] for s in stats)
+    total_recovered = sum(s["recovered"] for s in stats)
+    return {
+        "window_hours": hours,
+        "total_attempts": total_attempts,
+        "total_recovered": total_recovered,
+        "global_success_rate": round(total_recovered / total_attempts, 3) if total_attempts > 0 else None,
+        "healers": stats,
+    }
+
+
+@router.get("/daily-report", summary="Human-readable daily summary (Phase 3)")
+def watchdog_daily_report(
+    date: str | None = Query(None, description="ISO date YYYY-MM-DD (defaults to today UTC)"),
+    fmt: str = Query("json", description="json | text"),
+) -> Any:
+    """Generate the daily operational report for a specific date."""
+    import datetime as dt_mod
+
+    from app.auto_healing.analytics import DailyReporter
+    target_date = None
+    if date:
+        try:
+            target_date = dt_mod.date.fromisoformat(date)
+        except ValueError:
+            return {"error": f"Invalid date format: {date!r}. Use YYYY-MM-DD."}
+    reporter = DailyReporter()
+    report = reporter.generate(target_date)
+    if fmt == "text":
+        return {"text": report.to_text()}
+    return report.to_dict()
+
+
+# ════════════════════════════════════════════════════════════════════
+# Phase 4 — Reliability, Forecast, Anomalies
+# ════════════════════════════════════════════════════════════════════
+
+@router.get("/reliability", summary="0-100 reliability score per service (Phase 4)")
+def watchdog_reliability(
+    hours: int = Query(168, ge=1, le=8760, description="History window for scoring"),
+) -> dict[str, Any]:
+    """Return reliability score (0-100) and grade per service.
+
+    Scoring: base 100; deductions for downtime (-40 max), incidents (-20 max),
+    failed heals (-15 max), circuit opens (-10 max). Bonus +1 if cooldown active.
+    Grade: A+ ≥ 98, A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 45, F < 45
+    """
+    from app.auto_healing.reliability import ReliabilityScorer
+    scorer = ReliabilityScorer(window_hours=hours)
+    scores = scorer.score_all()
+    return {
+        "window_hours": hours,
+        "computed_at": datetime.now(tz=timezone.utc).isoformat(),
+        "scores": {svc: score.to_dict() for svc, score in sorted(scores.items())},
+    }
+
+
+@router.get("/forecast", summary="Disk/queue/memory threshold ETA (Phase 4)")
+def watchdog_forecast(
+    window_hours: float = Query(48.0, ge=1.0, le=168.0),
+) -> dict[str, Any]:
+    """Forecast when disk, queue backlog, or memory will cross critical thresholds.
+
+    Uses OLS linear regression over stored time series.
+    Requires ≥4 data points; returns status=insufficient_data otherwise.
+    """
+    from app.auto_healing.reliability import Forecaster
+    return Forecaster().forecast(window_hours=window_hours).to_dict()
+
+
+@router.get("/anomalies", summary="Z-score anomaly detection for metric spikes (Phase 4)")
+def watchdog_anomalies(
+    window_hours: float = Query(24.0, ge=1.0, le=168.0),
+) -> dict[str, Any]:
+    """Detect metric spikes using z-score analysis (threshold: 2.5σ).
+
+    Covers: disk_spike, memory_spike, queue_spike, restart_spike.
+    Requires ≥8 data points per series.
+    """
+    from app.auto_healing.reliability import AnomalyDetector
+    anomalies = AnomalyDetector().detect_all(window_hours=window_hours)
+    return {
+        "computed_at": datetime.now(tz=timezone.utc).isoformat(),
+        "window_hours": window_hours,
+        "total": len(anomalies),
+        "anomalies": [a.to_dict() for a in anomalies],
     }

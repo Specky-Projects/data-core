@@ -17,6 +17,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.auto_healing.analytics import MetricsCollector
 from app.auto_healing.cooldown import CircuitBreaker, CooldownManager
 from app.auto_healing.healer import find_healer, run_healers
 from app.auto_healing.health_checker import HealthChecker
@@ -28,6 +29,7 @@ from app.auto_healing.models import (
     ServiceHealth,
     WatchdogExecution,
 )
+from app.auto_healing.reliability import SystemSnapshot
 from app.auto_healing.telegram_reader import TelegramAlertReader
 from core.config import settings
 
@@ -102,6 +104,13 @@ class AutoHealingWatchdog:
         )
         _append_history(execution)
 
+        # Phase 3: record analytics counters (fail-silent)
+        _analytics.record_run(execution.to_dict())
+        # Phase 4: store system metric snapshot for trending
+        _snapshot.snapshot(
+            health_list=[h.to_dict() for h in verified]
+        )
+
         logger.info(
             "Auto-Healing Watchdog finished",
             extra={
@@ -119,6 +128,8 @@ class AutoHealingWatchdog:
 
 _cooldown = CooldownManager()
 _circuit = CircuitBreaker()
+_analytics = MetricsCollector()
+_snapshot = SystemSnapshot()
 
 
 def _run_healers_guarded(
