@@ -17,7 +17,8 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.auto_healing.healer import run_healers
+from app.auto_healing.cooldown import CircuitBreaker, CooldownManager
+from app.auto_healing.healer import find_healer, run_healers
 from app.auto_healing.health_checker import HealthChecker
 from app.auto_healing.incident_classifier import IncidentClassifier
 from app.auto_healing.models import (
@@ -60,11 +61,11 @@ class AutoHealingWatchdog:
             health = []
             errors.append(f"health_checker: {exc}")
 
-        # 3. HEAL
+        # 3. HEAL (with cooldown + circuit breaker guard)
         heal_results: list[HealResult] = []
         if not settings.auto_healing_dry_run and any(not item.ok for item in health):
             try:
-                heal_results = run_healers(health, self._db)
+                heal_results = _run_healers_guarded(health, self._db)
             except Exception as exc:
                 logger.exception("auto_healing: healer raised")
                 errors.append(f"healer: {exc}")
@@ -114,6 +115,90 @@ class AutoHealingWatchdog:
             },
         )
         return execution
+
+
+_cooldown = CooldownManager()
+_circuit = CircuitBreaker()
+
+
+def _run_healers_guarded(
+    health_list: list[ServiceHealth],
+    db: Session,
+) -> list[HealResult]:
+    """Run healers with cooldown and circuit breaker gates.
+
+    For each unhealthy service:
+    1. Check circuit breaker → BLOCKED_CIRCUIT if open
+    2. Check cooldown budget → SKIPPED if exhausted
+    3. Run healer
+    4. Record outcome for cooldown / circuit state
+    """
+    results: list[HealResult] = []
+    for item in health_list:
+        if item.ok:
+            continue
+        healer = find_healer(item)
+        if healer is None:
+            if item.critical:
+                results.append(
+                    HealResult(
+                        service=item.name,
+                        outcome=HealOutcome.SKIPPED,
+                        detail="no healer registered for this service",
+                    )
+                )
+            continue
+
+        # Circuit breaker check
+        circuit_status = _circuit.status(item.name)
+        if circuit_status.open:
+            logger.warning(
+                "watchdog: circuit OPEN for service=%s — blocking heal. %s",
+                item.name, circuit_status.reason,
+            )
+            results.append(
+                HealResult(
+                    service=item.name,
+                    outcome=HealOutcome.BLOCKED_CIRCUIT,
+                    detail=f"Circuit breaker open: {circuit_status.reason}",
+                )
+            )
+            continue
+
+        # Cooldown check
+        cooldown_status = _cooldown.check(item.name)
+        if not cooldown_status.allowed:
+            logger.warning(
+                "watchdog: cooldown active for service=%s — skipping heal. %s",
+                item.name, cooldown_status.reason,
+            )
+            results.append(
+                HealResult(
+                    service=item.name,
+                    outcome=HealOutcome.SKIPPED,
+                    detail=f"Cooldown: {cooldown_status.reason}",
+                )
+            )
+            continue
+
+        # Run healer
+        logger.info("watchdog: running healer=%s for service=%s", healer.name, item.name)
+        _cooldown.record_restart(item.name)
+        result = healer.heal(db)
+        results.append(result)
+
+        # Update circuit state
+        if result.outcome == HealOutcome.FAILED:
+            circuit_after = _circuit.record_failure(item.name)
+            if circuit_after.open:
+                logger.warning(
+                    "watchdog: circuit OPENED for service=%s after %d consecutive failures",
+                    item.name, circuit_after.consecutive_failures,
+                )
+        elif result.outcome == HealOutcome.RECOVERED:
+            _circuit.record_success(item.name)
+
+    return results
 
 
 def _notify(

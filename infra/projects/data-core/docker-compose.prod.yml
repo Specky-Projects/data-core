@@ -24,7 +24,7 @@ services:
       - "traefik.http.routers.data-core-api.rule=Host(`dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io`)"
       - "traefik.http.routers.data-core-api.entrypoints=http"
       - "traefik.http.services.data-core-api.loadbalancer.server.port=8000"
-    command: sh -c "alembic upgrade head && uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
+    command: sh -c "uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000"
     # ── Resource limits ───────────────────────────────────────────────────────
     # api: FastAPI + SQLAlchemy pool (5 conns). 512 MiB is comfortable headroom;
     # memswap = limit + 256 MiB swap buffer so an occasional spike doesn't OOM.
@@ -68,13 +68,13 @@ services:
       SCHEDULER_DOMAIN_JOBS_ENABLED: ${SCHEDULER_DOMAIN_JOBS_ENABLED:-true}
       POUPI_LEGACY_BACKEND_DIR: ${POUPI_LEGACY_BACKEND_DIR:-/app/domains/poupi_baby/backend}
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
-      # Watchdog + Telegram
+      # Watchdog
       WATCHDOG_ENABLED: ${WATCHDOG_ENABLED:-true}
-      WATCHDOG_HEARTBEAT_HOURS: ${WATCHDOG_HEARTBEAT_HOURS:-6}
       WATCHDOG_COLLECTION_STALE_HOURS: ${WATCHDOG_COLLECTION_STALE_HOURS:-3}
-      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      # Container healer: UUID used to scope docker ps label filter
+      COOLIFY_RESOURCE_UUID: ${COOLIFY_RESOURCE_UUID:-dvq6dwsagsw4p4oqwuw7bak9}
+      # Container healer: Redis container name (separate compose project)
+      REDIS_CONTAINER_NAME: ${REDIS_CONTAINER_NAME:-multi_project_infra-redis-1}
       # Use system malloc instead of pymalloc so malloc_trim(0) can reclaim
       # all freed pages — not just those above the pymalloc threshold.
       PYTHONMALLOC: "malloc"
@@ -91,17 +91,8 @@ services:
     healthcheck:
       # Pass if scheduler_heartbeat.json was written within the last 10 minutes.
       # The heartbeat job fires every 5 min; 10 min tolerance covers one missed tick.
-      test:
-        - CMD-SHELL
-        - >-
-          python3 -c '
-          import json, datetime, pathlib;
-          p = pathlib.Path("/app/runtime-data/scheduler_heartbeat.json");
-          d = json.loads(p.read_text());
-          t = datetime.datetime.fromisoformat(d["written_at"][:26]);
-          age = (datetime.datetime.utcnow() - t).total_seconds();
-          assert age < 600, f"stale: {age:.0f}s"
-          '
+      # Single-line CMD-SHELL avoids YAML >- folding IndentationError bug.
+      test: ["CMD-SHELL", "python3 -c 'import json, datetime, pathlib; p = pathlib.Path(\"/app/runtime-data/scheduler_heartbeat.json\"); d = json.loads(p.read_text()); t = datetime.datetime.fromisoformat(d[\"written_at\"][:26]); age = (datetime.datetime.utcnow() - t).total_seconds(); assert age < 600, f\"stale: {age:.0f}s\"'"]
       interval: 60s
       timeout: 10s
       retries: 3
@@ -115,6 +106,7 @@ services:
     volumes:
       - runtime-logs:/app/runtime-logs
       - runtime-data:/app/runtime-data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
   worker:
     build:
@@ -144,16 +136,8 @@ services:
     healthcheck:
       # Pass if worker_heartbeat.json epoch timestamp is less than ~11.5 min old.
       # Worker heartbeat fires every 5 min; 700s tolerance covers one missed tick.
-      test:
-        - CMD-SHELL
-        - >-
-          python3 -c '
-          import json, time, pathlib;
-          p = pathlib.Path("/app/runtime-data/worker_heartbeat.json");
-          d = json.loads(p.read_text());
-          age = time.time() - float(d["timestamp_epoch"]);
-          assert age < 700, f"stale: {age:.0f}s"
-          '
+      # Single-line CMD-SHELL avoids YAML >- folding IndentationError bug.
+      test: ["CMD-SHELL", "python3 -c 'import json, time, pathlib; p = pathlib.Path(\"/app/runtime-data/worker_heartbeat.json\"); d = json.loads(p.read_text()); age = time.time() - float(d[\"timestamp_epoch\"]); assert age < 700, f\"stale: {age:.0f}s\"'"]
       interval: 60s
       timeout: 10s
       retries: 3

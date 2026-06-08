@@ -18,6 +18,11 @@ from typing import Protocol, runtime_checkable
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.auto_healing.container_healer import (
+    RedisRestartHealer,
+    SchedulerRestartHealer,
+    WorkerRestartHealer,
+)
 from app.auto_healing.models import HealOutcome, HealResult, ServiceHealth
 
 logger = logging.getLogger(__name__)
@@ -136,9 +141,16 @@ class BullMQStalledCleaner:
 
 
 # Registry — ordered by priority (cheapest/safest first).
+# Container restart healers are Phase 2: controlled by AUTO_HEALING_DRY_RUN.
+# Safety: APIDown and PostgresDown intentionally have NO healer here.
 _HEALERS: list[Healer] = [
+    # Data-pipeline healers (in-process, no container restart)
     NormalizationBacklogHealer(),
     BullMQStalledCleaner(),
+    # Container restart healers (require docker socket + CooldownManager guard)
+    RedisRestartHealer(),
+    SchedulerRestartHealer(),
+    WorkerRestartHealer(),
 ]
 
 

@@ -3,6 +3,7 @@
 Routes
 ──────
 POST /api/v1/watchdog/report/telegram-published  ← poupi-baby callback
+POST /api/v1/watchdog/telegram-alert             ← Alertmanager webhook → Telegram
 GET  /api/v1/watchdog/status                     ← current status (last run)
 GET  /api/v1/watchdog/runs                       ← run history
 GET  /api/v1/watchdog/alerts                     ← aggregated alerts from last run
@@ -11,18 +12,138 @@ POST /api/v1/watchdog/heartbeat/send             ← manual trigger heartbeat
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.watchdog.models import TelegramPublicationEvent, WatchdogRun
 from database.session import get_db
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/watchdog", tags=["watchdog"])
+
+
+# ── Alertmanager webhook → Telegram ──────────────────────────────────────────
+
+class _AlertmanagerAlert(BaseModel):
+    """Single alert within an Alertmanager webhook payload."""
+    status: str = "unknown"  # "firing" | "resolved"
+    labels: dict[str, Any] = {}
+    annotations: dict[str, Any] = {}
+    startsAt: str = ""
+    endsAt: str = ""
+    generatorURL: str = ""
+
+
+class AlertmanagerWebhookPayload(BaseModel):
+    """Alertmanager POST /webhook body (v4 format)."""
+    version: str = "4"
+    groupKey: str = ""
+    status: str = "firing"  # "firing" | "resolved"
+    receiver: str = ""
+    groupLabels: dict[str, Any] = {}
+    commonLabels: dict[str, Any] = {}
+    commonAnnotations: dict[str, Any] = {}
+    externalURL: str = ""
+    alerts: list[_AlertmanagerAlert] = []
+
+
+def _format_alertmanager_telegram(payload: AlertmanagerWebhookPayload) -> str:
+    """Format an Alertmanager webhook payload as a Telegram message."""
+    emoji = "🔴" if payload.status == "firing" else "✅"
+    lines: list[str] = [f"{emoji} *[ALERTMANAGER] {payload.status.upper()}*"]
+
+    if payload.commonLabels:
+        severity = payload.commonLabels.get("severity", "unknown")
+        lines.append(f"Severity: `{severity}`")
+
+    for alert in payload.alerts:
+        alert_name = alert.labels.get("alertname", "?")
+        summary = alert.annotations.get("summary", alert_name)
+        description = alert.annotations.get("description", "")
+        service = alert.labels.get("service", alert.labels.get("job", ""))
+        status_icon = "🔴" if alert.status == "firing" else "✅"
+        lines.append(f"\n{status_icon} *{alert_name}*")
+        if service:
+            lines.append(f"  Service: `{service}`")
+        lines.append(f"  {summary}")
+        if description and description != summary:
+            lines.append(f"  _{description}_")
+
+    lines.append(f"\n⏱ {datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    return "\n".join(lines)
+
+
+def _send_telegram_message(text: str) -> bool:
+    """Send a Telegram message using the configured bot token and chat."""
+    import urllib.request
+    import json as json_lib
+    from core.config import settings
+
+    if not settings.telegram_enabled or not settings.telegram_bot_token:
+        logger.warning("telegram-alert: Telegram not configured — skipping send")
+        return False
+
+    chat_id = settings.telegram_system_chat_id or settings.telegram_chat_id
+    if not chat_id:
+        logger.warning("telegram-alert: no chat_id configured")
+        return False
+
+    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
+    body = json_lib.dumps({
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }).encode()
+
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            ok = resp.getcode() == 200
+            if not ok:
+                logger.warning("telegram-alert: bot API returned %d", resp.getcode())
+            return ok
+    except Exception as exc:
+        logger.error("telegram-alert: failed to send message: %s", exc)
+        return False
+
+
+@router.post(
+    "/telegram-alert",
+    status_code=200,
+    summary="Alertmanager webhook → Telegram (critical alerts only)",
+)
+def alertmanager_telegram_alert(payload: AlertmanagerWebhookPayload) -> dict[str, Any]:
+    """Receive an Alertmanager webhook payload and forward it to Telegram.
+
+    Called by Alertmanager's `telegram-critical` receiver when a rule with
+    `channel: telegram` label fires or resolves. Always returns 200 so that
+    Alertmanager does not retry on transient send failures.
+    """
+    logger.info(
+        "telegram-alert: received groupKey=%s status=%s alerts=%d",
+        payload.groupKey, payload.status, len(payload.alerts),
+    )
+
+    if not payload.alerts:
+        return {"sent": False, "reason": "no alerts in payload"}
+
+    message = _format_alertmanager_telegram(payload)
+    sent = _send_telegram_message(message)
+
+    logger.info("telegram-alert: sent=%s", sent)
+    return {
+        "sent": sent,
+        "status": payload.status,
+        "alerts": len(payload.alerts),
+        "received_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
 
 
 # ── Request / Response schemas ────────────────────────────────────────────────

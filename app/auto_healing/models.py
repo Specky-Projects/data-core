@@ -7,9 +7,10 @@ from typing import Any
 
 
 class HealOutcome(str, Enum):
-    RECOVERED = "RECOVERED"  # healed automatically, no notification needed
-    FAILED = "FAILED"        # healing attempted but failed, notify
-    SKIPPED = "SKIPPED"      # no healer available and service is critical, notify
+    RECOVERED = "RECOVERED"          # healed automatically, no notification needed
+    FAILED = "FAILED"                # healing attempted but failed, notify
+    SKIPPED = "SKIPPED"              # no healer available and service is critical, notify
+    BLOCKED_CIRCUIT = "BLOCKED_CIRCUIT"  # circuit breaker open — blocked, notify CRITICAL
 
 
 class Classification(str, Enum):
@@ -143,7 +144,7 @@ class WatchdogExecution:
         return {
             "timestamp": self.timestamp.isoformat(),
             "status": self.status.value,
-            "dry_run": True,
+            "dry_run": self.dry_run,
             "events": [item.to_dict() for item in self.events],
             "service_health": [item.to_dict() for item in self.service_health],
             "heal_results": [item.to_dict() for item in self.heal_results],
