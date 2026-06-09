@@ -340,12 +340,152 @@ def run_pipeline(
         "seasons_fetched": result.seasons_fetched,
         "games_ingested": result.games_ingested,
         "recent_updated": result.recent_updated,
+        "odds_upserted": result.odds_upserted,
+        "odds_blocked": result.odds_blocked,
         "features_computed": result.features_computed,
         "signals_generated": result.signals_generated,
+        "alerts_sent": result.alerts_sent,
         "bets_settled": result.bets_settled,
         "edge_registry_refreshed": result.edge_registry_refreshed,
         "errors": result.errors,
     }
+
+
+# ── Phase 3: OOS validation ───────────────────────────────────────────────────
+
+class WindowMetricsResponse(BaseModel):
+    seasons: list[int]
+    sample_size: int
+    wins: int
+    losses: int
+    win_rate: float
+    roi: float
+    profit_factor: float
+    max_drawdown: float
+    sharpe: float
+    total_pnl: float
+
+
+class SetupOOSResponse(BaseModel):
+    setup_name: str
+    verdict: str
+    notes: list[str]
+    train: WindowMetricsResponse
+    test: WindowMetricsResponse
+
+
+@router.get("/oos/validate", response_model=list[SetupOOSResponse])
+def oos_validate(
+    train_seasons: str = "2022,2023",
+    test_seasons: str = "2024",
+    db: Session = Depends(db_session),  # noqa: B008
+) -> list[dict]:
+    """
+    Run out-of-sample validation.
+
+    Default split: train=2022,2023 / test=2024.
+    Returns per-setup metrics and EDGE_CONFIRMED / EDGE_MARGINAL / EDGE_DEGRADED / NO_EDGE verdict.
+    """
+    from app.modules.nba.quant.out_of_sample import run_oos_validation
+
+    train = [int(s.strip()) for s in train_seasons.split(",")]
+    test = [int(s.strip()) for s in test_seasons.split(",")]
+    results = run_oos_validation(db, train_seasons=train, test_seasons=test)
+
+    def _wm(m: object) -> dict:
+        return {
+            "seasons": m.seasons,
+            "sample_size": m.sample_size,
+            "wins": m.wins,
+            "losses": m.losses,
+            "win_rate": round(m.win_rate, 4),
+            "roi": round(m.roi, 4),
+            "profit_factor": (
+                round(m.profit_factor, 4) if m.profit_factor != float("inf") else 9999.0
+            ),
+            "max_drawdown": round(m.max_drawdown, 2),
+            "sharpe": round(m.sharpe, 4),
+            "total_pnl": round(m.total_pnl, 2),
+        }
+
+    output = [
+        {
+            "setup_name": r.setup_name,
+            "verdict": r.verdict,
+            "notes": r.notes,
+            "train": _wm(r.train),
+            "test": _wm(r.test),
+        }
+        for r in results
+    ]
+    _update_oos_metrics(output)
+    return output
+
+
+# ── Phase 3: Odds ingest ──────────────────────────────────────────────────────
+
+@router.post("/odds/ingest")
+def ingest_upcoming_odds(db: Session = Depends(db_session)) -> dict[str, Any]:  # noqa: B008
+    """
+    Fetch upcoming NBA odds from The Odds API and populate nba_odds.
+    Requires THE_ODDS_API_KEY env var (free tier: upcoming games only).
+    """
+    from app.modules.nba.quant.odds_collector import fetch_upcoming_odds as _fetch
+
+    result = _fetch(db)
+    return {
+        "status": "blocked" if result.blocked else ("ok" if result.ok else "error"),
+        "blocked_reason": result.blocked_reason or None,
+        "games_matched": result.games_matched,
+        "odds_upserted": result.odds_upserted,
+        "games_unmatched": len(result.games_unmatched),
+        "requests_remaining": result.requests_remaining,
+        "errors": result.errors,
+    }
+
+
+@router.post("/odds/backfill")
+def backfill_historical_odds(
+    seasons: str = "2022,2023,2024",
+    db: Session = Depends(db_session),  # noqa: B008
+) -> dict[str, Any]:
+    """
+    Backfill historical odds for given seasons from The Odds API.
+    Requires paid plan with history access.
+    """
+    from app.modules.nba.quant.odds_collector import backfill_odds_for_seasons
+
+    season_list = [int(s.strip()) for s in seasons.split(",")]
+    result = backfill_odds_for_seasons(db, season_list)
+    return {
+        "status": "blocked" if result.blocked else ("ok" if result.ok else "error"),
+        "blocked_reason": result.blocked_reason or None,
+        "games_matched": result.games_matched,
+        "odds_upserted": result.odds_upserted,
+        "errors": result.errors[:10],
+    }
+
+
+# ── Phase 3: Telegram config ──────────────────────────────────────────────────
+
+@router.get("/telegram/config")
+def telegram_config() -> dict[str, Any]:
+    """Check Telegram alert configuration status."""
+    from app.modules.nba.quant.telegram_alerts import validate_config
+    return validate_config()
+
+
+@router.post("/telegram/test")
+def telegram_test() -> dict[str, Any]:
+    """Send a test Telegram alert to validate connectivity."""
+    from app.modules.nba.quant.telegram_alerts import send_alert
+    ok = send_alert(
+        "🏀 *NBA Quant — Test Alert*\n\n"
+        "Configuration validated. Observation-only alerts active for "
+        "`BACK_TO_BACK_FADE_V1`.\n\n"
+        "_This is a test message._"
+    )
+    return {"sent": ok, "status": "ok" if ok else "failed"}
 
 
 # ── Metrics helpers ────────────────────────────────────────────────────────────
@@ -365,3 +505,25 @@ def _update_global_metrics(stats: GlobalAnalytics) -> None:
         nba_q_setup_win_rate.labels(setup=s.setup_name).set(s.win_rate)
         cls_val = {"PROFITABLE": 1, "NEUTRAL": 0, "LOSING": -1}.get(s.classification, 0)
         nba_q_setup_classification.labels(setup=s.setup_name).set(cls_val)
+
+
+def _update_oos_metrics(results: list) -> None:
+    from app.modules.nba.quant.metrics import (
+        nba_q_oos_roi,
+        nba_q_oos_verdict,
+        nba_q_setup_max_drawdown,
+        nba_q_setup_profit_factor,
+        nba_q_setup_sharpe,
+    )
+    verdict_map = {"EDGE_CONFIRMED": 2, "EDGE_MARGINAL": 1, "EDGE_DEGRADED": 0, "NO_EDGE": -1}
+    for r in results:
+        s = r["setup_name"]
+        nba_q_oos_verdict.labels(setup=s).set(verdict_map.get(r["verdict"], -1))
+        for window in ("train", "test"):
+            m = r[window]
+            nba_q_oos_roi.labels(setup=s, window=window).set(m["roi"])
+            nba_q_setup_sharpe.labels(setup=s, window=window).set(m["sharpe"])
+            nba_q_setup_profit_factor.labels(setup=s, window=window).set(
+                min(m["profit_factor"], 9999.0)
+            )
+            nba_q_setup_max_drawdown.labels(setup=s, window=window).set(m["max_drawdown"])

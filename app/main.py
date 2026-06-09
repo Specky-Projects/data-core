@@ -13,12 +13,13 @@ from sqlalchemy import text
 import api.live_metrics  # noqa: F401 — registers Phase Q Prometheus Gauges in this process
 import app.incident_bus.models  # noqa: F401 — ensure incident_events table is registered
 import app.incident_history.models  # noqa: F401 — ensure incident_history + incident_patterns tables registered
-import app.modules.trading.validation.models  # noqa: F401
-import app.modules.crypto.edge.models  # noqa: F401 — ensure trading_edge_outcomes table registered — ensure TradingSignalOutcome table registered
+import app.modules.crypto.edge.alert_state_model  # noqa: F401 — ensure edge_alert_state table registered
 import app.modules.crypto.edge.forward_model  # noqa: F401 — ensure forward_shadow_signals table registered
-import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
+import app.modules.crypto.edge.models  # noqa: F401 — ensure trading_edge_outcomes table registered — ensure TradingSignalOutcome table registered
 import app.modules.nba.models  # noqa: F401 — ensure NBA tables registered
 import app.modules.nba.quant.models  # noqa: F401 — ensure NBA quant tables registered
+import app.modules.trading.validation.models  # noqa: F401
+import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
 import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
 from api.auth import verify_api_key
 from api.live_metrics_updater import refresh_live_metrics
@@ -102,7 +103,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Necessário porque scripts CLI rodam em processos separados — sem isto,
     # os Gauges ficam em 0 mesmo após execucoes dos modulos de pesquisa.
     _stop = threading.Event()
-    _t = threading.Thread(target=_metrics_refresh_loop, args=(_stop,), daemon=True, name="metrics-refresh")
+    _t = threading.Thread(target=_metrics_refresh_loop, args=(_stop,), daemon=True, name="metrics-refresh")  # noqa: E501
     _t.start()
     refresh_live_metrics()  # refresh imediato na startup
 
@@ -235,7 +236,7 @@ def create_app() -> FastAPI:
                 "app": settings.app_name,
                 "operational_status": operational.get("status") if operational else None,
                 "decision": operational.get("decision") if operational else "NO-GO",
-                "blockers": operational.get("blockers") if operational else ["operational_readiness_error"],
+                "blockers": operational.get("blockers") if operational else ["operational_readiness_error"],  # noqa: E501
             },
             status_code=status_code,
         )

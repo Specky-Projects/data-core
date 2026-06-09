@@ -201,11 +201,72 @@ def get_readiness_report(
     return build_readiness_report(db)
 
 
+# ---------------------------------------------------------------------------
+# Phase 10 endpoints
+# ---------------------------------------------------------------------------
+
+
 @router.post("/daily-summary")
 def send_daily_summary_endpoint(
     db: Session = Depends(db_session),  # noqa: B008
+    force: bool = Query(
+        default=False,
+        description="Force send even if already sent today.",
+    ),
 ) -> dict[str, Any]:
-    """Send Phase 9 daily Telegram summary and return send metadata."""
-    from app.modules.crypto.edge.readiness import send_daily_summary
+    """Send Phase 10 daily Telegram summary (deduped — max once per day)."""
+    from app.modules.crypto.edge.telegram_ops import send_daily_summary
 
-    return send_daily_summary(db)
+    return send_daily_summary(db, force=force)
+
+
+@router.post("/check-edge-alerts")
+def check_edge_alerts_endpoint(
+    db: Session = Depends(db_session),  # noqa: B008
+) -> dict[str, Any]:
+    """Phase 10 — check and fire Telegram edge alerts.
+
+    Fires:
+    - Gate crossings: n >= 10 / 30 / 100 (once per gate per horizon)
+    - Edge status changes (INSUFFICIENT_DATA → NO_EDGE → POSSIBLE_EDGE → EDGE_DETECTED)
+    - WR < 50% or PF < 1.5 after n >= 10 (fires on degradation)
+    """
+    from app.modules.crypto.edge.telegram_ops import check_and_send_edge_alerts
+
+    return check_and_send_edge_alerts(db)
+
+
+@router.post("/weekly-report")
+def send_weekly_report_endpoint(
+    db: Session = Depends(db_session),  # noqa: B008
+    force: bool = Query(
+        default=False,
+        description="Force send even if already sent this ISO week.",
+    ),
+) -> dict[str, Any]:
+    """Send Phase 10 weekly Telegram report (deduped — max once per ISO week).
+
+    Includes: per-horizon metrics, regime breakdown, confidence bucket breakdown,
+    best/worst segment, overall verdict.
+    """
+    from app.modules.crypto.edge.telegram_ops import send_weekly_report
+
+    return send_weekly_report(db, force=force)
+
+
+@router.post("/run-quant-ops")
+def run_quant_ops_endpoint(
+    db: Session = Depends(db_session),  # noqa: B008
+    force: bool = Query(
+        default=False,
+        description="Force all sends (ignore dedup).",
+    ),
+) -> dict[str, Any]:
+    """Phase 10 — run all Telegram quant ops in one call.
+
+    Executes: daily summary + edge alerts + weekly report (Monday only, unless force).
+    Observation only — no trades, no orders, no strategy changes.
+    """
+    from app.modules.crypto.edge.telegram_ops import run_all_ops
+
+    return run_all_ops(db, force=force)

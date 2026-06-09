@@ -169,8 +169,13 @@ def _make_pipeline_mocks(
     return {
         "fetch_season": MagicMock(return_value=games_returned),
         "fetch_recent": MagicMock(return_value=2),
+        "fetch_upcoming_odds": MagicMock(
+            return_value=MagicMock(odds_upserted=0, blocked=True, errors=[])
+        ),
         "compute_all_pending": MagicMock(return_value=features_returned),
-        "run_all_games": MagicMock(return_value=signals_returned),
+        "_run_all_games_with_alerts": MagicMock(
+            return_value={"signals": signals_returned, "alerts": 0}
+        ),
         "settle_all_pending": MagicMock(return_value=settled_returned),
         "refresh_edge_registry": MagicMock(
             return_value=registry_returned or [MagicMock(), MagicMock()]
@@ -222,7 +227,7 @@ def test_run_full_pipeline_partial_error_continues():
     assert len(result.errors) == 1
     assert "BDL timeout" in result.errors[0]
     mocks["compute_all_pending"].assert_called_once()
-    mocks["run_all_games"].assert_called_once()
+    mocks["_run_all_games_with_alerts"].assert_called_once()
 
 
 def test_run_full_pipeline_metrics_called():
@@ -237,7 +242,7 @@ def test_run_full_pipeline_metrics_called():
 
 def test_run_full_pipeline_error_status_partial():
     mocks = _make_pipeline_mocks()
-    mocks["run_all_games"] = MagicMock(side_effect=Exception("signal error"))
+    mocks["_run_all_games_with_alerts"] = MagicMock(side_effect=Exception("signal error"))
     db = MagicMock()
     with patch.multiple(_PM, **mocks):
         run_full_pipeline(db, skip_historical=True)
