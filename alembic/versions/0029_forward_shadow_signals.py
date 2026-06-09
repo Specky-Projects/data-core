@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "0029_forward_shadow_signals"
-down_revision = "74f248e42006"
+down_revision = "0028_signal_edge_outcomes"
 branch_labels = None
 depends_on = None
 
