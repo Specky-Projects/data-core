@@ -1,7 +1,7 @@
 """signal edge outcomes tracking
 
 Revision ID: 0028_signal_edge_outcomes
-Revises: 0027_merge_jobs_and_incidents
+Revises: 74f248e42006
 Create Date: 2026-06-05
 
 NOTE: This migration file was recreated to match a migration that was applied
@@ -16,7 +16,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0028_signal_edge_outcomes"
-down_revision = "0027_merge_jobs_and_incidents"
+down_revision = "74f248e42006"
 branch_labels = None
 depends_on = None
 
