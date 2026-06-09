@@ -51,11 +51,19 @@ class Settings(BaseSettings):
     # Telegram — used by operational_watchdog for alerts and heartbeat
     telegram_enabled: bool = False
     telegram_bot_token: str = ""
-    telegram_chat_id: str = ""  # alert/ops chat; can be group or personal
+    telegram_chat_id: str = ""  # legacy fallback; prefer channel-specific IDs below
 
-    # Canal centralizado — todos os alertas vão para este chat_id
+    # Canal centralizado (legado) — todos os alertas vão para este chat_id
     # Deixar vazio usa telegram_chat_id como fallback
     telegram_system_chat_id: str = ""
+
+    # ── Canais multi-chat Alfredo (Phase 12) ────────────────────────────────
+    # Cada canal tem seu próprio chat_id. Se vazio, cai no fallback legado.
+    # Env vars: BUSINESS_CHAT_ID, OPERATIONAL_CHAT_ID, EXECUTIVE_CHAT_ID, CRITICAL_CHAT_ID
+    business_chat_id: str = ""    # descobertas, shadow signals, oportunidades
+    operational_chat_id: str = "" # resumos diários, readiness, scheduler
+    executive_chat_id: str = ""   # marcos de edge, gate n>=30/100, relatórios executivos
+    critical_chat_id: str = ""    # falhas de infra, colapso de métricas
 
     # Watchdog thresholds
     watchdog_collection_stale_hours: int = 3  # alert if no new raw in this window

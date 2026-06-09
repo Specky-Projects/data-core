@@ -25,7 +25,11 @@ from app.modules.nba.quant.models import NbaFeatures, NbaGame, NbaSignal
 logger = logging.getLogger(__name__)
 
 _BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+# Phase 12: prefer OPERATIONAL_CHAT_ID; fallback to legacy TELEGRAM_CHAT_ID
+_CHAT_ID = (
+    os.environ.get("OPERATIONAL_CHAT_ID", "")
+    or os.environ.get("TELEGRAM_CHAT_ID", "")
+)
 _ENABLED = os.environ.get("TELEGRAM_ENABLED", "false").lower() == "true"
 
 _TELEGRAM_API = "https://api.telegram.org"
@@ -42,7 +46,7 @@ def _is_configured() -> tuple[bool, str]:
     if not _BOT_TOKEN:
         return False, "TELEGRAM_BOT_TOKEN not set"
     if not _CHAT_ID:
-        return False, "TELEGRAM_CHAT_ID not set"
+        return False, "OPERATIONAL_CHAT_ID (or TELEGRAM_CHAT_ID) not set"
     return True, ""
 
 

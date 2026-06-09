@@ -100,9 +100,18 @@ def _send_telegram_message(text: str) -> bool:
         logger.warning("telegram-alert: Telegram not configured — skipping send")
         return False
 
-    chat_id = settings.telegram_system_chat_id or settings.telegram_chat_id
+    # Phase 12: prefer CRITICAL_CHAT_ID → OPERATIONAL_CHAT_ID → legacy fallbacks
+    chat_id = (
+        settings.critical_chat_id
+        or settings.operational_chat_id
+        or settings.telegram_system_chat_id
+        or settings.telegram_chat_id
+    )
     if not chat_id:
-        logger.warning("telegram-alert: no chat_id configured")
+        logger.warning(
+            "telegram-alert: no chat_id configured — "
+            "set CRITICAL_CHAT_ID or TELEGRAM_CHAT_ID"
+        )
         return False
 
     url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"

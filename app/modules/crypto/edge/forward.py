@@ -59,7 +59,11 @@ def _safe_div(a: float, b: float) -> float | None:
 def _send_telegram(text: str) -> None:
     """Fire-and-forget Telegram message. Never raises."""
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    # Phase 12: prefer BUSINESS_CHAT_ID; fallback to legacy TELEGRAM_CHAT_ID
+    chat_id = (
+        os.getenv("BUSINESS_CHAT_ID", "")
+        or os.getenv("TELEGRAM_CHAT_ID", "")
+    )
     enabled = os.getenv("TELEGRAM_ENABLED", "false").lower() in ("1", "true", "yes")
     if not token or not chat_id or not enabled:
         logger.debug("forward_shadow: telegram not configured / disabled, skipping")

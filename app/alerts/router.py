@@ -138,7 +138,14 @@ class TelegramRouter:
         env_var = CHANNEL_ENV[channel]
         chat_id = os.getenv(env_var, "")
         if not chat_id:
-            # Fallback to legacy TELEGRAM_CHAT_ID for channels that have no dedicated id yet
+            # Fallback to legacy TELEGRAM_CHAT_ID; log a warning so operators know
+            # the dedicated channel is not yet configured.
+            logger.warning(
+                "telegram_router: %s not set — falling back to TELEGRAM_CHAT_ID "
+                "(configure %s to route to the dedicated channel)",
+                env_var,
+                env_var,
+            )
             chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
         return chat_id
 

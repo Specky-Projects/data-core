@@ -40,7 +40,11 @@ _HORIZONS = [24, 72, 168]
 
 def _send_telegram(text: str) -> bool:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    # Phase 12: prefer OPERATIONAL_CHAT_ID; fallback to legacy TELEGRAM_CHAT_ID
+    chat_id = (
+        os.getenv("OPERATIONAL_CHAT_ID", "")
+        or os.getenv("TELEGRAM_CHAT_ID", "")
+    )
     enabled = os.getenv("TELEGRAM_ENABLED", "false").lower() in ("1", "true", "yes")
     if not token or not chat_id or not enabled:
         logger.debug("telegram_ops: telegram not configured / disabled")

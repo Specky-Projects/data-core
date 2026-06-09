@@ -30,6 +30,7 @@ from api.schemas import DependencyStatus, HealthResponse
 from app.adaptive_intelligence.api import router as adaptive_intelligence_router
 from app.adaptive_policy.api import router as adaptive_policy_router
 from app.alerts.api import router as alerts_router
+from app.alerts.api import telegram_router
 from app.analytics import models as analytics_models
 from app.data_quality import models as data_quality_models
 from app.data_quality.api import router as data_quality_router
@@ -264,6 +265,7 @@ def create_app() -> FastAPI:
     app.include_router(documentation_router, dependencies=auth_dep)
     app.include_router(data_quality_router, dependencies=auth_dep)
     app.include_router(alerts_router, dependencies=auth_dep)
+    app.include_router(telegram_router, dependencies=auth_dep)
     app.include_router(crypto_router, dependencies=auth_dep)
     app.include_router(edge_router, dependencies=auth_dep)
     app.include_router(real_estate_router, dependencies=auth_dep)
