@@ -2,21 +2,16 @@
 NBA Betfair read-only connector.
 
 Authentication: non-interactive (username + password + app key via env).
-Requires betfairlightweight>=3.19.0 in requirements.txt.
+Requires betfairlightweight>=2.23.0 in requirements.txt.
 
 Environment variables:
   BETFAIR_USERNAME    : Betfair account username
   BETFAIR_PASSWORD    : Betfair account password
   BETFAIR_APP_KEY     : application key from Betfair Developer portal
-  BETFAIR_LOCALE      : "GB" (default) or "AU" — affects cert path selection
 
 IMPORTANT: This module is read-only. It never calls placeOrders, updateOrders,
 or any mutation endpoint. All operations are listEvents / listMarketCatalogue /
 listMarketBook only.
-
-Betfair VPS note: Betfair does NOT block datacenter IPs for read operations,
-but some markets (UK exchange) may require specific account settings. If you
-get ACCESS_DENIED, check the Betfair account's API access settings.
 """
 from __future__ import annotations
 
@@ -33,8 +28,9 @@ _APP_KEY = os.environ.get("BETFAIR_APP_KEY", "")
 # Betfair event type ID for basketball
 _BASKETBALL_EVENT_TYPE_ID = "7522"
 # NBA competition IDs (US-based markets)
-_NBA_COMPETITION_IDS = ["10972"  # NBA — Betfair exchange
-]
+_NBA_COMPETITION_IDS = ["10972"]
+# Market types to retrieve
+_NBA_MARKET_TYPES = ["MATCH_ODDS", "ASIAN_HANDICAP", "TOTAL_GOALS"]
 
 
 @dataclass
@@ -51,7 +47,7 @@ class BetfairMarket:
 class BetfairOdds:
     market_id: str
     market_name: str
-    runners: list[dict]  # [{runner_name, best_back, best_lay}]
+    runners: list[dict]  # [{runner_id, status, best_back, best_lay}]
 
 
 @dataclass
@@ -59,16 +55,15 @@ class BetfairCheckResult:
     connected: bool = False
     account_funds: float | None = None
     error: str | None = None
-    markets_found: int = 0
 
 
 def _get_client():
-    """Create and login a betfairlightweight client. Returns client or raises."""
+    """Create and login a betfairlightweight 2.x client."""
     try:
         import betfairlightweight
     except ImportError as exc:
         raise ImportError(
-            "betfairlightweight not installed. Add 'betfairlightweight>=3.19.0' to requirements.txt"
+            "betfairlightweight not installed. Add 'betfairlightweight>=2.23.0' to requirements.txt"
         ) from exc
 
     if not _USERNAME or not _PASSWORD or not _APP_KEY:
@@ -88,8 +83,7 @@ def _get_client():
 def check_connection() -> BetfairCheckResult:
     """
     Validate Betfair credentials and connectivity.
-    Lists available funds to confirm auth works.
-    Returns BetfairCheckResult (never raises).
+    Returns BetfairCheckResult — never raises.
     """
     result = BetfairCheckResult()
     try:
@@ -97,10 +91,7 @@ def check_connection() -> BetfairCheckResult:
         account = client.account.get_account_funds()
         result.connected = True
         result.account_funds = float(account.available_to_bet_balance)
-        logger.info(
-            "Betfair connection OK",
-            extra={"funds": result.account_funds},
-        )
+        logger.info("Betfair connection OK", extra={"funds": result.account_funds})
     except Exception as exc:
         result.error = str(exc)
         logger.error("Betfair connection check failed: %s", exc)
@@ -114,29 +105,20 @@ def list_nba_events(days_ahead: int = 7) -> list[dict]:
     """
     from datetime import datetime, timedelta, timezone
 
+    import betfairlightweight.filters as bf_filters
+
     client = _get_client()
 
     from_dt = datetime.now(timezone.utc).isoformat()
     to_dt = (datetime.now(timezone.utc) + timedelta(days=days_ahead)).isoformat()
 
-    try:
-        events = client.betting.list_events(
-            filter=client.trading.MarketFilter(
-                event_type_ids=[_BASKETBALL_EVENT_TYPE_ID],
-                competition_ids=_NBA_COMPETITION_IDS,
-                market_start_time={"from": from_dt, "to": to_dt},
-            )
+    events = client.betting.list_events(
+        filter=bf_filters.market_filter(
+            event_type_ids=[_BASKETBALL_EVENT_TYPE_ID],
+            competition_ids=_NBA_COMPETITION_IDS,
+            market_start_time=bf_filters.time_range(from_=from_dt, to=to_dt),
         )
-    except AttributeError:
-        # betfairlightweight >= 3.x uses different filter path
-        import betfairlightweight.filters as bf_filters
-        events = client.betting.list_events(
-            filter=bf_filters.market_filter(
-                event_type_ids=[_BASKETBALL_EVENT_TYPE_ID],
-                competition_ids=_NBA_COMPETITION_IDS,
-                market_start_time=bf_filters.time_range(from_=from_dt, to=to_dt),
-            )
-        )
+    )
 
     output = []
     for ev in events:
@@ -155,30 +137,20 @@ def list_nba_events(days_ahead: int = 7) -> list[dict]:
 def list_markets(event_id: str) -> list[BetfairMarket]:
     """
     List available markets for a Betfair NBA event.
-    Filters to: Match Odds (moneyline), Handicap (spread), Total Points (totals).
+    Filters to: Match Odds (moneyline), Handicap (spread), Total Goals (totals).
     """
-    client = _get_client()
-    _NBA_MARKET_TYPES = ["MATCH_ODDS", "ASIAN_HANDICAP", "TOTAL_GOALS"]
+    import betfairlightweight.filters as bf_filters
 
-    try:
-        import betfairlightweight.filters as bf_filters
-        catalogues = client.betting.list_market_catalogue(
-            filter=bf_filters.market_filter(
-                event_ids=[event_id],
-                market_types=_NBA_MARKET_TYPES,
-            ),
-            market_projection=["EVENT", "RUNNER_DESCRIPTION", "MARKET_START_TIME"],
-            max_results=20,
-        )
-    except Exception:
-        catalogues = client.betting.list_market_catalogue(
-            filter=client.trading.MarketFilter(
-                event_ids=[event_id],
-                market_types=_NBA_MARKET_TYPES,
-            ),
-            market_projection=["EVENT", "RUNNER_DESCRIPTION", "MARKET_START_TIME"],
-            max_results=20,
-        )
+    client = _get_client()
+
+    catalogues = client.betting.list_market_catalogue(
+        filter=bf_filters.market_filter(
+            event_ids=[event_id],
+            market_types=_NBA_MARKET_TYPES,
+        ),
+        market_projection=["EVENT", "RUNNER_DESCRIPTION", "MARKET_START_TIME"],
+        max_results=20,
+    )
 
     markets = []
     for cat in catalogues:
@@ -205,29 +177,23 @@ def list_markets(event_id: str) -> list[BetfairMarket]:
 def get_odds(market_id: str) -> BetfairOdds | None:
     """
     Fetch best available back/lay odds for a market.
-    Returns best back price for each runner (pre-game odds equivalent).
     Read-only: only listMarketBook is called.
     """
+    import betfairlightweight.filters as bf_filters
+
     client = _get_client()
 
-    try:
-        import betfairlightweight.filters as bf_filters
-        books = client.betting.list_market_book(
-            market_ids=[market_id],
-            price_projection=bf_filters.price_projection(
-                price_data=["EX_BEST_OFFERS"],
-                ex_best_offers_overrides=bf_filters.ex_best_offers_overrides(
-                    best_prices_depth=1,
-                    rollup_model="STAKE",
-                    rollup_limit=2,
-                ),
+    books = client.betting.list_market_book(
+        market_ids=[market_id],
+        price_projection=bf_filters.price_projection(
+            price_data=bf_filters.price_data(
+                best_offers=True,
             ),
-        )
-    except Exception:
-        books = client.betting.list_market_book(
-            market_ids=[market_id],
-            price_projection={"priceData": ["EX_BEST_OFFERS"]},
-        )
+            ex_best_offers_overrides=bf_filters.ex_best_offers_overrides(
+                best_prices_depth=1,
+            ),
+        ),
+    )
 
     if not books:
         return None
