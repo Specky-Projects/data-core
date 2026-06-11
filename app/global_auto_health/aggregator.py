@@ -86,12 +86,25 @@ def _check_data_core() -> dict[str, Any]:
     h = _get("http://localhost:8000/health")
     r = _get("http://localhost:8000/ready")
     s_h = _classify(h)
-    s_r = _classify(r)
+    # /ready uses {"ready": bool, "decision": "READY|DEGRADED|BLOCKED"} — not "status" key
+    if r["ok"]:
+        body_r = r.get("body", {})
+        decision = body_r.get("decision", "")
+        if decision in _STATUS_PRIORITY:
+            s_r = decision
+        elif body_r.get("ready") is True:
+            s_r = "READY"
+        elif body_r.get("ready") is False:
+            s_r = "BLOCKED"
+        else:
+            s_r = _classify(r)
+    else:
+        s_r = _classify(r)
     status = _worst([s_h, s_r])
     return {
         "status": status,
         "health": h.get("body", {}).get("status"),
-        "ready": r.get("body", {}).get("status"),
+        "ready": r.get("body", {}).get("decision") or r.get("body", {}).get("ready"),
     }
 
 
