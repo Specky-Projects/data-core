@@ -290,14 +290,21 @@ def generate_signals_endpoint(
     db: Session = Depends(db_session),  # noqa: B008
 ) -> dict[str, Any]:
     from app.modules.nba.quant.signals import generate_signals, run_all_games
+    from app.modules.nba.quant.telegram_alerts import send_signal_alert
+
     if game_id:
         game = db.query(NbaGame).filter(NbaGame.id == game_id).first()
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
         signals = generate_signals(db, game)
-        return {"generated": len(signals)}
+        alerts = sum(
+            1 for sig in signals
+            if send_signal_alert(sig, game, getattr(game, "features", None), db=db)
+        )
+        return {"generated": len(signals), "alerts_sent": alerts}
+
     count = run_all_games(db)
-    return {"generated": count}
+    return {"generated": count, "alerts_sent": 0}
 
 
 @router.post("/bets/settle")
