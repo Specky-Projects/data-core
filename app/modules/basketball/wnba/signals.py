@@ -14,6 +14,7 @@ Thresholds are calibrated to WNBA scoring context (~160–180 pts/game combined)
 """
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -260,7 +261,9 @@ def generate_signals(db: Session, game: WnbaGame) -> list[WnbaSignal]:
         if existing:
             continue
 
+        signal_id = uuid.uuid4()
         signal = WnbaSignal(
+            id=signal_id,
             game_id=game.id,
             setup_name=result.setup_name,
             market_type=result.market_type,
@@ -273,7 +276,7 @@ def generate_signals(db: Session, game: WnbaGame) -> list[WnbaSignal]:
         )
         db.add(signal)
 
-        bet = WnbaQuantBet(signal_id=signal.id, stake=1.0, status=BetStatus.pending)
+        bet = WnbaQuantBet(signal_id=signal_id, stake=1.0, status=BetStatus.pending)
         db.add(bet)
 
         new_signals.append(signal)

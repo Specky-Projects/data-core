@@ -11,6 +11,7 @@ Setups implemented:
 """
 from __future__ import annotations
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -240,7 +241,9 @@ def generate_signals(db: Session, game: NbaGame) -> list[NbaSignal]:
         if existing:
             continue
 
+        signal_id = uuid.uuid4()
         signal = NbaSignal(
+            id=signal_id,
             game_id=game.id,
             setup_name=result.setup_name,
             market_type=result.market_type,
@@ -253,7 +256,7 @@ def generate_signals(db: Session, game: NbaGame) -> list[NbaSignal]:
         )
         db.add(signal)
 
-        bet = NbaQuantBet(signal_id=signal.id, stake=1.0, status=BetStatus.pending)
+        bet = NbaQuantBet(signal_id=signal_id, stake=1.0, status=BetStatus.pending)
         db.add(bet)
 
         new_signals.append(signal)
