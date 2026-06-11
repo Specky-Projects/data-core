@@ -16,6 +16,7 @@ import app.incident_history.models  # noqa: F401 — ensure incident_history + i
 import app.modules.crypto.edge.alert_state_model  # noqa: F401 — ensure edge_alert_state table registered
 import app.modules.crypto.edge.forward_model  # noqa: F401 — ensure forward_shadow_signals table registered
 import app.modules.crypto.edge.models  # noqa: F401 — ensure trading_edge_outcomes table registered — ensure TradingSignalOutcome table registered
+import app.modules.basketball.wnba.models  # noqa: F401 — ensure WNBA quant tables registered
 import app.modules.nba.models  # noqa: F401 — ensure NBA tables registered
 import app.modules.nba.quant.models  # noqa: F401 — ensure NBA quant tables registered
 import app.modules.trading.validation.models  # noqa: F401
@@ -42,6 +43,7 @@ from app.middleware.correlation import CorrelationMiddleware
 from app.modules.crypto.api import router as crypto_router
 from app.modules.crypto.edge.api import router as edge_router
 from app.modules.nba.api import router as nba_router
+from app.modules.basketball.wnba.api import router as wnba_quant_router
 from app.modules.nba.quant.api import router as nba_quant_router
 from app.modules.registry import register_pipeline_modules
 from app.modules.sports_odds import models as sports_odds_models
@@ -74,6 +76,7 @@ _ = pipeline_models
 _ = app.scrapers.models
 _ = app.watchdog.models
 _ = app.modules.trading.validation.models
+_ = app.modules.basketball.wnba.models
 _ = app.modules.nba.models
 _ = app.modules.nba.quant.models
 
@@ -268,6 +271,7 @@ def create_app() -> FastAPI:
     app.include_router(sports_odds_router, dependencies=auth_dep)
     app.include_router(nba_router, dependencies=auth_dep)
     app.include_router(nba_quant_router, dependencies=auth_dep)
+    app.include_router(wnba_quant_router, dependencies=auth_dep)
     app.include_router(scrapers_router, dependencies=auth_dep)
     app.include_router(runtime_router, dependencies=auth_dep)
     app.include_router(watchdog_router, dependencies=auth_dep)

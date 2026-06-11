@@ -1,3 +1,10 @@
+"""
+WNBA Quant ORM models.
+
+Table prefix: wnba_
+Enums: imported from basketball.shared.enums (shared with NBA).
+Schema mirrors app.modules.nba.quant.models exactly.
+"""
 import uuid
 from datetime import datetime
 
@@ -18,7 +25,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.modules.basketball.shared.enums import (  # noqa: F401 — re-exported for backward compat
+from app.modules.basketball.shared.enums import (
     BetStatus,
     EdgeClassification,
     GameStatus,
@@ -28,8 +35,8 @@ from app.modules.basketball.shared.enums import (  # noqa: F401 — re-exported 
 from database.models import Base
 
 
-class NbaGame(Base):
-    __tablename__ = "nba_games"
+class WnbaGame(Base):
+    __tablename__ = "wnba_games"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     external_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
@@ -40,54 +47,54 @@ class NbaGame(Base):
     home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[GameStatus] = mapped_column(
-        Enum(GameStatus), default=GameStatus.scheduled, index=True
+        Enum(GameStatus, name="gamestatus"), default=GameStatus.scheduled, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    odds: Mapped[list["NbaOdds"]] = relationship(back_populates="game", cascade="all, delete-orphan")  # noqa: E501
-    features: Mapped["NbaFeatures | None"] = relationship(back_populates="game", uselist=False)
-    signals: Mapped[list["NbaSignal"]] = relationship(back_populates="game")
+    odds: Mapped[list["WnbaOdds"]] = relationship(back_populates="game", cascade="all, delete-orphan")
+    features: Mapped["WnbaFeatures | None"] = relationship(back_populates="game", uselist=False)
+    signals: Mapped[list["WnbaSignal"]] = relationship(back_populates="game")
 
     __table_args__ = (
-        UniqueConstraint("home_team", "away_team", "game_date", name="uq_nba_game_matchup"),
-        Index("ix_nba_games_season_date", "season", "game_date"),
-        Index("ix_nba_games_status_date", "status", "game_date"),
+        UniqueConstraint("home_team", "away_team", "game_date", name="uq_wnba_game_matchup"),
+        Index("ix_wnba_games_season_date", "season", "game_date"),
+        Index("ix_wnba_games_status_date", "status", "game_date"),
     )
 
 
-class NbaOdds(Base):
-    __tablename__ = "nba_odds"
+class WnbaOdds(Base):
+    __tablename__ = "wnba_odds"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     game_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("nba_games.id", ondelete="CASCADE"), index=True
+        UUID(as_uuid=True), ForeignKey("wnba_games.id", ondelete="CASCADE"), index=True
     )
     bookmaker: Mapped[str] = mapped_column(String(80), default="market", index=True)
-    market_type: Mapped[MarketType] = mapped_column(Enum(MarketType), index=True)
+    market_type: Mapped[MarketType] = mapped_column(Enum(MarketType, name="markettype"), index=True)
     selection: Mapped[str] = mapped_column(String(160))
     line: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
     odd: Mapped[float] = mapped_column(Numeric(8, 4))
-    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())  # noqa: E501
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    game: Mapped[NbaGame] = relationship(back_populates="odds")
+    game: Mapped[WnbaGame] = relationship(back_populates="odds")
 
     __table_args__ = (
         UniqueConstraint(
-            "game_id", "bookmaker", "market_type", "selection", name="uq_nba_odds_market"
+            "game_id", "bookmaker", "market_type", "selection", name="uq_wnba_odds_market"
         ),
-        Index("ix_nba_odds_game_market", "game_id", "market_type"),
+        Index("ix_wnba_odds_game_market", "game_id", "market_type"),
     )
 
 
-class NbaFeatures(Base):
-    __tablename__ = "nba_features"
+class WnbaFeatures(Base):
+    __tablename__ = "wnba_features"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     game_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("nba_games.id", ondelete="CASCADE"), unique=True, index=True
+        UUID(as_uuid=True), ForeignKey("wnba_games.id", ondelete="CASCADE"), unique=True, index=True
     )
     home_rest_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     away_rest_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -107,58 +114,58 @@ class NbaFeatures(Base):
     away_def_rtg: Mapped[float | None] = mapped_column(Float, nullable=True)
     home_pace: Mapped[float | None] = mapped_column(Float, nullable=True)
     away_pace: Mapped[float | None] = mapped_column(Float, nullable=True)
-    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())  # noqa: E501
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    game: Mapped[NbaGame] = relationship(back_populates="features")
+    game: Mapped[WnbaGame] = relationship(back_populates="features")
 
 
-class NbaSignal(Base):
-    __tablename__ = "nba_signals"
+class WnbaSignal(Base):
+    __tablename__ = "wnba_signals"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     game_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("nba_games.id", ondelete="CASCADE"), index=True
+        UUID(as_uuid=True), ForeignKey("wnba_games.id", ondelete="CASCADE"), index=True
     )
     setup_name: Mapped[str] = mapped_column(String(80), index=True)
-    market_type: Mapped[MarketType] = mapped_column(Enum(MarketType))
+    market_type: Mapped[MarketType] = mapped_column(Enum(MarketType, name="markettype"))
     selection: Mapped[str] = mapped_column(String(160))
     line: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
     odd: Mapped[float] = mapped_column(Numeric(8, 4))
-    signal_direction: Mapped[SignalDirection] = mapped_column(Enum(SignalDirection))
+    signal_direction: Mapped[SignalDirection] = mapped_column(Enum(SignalDirection, name="signaldirection"))
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)  # noqa: E501
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     telegram_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    game: Mapped[NbaGame] = relationship(back_populates="signals")
-    quant_bet: Mapped["NbaQuantBet | None"] = relationship(back_populates="signal", uselist=False)
+    game: Mapped[WnbaGame] = relationship(back_populates="signals")
+    quant_bet: Mapped["WnbaQuantBet | None"] = relationship(back_populates="signal", uselist=False)
 
     __table_args__ = (
-        UniqueConstraint("game_id", "setup_name", name="uq_nba_signal_game_setup"),
-        Index("ix_nba_signals_setup_created", "setup_name", "created_at"),
+        UniqueConstraint("game_id", "setup_name", name="uq_wnba_signal_game_setup"),
+        Index("ix_wnba_signals_setup_created", "setup_name", "created_at"),
     )
 
 
-class NbaQuantBet(Base):
-    __tablename__ = "nba_quant_bets"
+class WnbaQuantBet(Base):
+    __tablename__ = "wnba_quant_bets"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     signal_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("nba_signals.id", ondelete="CASCADE"), unique=True, index=True  # noqa: E501
+        UUID(as_uuid=True), ForeignKey("wnba_signals.id", ondelete="CASCADE"), unique=True, index=True
     )
     stake: Mapped[float] = mapped_column(Numeric(10, 4), default=1.0)
-    status: Mapped[BetStatus] = mapped_column(Enum(BetStatus), default=BetStatus.pending, index=True)  # noqa: E501
+    status: Mapped[BetStatus] = mapped_column(Enum(BetStatus, name="betstatus"), default=BetStatus.pending, index=True)
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pnl: Mapped[float | None] = mapped_column(Numeric(12, 4), nullable=True)
     source_bookmaker: Mapped[str] = mapped_column(String(80), default="market")
-    settlement_telegram_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # noqa: E501
+    settlement_telegram_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    signal: Mapped[NbaSignal] = relationship(back_populates="quant_bet")
+    signal: Mapped[WnbaSignal] = relationship(back_populates="quant_bet")
 
 
-class NbaEdgeRegistry(Base):
-    __tablename__ = "nba_edge_registry"
+class WnbaEdgeRegistry(Base):
+    __tablename__ = "wnba_edge_registry"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     setup_name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
@@ -174,7 +181,9 @@ class NbaEdgeRegistry(Base):
     expectancy: Mapped[float] = mapped_column(Float, default=0.0)
     max_drawdown: Mapped[float] = mapped_column(Float, default=0.0)
     classification: Mapped[EdgeClassification] = mapped_column(
-        Enum(EdgeClassification), default=EdgeClassification.neutral, index=True
+        Enum(EdgeClassification, name="edgeclassification"),
+        default=EdgeClassification.neutral,
+        index=True,
     )
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -1,20 +1,16 @@
 """
-NBA Quant — Telegram alerts via Alfredo (observation-only, no execution).
+WNBA Quant — Telegram alerts via Alfredo (observation-only, no execution).
 
-Routes to EXECUTIVE channel (EXECUTIVE_CHAT_ID). Fallback: TELEGRAM_CHAT_ID.
 Guards:
-  ENABLE_NBA_TELEGRAM_SIMULATIONS=false  → all NBA alerts suppressed (default)
-  TELEGRAM_ENABLED=true                  → global Telegram on/off
-
-Dedup: each NbaSignal has telegram_sent_at. We only send once per signal.
-       Settlement alerts use settlement_telegram_sent_at on NbaQuantBet.
+  ENABLE_WNBA_TELEGRAM_SIMULATIONS=false  → all WNBA alerts suppressed (default)
+  TELEGRAM_ENABLED=true                   → global Telegram on/off
 
 Environment variables:
-  TELEGRAM_BOT_TOKEN              : bot token from @BotFather
-  EXECUTIVE_CHAT_ID               : Alfredo #executive channel
-  TELEGRAM_CHAT_ID                : fallback personal chat
-  TELEGRAM_ENABLED                : "true" to allow any Telegram send
-  ENABLE_NBA_TELEGRAM_SIMULATIONS : "true" to actually send NBA signals (default false)
+  TELEGRAM_BOT_TOKEN               : bot token from @BotFather
+  EXECUTIVE_CHAT_ID                : Alfredo #executive channel
+  TELEGRAM_CHAT_ID                 : fallback personal chat
+  TELEGRAM_ENABLED                 : "true" to allow any send
+  ENABLE_WNBA_TELEGRAM_SIMULATIONS : "true" to send WNBA signals (default false)
 """
 from __future__ import annotations
 
@@ -24,7 +20,8 @@ from datetime import datetime, timezone
 
 import httpx
 
-from app.modules.nba.quant.models import BetStatus, NbaFeatures, NbaGame, NbaQuantBet, NbaSignal
+from app.modules.basketball.wnba.models import WnbaFeatures, WnbaGame, WnbaQuantBet, WnbaSignal
+from app.modules.basketball.shared.enums import BetStatus
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +31,7 @@ _CHAT_ID = (
     or os.environ.get("TELEGRAM_CHAT_ID", "")
 )
 _TELEGRAM_ENABLED = os.environ.get("TELEGRAM_ENABLED", "false").lower() == "true"
-_NBA_SIM_ENABLED = os.environ.get("ENABLE_NBA_TELEGRAM_SIMULATIONS", "false").lower() == "true"
+_WNBA_SIM_ENABLED = os.environ.get("ENABLE_WNBA_TELEGRAM_SIMULATIONS", "false").lower() == "true"
 
 _TELEGRAM_API = "https://api.telegram.org"
 _SEND_TIMEOUT = 10.0
@@ -43,8 +40,8 @@ _SEND_TIMEOUT = 10.0
 def _is_configured() -> tuple[bool, str]:
     if not _TELEGRAM_ENABLED:
         return False, "TELEGRAM_ENABLED != true"
-    if not _NBA_SIM_ENABLED:
-        return False, "ENABLE_NBA_TELEGRAM_SIMULATIONS != true"
+    if not _WNBA_SIM_ENABLED:
+        return False, "ENABLE_WNBA_TELEGRAM_SIMULATIONS != true"
     if not _BOT_TOKEN:
         return False, "TELEGRAM_BOT_TOKEN not set"
     if not _CHAT_ID:
@@ -57,17 +54,16 @@ def _odd_str(odd: float) -> str:
 
 
 def format_signal_alert(
-    signal: NbaSignal,
-    game: NbaGame,
-    features: NbaFeatures | None = None,
+    signal: WnbaSignal,
+    game: WnbaGame,
+    features: WnbaFeatures | None = None,
 ) -> str:
     game_dt = game.game_date
     date_str = game_dt.strftime("%Y-%m-%d %H:%M UTC") if hasattr(game_dt, "strftime") else str(game_dt)
     odd = float(signal.odd)
 
-    league_label = "NBA"
     lines = [
-        f"🏀 *{league_label} Quant — Simulação*",
+        "🏀 *WNBA Quant — Simulação*",
         "",
         f"*Setup:* `{signal.setup_name}`",
         f"*Jogo:* {game.away_team} @ {game.home_team}",
@@ -107,20 +103,19 @@ def format_signal_alert(
 
 
 def format_settlement_alert(
-    signal: NbaSignal,
-    bet: NbaQuantBet,
-    game: NbaGame,
+    signal: WnbaSignal,
+    bet: WnbaQuantBet,
+    game: WnbaGame,
 ) -> str:
     odd = float(signal.odd)
-    pnl = float(bet.pnl) if bet.pnl is not None else 0.0
+    pnl_val = float(bet.pnl) if bet.pnl is not None else 0.0
     status_emoji = {"won": "✅", "lost": "❌", "void": "↩️", "pending": "⏳"}.get(
         bet.status.value, "❓"
     )
-    pnl_str = f"+{pnl:.2f}u" if pnl >= 0 else f"{pnl:.2f}u"
+    pnl_str = f"+{pnl_val:.2f}u" if pnl_val >= 0 else f"{pnl_val:.2f}u"
 
-    league_label = "NBA"
     lines = [
-        f"{status_emoji} *{league_label} Quant — Resultado*",
+        f"{status_emoji} *WNBA Quant — Resultado*",
         "",
         f"*Setup:* `{signal.setup_name}`",
         f"*Jogo:* {game.away_team} @ {game.home_team}",
@@ -136,10 +131,9 @@ def format_settlement_alert(
 
 
 def send_alert(text: str) -> bool:
-    """Send a Telegram message. Returns True on success. Never raises."""
     ok, reason = _is_configured()
     if not ok:
-        logger.debug("NBA Telegram skipped: %s", reason)
+        logger.debug("WNBA Telegram skipped: %s", reason)
         return False
 
     try:
@@ -156,32 +150,23 @@ def send_alert(text: str) -> bool:
             resp.raise_for_status()
             data = resp.json()
             if data.get("ok"):
-                logger.info("NBA Telegram alert sent", extra={"chat_id": _CHAT_ID})
+                logger.info("WNBA Telegram alert sent")
                 return True
             logger.warning("Telegram API ok=false: %s", data)
             return False
-
-    except httpx.HTTPStatusError as exc:
-        logger.error("NBA Telegram HTTP %s: %s", exc.response.status_code, exc.response.text[:200])
-        return False
     except Exception as exc:
-        logger.error("NBA Telegram send failed: %s", exc)
+        logger.error("WNBA Telegram send failed: %s", exc)
         return False
 
 
 def send_signal_alert(
-    signal: NbaSignal,
-    game: NbaGame,
-    features: NbaFeatures | None = None,
+    signal: WnbaSignal,
+    game: WnbaGame,
+    features: WnbaFeatures | None = None,
     *,
     db=None,
 ) -> bool:
-    """
-    Send a signal observation alert. Deduplicates via signal.telegram_sent_at.
-    If db is provided, marks telegram_sent_at after successful send.
-    """
     if signal.telegram_sent_at is not None:
-        logger.debug("NBA signal already sent to Telegram: %s", signal.id)
         return False
 
     text = format_signal_alert(signal, game, features)
@@ -196,16 +181,12 @@ def send_signal_alert(
 
 
 def send_settlement_alert(
-    signal: NbaSignal,
-    bet: NbaQuantBet,
-    game: NbaGame,
+    signal: WnbaSignal,
+    bet: WnbaQuantBet,
+    game: WnbaGame,
     *,
     db=None,
 ) -> bool:
-    """
-    Send a bet settlement alert. Only sends for WON/LOST/VOID (not PENDING).
-    Deduplicates via bet.settlement_telegram_sent_at.
-    """
     if bet.status == BetStatus.pending:
         return False
     if bet.settlement_telegram_sent_at is not None:
@@ -223,29 +204,12 @@ def send_settlement_alert(
 
 
 def validate_config() -> dict:
-    """Validate Telegram configuration without sending."""
     ok, reason = _is_configured()
     return {
         "configured": ok,
         "telegram_enabled": _TELEGRAM_ENABLED,
-        "nba_simulations_enabled": _NBA_SIM_ENABLED,
+        "wnba_simulations_enabled": _WNBA_SIM_ENABLED,
         "bot_token_set": bool(_BOT_TOKEN),
         "chat_id_set": bool(_CHAT_ID),
-        "chat_id_source": (
-            "EXECUTIVE_CHAT_ID" if os.environ.get("EXECUTIVE_CHAT_ID") else
-            "TELEGRAM_CHAT_ID" if os.environ.get("TELEGRAM_CHAT_ID") else
-            "not_set"
-        ),
         "blocked_reason": reason if not ok else None,
     }
-
-
-# ── Backwards-compat aliases (Phase 3 tests) ─────────────────────────────────
-
-def format_b2b_alert(
-    signal: NbaSignal,
-    game: NbaGame,
-    features: NbaFeatures | None = None,
-) -> str:
-    """Alias kept for test compatibility. Use format_signal_alert."""
-    return format_signal_alert(signal, game, features)
