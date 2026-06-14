@@ -354,16 +354,19 @@ def create_scheduler(
             max_instances=1,
             coalesce=True,
         )
-        _add_job_preserving_persisted(
-            scheduler,
-            run_crypto_edge_outcomes_reliable,
-            "interval",
-            hours=6,
-            id="quality:crypto_edge_outcomes",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
+
+    # Crypto edge outcomes: observability job — runs regardless of pipeline flag.
+    # Evaluates pending BUY signals against horizon candles every 6h.
+    _add_job_preserving_persisted(
+        scheduler,
+        run_crypto_edge_outcomes_reliable,
+        "interval",
+        hours=6,
+        id="quality:crypto_edge_outcomes",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
 
     # ── NBA Quant — daily incremental update at 09:00 BRT (12:00 UTC) ────────
     # Skipped when ENABLE_SPORTS=false (sports module archived).
