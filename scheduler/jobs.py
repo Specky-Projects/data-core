@@ -1439,6 +1439,56 @@ def signal_outcomes_job() -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Crypto Edge — outcome evaluation for BUY signals (EdgeOutcomeTracker)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def crypto_edge_outcomes_job() -> None:
+    """Evaluate pending BUY signal outcomes across all horizons (24h/72h/168h).
+
+    Runs every 6 hours.  For each TradingAnalytics BUY row without a computed
+    outcome at a given horizon, checks whether enough candles exist in
+    normalized_market_candles and records price_change_pct, MFE, MAE and
+    outcome_correct.  Fully idempotent — existing rows are skipped.
+    """
+    from app.modules.crypto.edge.calculator import EdgeOutcomeTracker
+
+    run_id = str(uuid.uuid4())
+    started_at = time.monotonic()
+    logger.info(
+        "Job run started",
+        extra={"run_id": run_id, "job": "crypto_edge_outcomes_job", "domain": "crypto", "source": "edge"},
+    )
+    computed = 0
+    try:
+        db = SessionLocal()
+        try:
+            result = EdgeOutcomeTracker(db).run(limit=500, signal_filter="BUY")
+            computed = result.get("computed", 0)
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.error(
+            "Job run finished",
+            extra={
+                "run_id": run_id, "job": "crypto_edge_outcomes_job",
+                "domain": "crypto", "source": "edge",
+                "status": "error", "error": str(exc),
+            },
+        )
+        raise
+
+    _log_job_run(
+        job_name="crypto_edge_outcomes_job",
+        run_id=run_id,
+        domain="crypto",
+        source="edge",
+        started_at=started_at,
+        collected_count=computed,
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # FASE 3/4/5 — Observability jobs (source health, dataset integrity, snapshots)
 # ──────────────────────────────────────────────────────────────────────────────
 

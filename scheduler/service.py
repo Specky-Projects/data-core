@@ -28,6 +28,7 @@ from scheduler.job_wrappers import (
     run_normalize_reliable,
     run_operational_watchdog_with_retry,
     run_poupi_baby_coverage_intelligence_reliable,
+    run_crypto_edge_outcomes_reliable,
     run_signal_outcomes_reliable,
     run_source_health_with_retry,
 )
@@ -349,6 +350,16 @@ def create_scheduler(
             "interval",
             minutes=60,
             id="quality:signal_outcomes",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        _add_job_preserving_persisted(
+            scheduler,
+            run_crypto_edge_outcomes_reliable,
+            "interval",
+            hours=6,
+            id="quality:crypto_edge_outcomes",
             replace_existing=True,
             max_instances=1,
             coalesce=True,

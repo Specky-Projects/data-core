@@ -12,6 +12,7 @@ from scheduler.jobs import (
     analytics_job,
     compute_dataset_integrity_job,
     compute_source_health_job,
+    crypto_edge_outcomes_job,
     data_retention_job,
     dataset_quality_crypto_job,
     normalize_job,
@@ -115,6 +116,10 @@ def _run_signal_outcomes_with_retry() -> None:
     with_retry(signal_outcomes_job, job_name="signal_outcomes_job")
 
 
+def _run_crypto_edge_outcomes_with_retry() -> None:
+    with_retry(crypto_edge_outcomes_job, job_name="crypto_edge_outcomes_job")
+
+
 def run_normalize_reliable() -> None:
     _with_heartbeat("normalize_job", _run_normalize_with_retry)
 
@@ -168,6 +173,10 @@ def run_signal_outcomes_reliable() -> None:
     _with_heartbeat("signal_outcomes_job", _run_signal_outcomes_with_retry)
 
 
+def run_crypto_edge_outcomes_reliable() -> None:
+    _with_heartbeat("crypto_edge_outcomes_job", _run_crypto_edge_outcomes_with_retry)
+
+
 def run_source_health_with_retry() -> None:
     with_retry(compute_source_health_job, job_name="compute_source_health_job")
 
@@ -209,7 +218,7 @@ def run_global_auto_health_daily() -> None:
 
     result = run_global_auto_health()
     status = result["status"]
-    checked_at = result["checked_at"]
+    checked_at = result.get("checked_at") or result.get("generated_at", "")
     components = result.get("components", {})
 
     # ── Formatar resumo ────────────────────────────────────────────────────────

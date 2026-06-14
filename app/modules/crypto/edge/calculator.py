@@ -147,7 +147,11 @@ class EdgeOutcomeTracker:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def run(self, limit: int = 500, signal_filter: str = "BUY") -> dict[str, Any]:
+    def run(self, limit: int = 500, signal_filter: str | None = None) -> dict[str, Any]:
+        """Evaluate pending outcomes for BUY and SELL signals (both by default).
+
+        Pass signal_filter="BUY" or "SELL" to restrict to a single direction.
+        """
         now = datetime.now(tz=timezone.utc)
         signal_types = [signal_filter] if signal_filter else ["BUY", "SELL"]
         candidates = (
@@ -208,14 +212,35 @@ def _safe_div(num: float, den: float) -> float | None:
     return round(num / den, 4) if den != 0 else None
 
 
-def _sharpe(returns: list[float]) -> float | None:
+# Approximate trading periods per year by timeframe, used for Sharpe annualisation.
+_PERIODS_PER_YEAR: dict[str, int] = {
+    "1m": 525_600,
+    "3m": 175_200,
+    "5m": 105_120,
+    "15m": 35_040,
+    "30m": 17_520,
+    "1h": 8_760,
+    "2h": 4_380,
+    "4h": 2_190,
+    "6h": 1_460,
+    "8h": 1_095,
+    "12h": 730,
+    "1d": 365,
+}
+
+
+def _sharpe(returns: list[float], timeframe: str = "1h") -> float | None:
+    """Annualised Sharpe ratio (assuming risk-free rate ≈ 0)."""
     n = len(returns)
     if n < 2:
         return None
     mean = sum(returns) / n
     variance = sum((r - mean) ** 2 for r in returns) / (n - 1)
     std = math.sqrt(variance)
-    return round(mean / std, 4) if std != 0 else None
+    if std == 0:
+        return None
+    periods = _PERIODS_PER_YEAR.get(timeframe, 8_760)
+    return round((mean / std) * math.sqrt(periods), 4)
 
 
 def _max_drawdown(returns: list[float]) -> float:
@@ -234,6 +259,9 @@ def _max_drawdown(returns: list[float]) -> float:
 
 def _compute_group_metrics(outcomes: list[SignalEdgeOutcome]) -> dict[str, Any]:
     evaluated = [o for o in outcomes if o.outcome_correct is not None]
+    # Infer dominant timeframe for Sharpe annualisation; fall back to 1h.
+    timeframes = [o.timeframe for o in evaluated if o.timeframe]
+    dominant_tf = max(set(timeframes), key=timeframes.count) if timeframes else "1h"
     returns = [float(o.price_change_pct) for o in evaluated if o.price_change_pct is not None]
     n = len(returns)
     if n == 0:
@@ -266,7 +294,7 @@ def _compute_group_metrics(outcomes: list[SignalEdgeOutcome]) -> dict[str, Any]:
         "avg_return_pct": round(avg_return, 4),
         "expectancy": round(expectancy, 4),
         "profit_factor": pf,
-        "sharpe_ratio": _sharpe(returns),
+        "sharpe_ratio": _sharpe(returns, dominant_tf),
         "max_drawdown_pct": _max_drawdown(returns),
         "avg_mfe_pct": round(sum(mfe_vals) / len(mfe_vals), 4) if mfe_vals else None,
         "avg_mae_pct": round(sum(mae_vals) / len(mae_vals), 4) if mae_vals else None,
@@ -301,13 +329,16 @@ def _confidence_calibration(outcomes: list[SignalEdgeOutcome]) -> dict[str, Any]
 
 
 def _assess_edge(outcomes: list[SignalEdgeOutcome], n_evaluated_24h: int) -> dict[str, Any]:
-    if n_evaluated_24h < 5:
+    # 100 is the practical minimum for a one-sided binomial test to have
+    # ~80% power detecting a 5pp edge over the 52.38% break-even at α=0.05.
+    if n_evaluated_24h < 100:
         return {
             "verdict": "INSUFFICIENT_DATA",
             "reasoning": (
-                f"Only {n_evaluated_24h} evaluated outcomes at 24h horizon. Need >=5."
+                f"Only {n_evaluated_24h} evaluated outcomes at 24h horizon. "
+                f"Need >=100 for 80% power at 5pp edge detection (α=0.05)."
             ),
-            "minimum_required": 5,
+            "minimum_required": 100,
             "available": n_evaluated_24h,
         }
     h24 = [o for o in outcomes if o.horizon_hours == 24 and o.outcome_correct is not None]
@@ -352,14 +383,14 @@ def build_edge_report(
     symbol: str | None = None,
     timeframe: str | None = None,
 ) -> dict[str, Any]:
-    analytics_q = db.query(TradingAnalytics).filter(TradingAnalytics.signal == "BUY")
+    analytics_q = db.query(TradingAnalytics)
     if symbol:
         analytics_q = analytics_q.filter(TradingAnalytics.symbol == symbol)
     if timeframe:
         analytics_q = analytics_q.filter(TradingAnalytics.timeframe == timeframe)
     all_analytics = analytics_q.order_by(TradingAnalytics.calculated_at).all()
 
-    outcomes_q = db.query(SignalEdgeOutcome).filter(SignalEdgeOutcome.signal == "BUY")
+    outcomes_q = db.query(SignalEdgeOutcome)
     if symbol:
         outcomes_q = outcomes_q.filter(SignalEdgeOutcome.symbol == symbol)
     if timeframe:
@@ -665,14 +696,14 @@ def build_phase7_report(
     - outcomes: raw outcome rows
     - strategy_comparison: current vs shadow at each horizon
     """
-    analytics_q = db.query(TradingAnalytics).filter(TradingAnalytics.signal == "BUY")
+    analytics_q = db.query(TradingAnalytics)
     if symbol:
         analytics_q = analytics_q.filter(TradingAnalytics.symbol == symbol)
     if timeframe:
         analytics_q = analytics_q.filter(TradingAnalytics.timeframe == timeframe)
     all_analytics = analytics_q.order_by(TradingAnalytics.calculated_at).all()
 
-    outcomes_q = db.query(SignalEdgeOutcome).filter(SignalEdgeOutcome.signal == "BUY")
+    outcomes_q = db.query(SignalEdgeOutcome)
     if symbol:
         outcomes_q = outcomes_q.filter(SignalEdgeOutcome.symbol == symbol)
     if timeframe:
