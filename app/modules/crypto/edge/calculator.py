@@ -262,7 +262,11 @@ def _compute_group_metrics(outcomes: list[SignalEdgeOutcome]) -> dict[str, Any]:
     # Infer dominant timeframe for Sharpe annualisation; fall back to 1h.
     timeframes = [o.timeframe for o in evaluated if o.timeframe]
     dominant_tf = max(set(timeframes), key=timeframes.count) if timeframes else "1h"
-    returns = [float(o.price_change_pct) for o in evaluated if o.price_change_pct is not None]
+    # Directional returns: for SELL signals, price_change_pct < 0 is a gain — negate.
+    returns = [
+        (float(o.price_change_pct) if (o.signal or "BUY") == "BUY" else -float(o.price_change_pct))
+        for o in evaluated if o.price_change_pct is not None
+    ]
     n = len(returns)
     if n == 0:
         return {
