@@ -15,6 +15,11 @@ Metric groups
 
 from __future__ import annotations
 
+import json
+import os
+import time
+from pathlib import Path
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -719,6 +724,77 @@ watchdog_checks_total = Counter(
     "Total number of watchdog check runs completed",
     ["status"],  # ok | warning | critical
 )
+
+telegram_publish_success_total = Counter(
+    "telegram_publish_success_total",
+    "Total number of Telegram alert messages successfully sent by the watchdog",
+)
+
+telegram_publish_failure_total = Counter(
+    "telegram_publish_failure_total",
+    "Total number of Telegram alert messages that failed to send from the watchdog",
+)
+
+
+def _backup_restore_status() -> dict:
+    path = Path(os.getenv("BACKUP_RESTORE_STATUS_PATH", "runtime-data/backup_restore_status.json"))
+    try:
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _backup_restore_float(key: str) -> float:
+    value = _backup_restore_status().get(key, 0)
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+backup_last_success_timestamp_seconds = Gauge(
+    "backup_last_success_timestamp_seconds",
+    "Unix timestamp of the last successful platform backup recorded by the backup script.",
+)
+backup_last_success_timestamp_seconds.set_function(
+    lambda: _backup_restore_float("backup_last_success_timestamp_seconds")
+)
+
+restore_test_last_success_timestamp_seconds = Gauge(
+    "restore_test_last_success_timestamp_seconds",
+    "Unix timestamp of the last successful restore-test recorded by the backup script.",
+)
+restore_test_last_success_timestamp_seconds.set_function(
+    lambda: _backup_restore_float("restore_test_last_success_timestamp_seconds")
+)
+
+backup_last_success_age_seconds = Gauge(
+    "backup_last_success_age_seconds",
+    "Age in seconds since the last successful platform backup.",
+)
+backup_last_success_age_seconds.set_function(
+    lambda: max(0.0, time.time() - _backup_restore_float("backup_last_success_timestamp_seconds"))
+    if _backup_restore_float("backup_last_success_timestamp_seconds")
+    else 0.0
+)
+
+restore_test_last_success_age_seconds = Gauge(
+    "restore_test_last_success_age_seconds",
+    "Age in seconds since the last successful restore-test.",
+)
+restore_test_last_success_age_seconds.set_function(
+    lambda: max(0.0, time.time() - _backup_restore_float("restore_test_last_success_timestamp_seconds"))
+    if _backup_restore_float("restore_test_last_success_timestamp_seconds")
+    else 0.0
+)
+
+backup_last_size_bytes = Gauge(
+    "backup_last_size_bytes",
+    "Total size in bytes of the last successful platform backup directory.",
+)
+backup_last_size_bytes.set_function(lambda: _backup_restore_float("backup_last_size_bytes"))
 
 # Data-core scheduler preventive runtime watchdog.
 data_core_scheduler_memory_usage_bytes = Gauge(
