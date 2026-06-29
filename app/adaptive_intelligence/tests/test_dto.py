@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.adaptive_intelligence.dto import (
     MIN_SAMPLE_FOR_BOOST,
     MIN_SAMPLE_FOR_DISABLE,
@@ -14,7 +12,15 @@ from app.adaptive_intelligence.dto import (
 
 class TestClassifyRecommendation:
     def test_observe_only_when_sample_too_small(self):
-        assert _classify_recommendation(0.70, 0.5, 2.0, MIN_SAMPLE_FOR_RECOMMENDATION - 1) == "OBSERVE_ONLY"
+        assert (
+            _classify_recommendation(
+                0.70,
+                0.5,
+                2.0,
+                MIN_SAMPLE_FOR_RECOMMENDATION - 1,
+            )
+            == "OBSERVE_ONLY"
+        )
 
     def test_observe_only_at_zero_sample(self):
         assert _classify_recommendation(0.80, 1.0, 3.0, 0) == "OBSERVE_ONLY"

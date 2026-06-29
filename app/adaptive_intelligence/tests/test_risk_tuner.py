@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
-from app.adaptive_intelligence.risk_tuner import RiskTuner
 from app.adaptive_intelligence.dto import (
     ConfidenceCalibrationResult,
     RegimeAdapterResult,
     StrategyFeedbackResult,
 )
-
+from app.adaptive_intelligence.risk_tuner import RiskTuner
 
 # ── Fixture builders ──────────────────────────────────────────────────────────
 

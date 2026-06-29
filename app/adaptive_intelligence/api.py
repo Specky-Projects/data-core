@@ -9,13 +9,14 @@ Prefix: /adaptive-intelligence
 from __future__ import annotations
 
 import logging
-from typing import Any
+from datetime import datetime
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.adaptive_intelligence.dto import AdaptiveIntelligenceReport, EvaluationContext
 from app.adaptive_intelligence.orchestrator import AdaptiveIntelligenceOrchestrator
-from app.adaptive_intelligence.dto import AdaptiveIntelligenceReport
 from core.config import settings
 from database.session import SessionLocal
 
@@ -32,6 +33,36 @@ def _get_db():
         db.close()
 
 
+DbDep = Annotated[Session, Depends(_get_db)]
+LookbackDaysQuery = Annotated[
+    int,
+    Query(default=30, ge=1, le=180, description="Lookback window in calendar days"),
+]
+EvaluationTimestampQuery = Annotated[datetime | None, Query(default=None)]
+DatasetVersionQuery = Annotated[str | None, Query(default=None)]
+ReplayModeQuery = Annotated[bool, Query(default=False)]
+
+
+def _build_replay_context(
+    evaluation_timestamp: datetime | None,
+    dataset_version: str | None,
+    replay_mode: bool,
+    lookback_days: int,
+) -> EvaluationContext | None:
+    if evaluation_timestamp is None and dataset_version is None and not replay_mode:
+        return None
+    if evaluation_timestamp is None:
+        raise ValueError("evaluation_timestamp is required when replay parameters are provided")
+    return EvaluationContext(
+        evaluation_timestamp=evaluation_timestamp,
+        replay_mode=True,
+        dataset_timestamp=evaluation_timestamp,
+        dataset_version=dataset_version or "dataset:replay-unspecified",
+        replay_configuration={"source": "adaptive_intelligence_api"},
+        lookback_days=lookback_days,
+    )
+
+
 # ── Full report ────────────────────────────────────────────────────────────────
 
 @router.get(
@@ -40,8 +71,11 @@ def _get_db():
     response_model=AdaptiveIntelligenceReport,
 )
 def get_full_report(
-    lookback_days: int = Query(default=30, ge=1, le=180, description="Lookback window in calendar days"),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> AdaptiveIntelligenceReport:
     """Runs all four adaptive intelligence engines and returns the combined report.
 
@@ -57,6 +91,12 @@ def get_full_report(
         db=db,
         lookback_days=lookback_days,
         environment=settings.app_env,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
     )
     return orch.evaluate()
 
@@ -69,8 +109,11 @@ def get_full_report(
     response_model=dict,
 )
 def get_summary(
-    lookback_days: int = Query(default=30, ge=1, le=180),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> dict[str, Any]:
     """Returns a compact advisory summary suitable for quick operator review
     or upstream enforcement hint consumption.
@@ -82,6 +125,12 @@ def get_summary(
         db=db,
         lookback_days=lookback_days,
         environment=settings.app_env,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
     )
     report = orch.evaluate()
     return report.to_summary()
@@ -95,8 +144,11 @@ def get_summary(
     response_model=dict,
 )
 def get_strategy_feedback(
-    lookback_days: int = Query(default=30, ge=1, le=180),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> dict[str, Any]:
     """Strategy performance by (symbol, timeframe, regime, signal) slice.
 
@@ -104,7 +156,16 @@ def get_strategy_feedback(
     without running the full orchestration (faster).
     """
     from app.adaptive_intelligence.strategy_feedback import StrategyFeedbackEngine
-    result = StrategyFeedbackEngine(db, lookback_days).evaluate()
+    result = StrategyFeedbackEngine(
+        db,
+        lookback_days,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
+    ).evaluate()
     return result.model_dump(mode="json")
 
 
@@ -116,15 +177,27 @@ def get_strategy_feedback(
     response_model=dict,
 )
 def get_calibration(
-    lookback_days: int = Query(default=30, ge=1, le=180),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> dict[str, Any]:
     """Confidence calibration analysis per bucket (0-20, 21-40, 41-60, 61-80, 81-100).
 
     Indicates whether model confidence scores are predictive of actual win rates.
     """
     from app.adaptive_intelligence.confidence_calibration import ConfidenceCalibrationEngine
-    result = ConfidenceCalibrationEngine(db, lookback_days).evaluate()
+    result = ConfidenceCalibrationEngine(
+        db,
+        lookback_days,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
+    ).evaluate()
     return result.model_dump(mode="json")
 
 
@@ -136,15 +209,27 @@ def get_calibration(
     response_model=dict,
 )
 def get_regime(
-    lookback_days: int = Query(default=30, ge=1, le=180),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> dict[str, Any]:
     """Per-regime×signal×symbol adaptation recommendations.
 
     Shows which regime / direction combinations are performing well or poorly.
     """
     from app.adaptive_intelligence.regime_adapter import RegimeAdapter
-    result = RegimeAdapter(db, lookback_days).evaluate()
+    result = RegimeAdapter(
+        db,
+        lookback_days,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
+    ).evaluate()
     return result.model_dump(mode="json")
 
 
@@ -156,8 +241,11 @@ def get_regime(
     response_model=dict,
 )
 def get_risk(
-    lookback_days: int = Query(default=30, ge=1, le=180),
-    db: Session = Depends(_get_db),
+    lookback_days: LookbackDaysQuery,
+    evaluation_timestamp: EvaluationTimestampQuery,
+    dataset_version: DatasetVersionQuery,
+    replay_mode: ReplayModeQuery,
+    db: DbDep,
 ) -> dict[str, Any]:
     """Returns the full risk tuning result including policy_hints.
 
@@ -171,6 +259,12 @@ def get_risk(
         db=db,
         lookback_days=lookback_days,
         environment=settings.app_env,
+        evaluation_context=_build_replay_context(
+            evaluation_timestamp,
+            dataset_version,
+            replay_mode,
+            lookback_days,
+        ),
     )
     report = orch.evaluate()
     return report.risk.model_dump(mode="json")

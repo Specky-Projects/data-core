@@ -18,13 +18,13 @@ MIN_SAMPLE_FOR_RECOMMENDATION = 10
 MIN_SAMPLE_FOR_BOOST = 30
 MIN_SAMPLE_FOR_DISABLE = 20
 
-LEARNING_VERSION = "business-os-1.3-stage-3.6"
-CALIBRATION_VERSION = "calibration-buckets-v1-stage-3.6"
-FEATURE_VERSION = "adaptive-learning-features-v1-stage-3.6"
-POLICY_VERSION = "adaptive-policy-hints-v1-stage-3.6"
-ALGORITHM_VERSION = "deterministic-adaptive-learning-v1-stage-3.6"
-RESEARCH_VERSION = "business-os-research-v1-stage-3.6"
-EVIDENCE_VERSION = "trading-signal-outcomes-v1-stage-3.6"
+LEARNING_VERSION = "business-os-1.3-stage-4"
+CALIBRATION_VERSION = "calibration-buckets-v1-stage-4"
+FEATURE_VERSION = "adaptive-learning-features-v1-stage-4"
+POLICY_VERSION = "adaptive-policy-hints-v1-stage-4"
+ALGORITHM_VERSION = "deterministic-adaptive-learning-v1-stage-4"
+RESEARCH_VERSION = "business-os-research-v1-stage-4"
+EVIDENCE_VERSION = "trading-signal-outcomes-v1-stage-4"
 
 
 def _json_default(value: Any) -> str:
@@ -179,7 +179,7 @@ def build_feature_provenance(
         ),
         feature_hash=feature_hash,
         evidence_hash=evidence_hash,
-        evidence_ids=evidence_ids[:25],
+        evidence_ids=sorted(evidence_ids)[:25],
         research_version=version_meta.research_version,
         policy_version=version_meta.policy_version,
     )
@@ -429,6 +429,40 @@ def compute_freshness(
     }
 
 
+def compute_temporal_decay_from_evidence(
+    rows: list[Any],
+    evaluation_context: EvaluationContext,
+    min_decay: float = 0.25,
+) -> float:
+    """Evidence-based temporal decay using mean row age vs evaluation_timestamp (O6 fix).
+
+    Replaces the lookback_days proxy with actual row timestamps.
+    All ages are anchored to evaluation_context.evaluation_timestamp — no wall-clock.
+    """
+    ref_ts = evaluation_context.evaluation_timestamp.timestamp()
+    valid_ts = [t.timestamp() for row in rows if (t := _row_timestamp(row)) is not None]
+    if not valid_ts:
+        return min_decay
+    mean_age_days = max(0.0, (ref_ts - sum(valid_ts) / len(valid_ts)) / 86_400.0)
+    return max(min_decay, min(1.0, 1.0 - mean_age_days / 365.0))
+
+
+def _compute_learning_stability(drift: list[LongitudinalDriftMetric]) -> float:
+    """Consistency of win-rate confidence across longitudinal drift windows (O1 fix).
+
+    Distinct from drift_stability (mean per-window stability).
+    Measures cross-window variance of confidence scores: low variance = high stability.
+    """
+    populated = [d for d in drift if d.sample_size > 0]
+    if len(populated) < 2:
+        return 0.5
+    confidences = [d.confidence for d in populated]
+    mean_c = sum(confidences) / len(confidences)
+    variance = sum((c - mean_c) ** 2 for c in confidences) / len(confidences)
+    std_dev = variance ** 0.5
+    return max(0.0, min(1.0, 1.0 - std_dev / 0.2))
+
+
 def compute_scientific_health(
     *,
     evaluation_context: EvaluationContext,
@@ -446,17 +480,20 @@ def compute_scientific_health(
         sum(1 for value in version_values.values() if value) / len(version_values)
     )
     evidence_quality = min(1.0, len(evidence_ids) / 10.0) if evidence_ids else 0.0
+    # drift_stability: mean of per-window stability scores (how smooth each window is)
     drift_stability = (
         sum(item.stability for item in drift) / len(drift)
         if drift
         else 0.0
     )
+    # learning_stability: consistency of win-rate across windows (O1 fix — distinct measure)
+    learning_stability = _compute_learning_stability(drift)
     dimensions = {
         "replay_readiness": 1.0 if evaluation_context.replay_mode else 0.5,
         "version_completeness": version_completeness,
         "evidence_quality": evidence_quality,
         "feature_provenance": feature_provenance_score,
-        "learning_stability": drift_stability,
+        "learning_stability": learning_stability,
         "calibration_quality": calibration_quality,
         "drift_stability": drift_stability,
         "learning_saturation": saturation.saturation_score,
@@ -541,6 +578,11 @@ class ContinuousLearningProfile(BaseModel):
     learning_saturation: LearningSaturation | None = None
     scientific_health: ScientificLearningHealth | None = None
     freshness: dict[str, float] = Field(default_factory=dict)
+    # Stage 4 additions
+    adaptive_decision_quality: DecisionQualityMetric | None = None
+    recommendation_evolution: list[RecommendationEvolution] = Field(default_factory=list)
+    strategy_intelligence: list[StrategyIntelligence] = Field(default_factory=list)
+    adaptive_health: AdaptiveIntelligenceHealth | None = None
 
 
 def _classify_recommendation(
@@ -667,6 +709,11 @@ class RegimeAdaptation(BaseModel):
     expectancy: float
     recommendation: Recommendation
     reason: str
+    # Stage 4: scientific metadata (O3 fix)
+    evidence_ids: list[str] = Field(default_factory=list)
+    versions: ScientificVersionMetadata = Field(default_factory=ScientificVersionMetadata)
+    provenance: FeatureProvenance | None = None
+    decision_hash: str | None = None
 
 
 class RegimeAdapterResult(BaseModel):
@@ -693,6 +740,10 @@ class RiskTuningResult(BaseModel):
     disable_recommended: bool
     reasoning: list[str]
     policy_hints: dict[str, Any]  # structured hints for PolicyContract generator
+    # Stage 4: scientific metadata (O3 fix)
+    versions: ScientificVersionMetadata = Field(default_factory=ScientificVersionMetadata)
+    provenance: FeatureProvenance | None = None
+    decision_hash: str | None = None
 
 
 # ── Top-level orchestrated report ─────────────────────────────────────────────
@@ -742,3 +793,234 @@ class AdaptiveIntelligenceReport(BaseModel):
             ),
             "policy_hints": self.policy_hints,
         }
+
+
+# ── Stage 4: Adaptive Decision Quality ───────────────────────────────────────
+
+class DecisionQualityMetric(BaseModel):
+    """Evidence-derived decision quality from strategy slice recommendations."""
+
+    precision: float = Field(ge=0.0, le=1.0)
+    recall: float = Field(ge=0.0, le=1.0)
+    stability: float = Field(ge=0.0, le=1.0)
+    calibration_effectiveness: float = Field(ge=0.0, le=1.0)
+    learning_impact: float = Field(ge=-1.0, le=1.0)
+    sample_size: int
+
+
+class RecommendationEvolution(BaseModel):
+    """Tracks how a slice recommendation is evolving over time."""
+
+    entity_id: str
+    current_recommendation: Recommendation
+    direction: Literal["improved", "degraded", "stable", "insufficient_data"]
+    confidence_delta: float
+    maturity: Literal["bootstrap", "developing", "mature"]
+
+
+class StrategyIntelligence(BaseModel):
+    """Per-slice adaptive intelligence: maturity, reliability, adaptive confidence."""
+
+    entity_id: str
+    maturity_score: float = Field(ge=0.0, le=1.0)
+    reliability_score: float = Field(ge=0.0, le=1.0)
+    adaptive_confidence: float = Field(ge=0.0, le=1.0)
+    recommendation_consistency: float = Field(ge=0.0, le=1.0)
+
+
+class AdaptiveIntelligenceHealth(BaseModel):
+    """Extended health model — 11 Stage 3.6 dimensions + 5 Stage 4 dimensions."""
+
+    # Stage 3.6 dimensions (preserved)
+    replay_readiness: float = Field(ge=0.0, le=1.0)
+    version_completeness: float = Field(ge=0.0, le=1.0)
+    evidence_quality: float = Field(ge=0.0, le=1.0)
+    feature_provenance: float = Field(ge=0.0, le=1.0)
+    learning_stability: float = Field(ge=0.0, le=1.0)
+    calibration_quality: float = Field(ge=0.0, le=1.0)
+    drift_stability: float = Field(ge=0.0, le=1.0)
+    learning_saturation: float = Field(ge=0.0, le=1.0)
+    explainability: float = Field(ge=0.0, le=1.0)
+    audit_completeness: float = Field(ge=0.0, le=1.0)
+    confidence_consistency: float = Field(ge=0.0, le=1.0)
+    # Stage 4 new dimensions
+    recommendation_quality: float = Field(ge=0.0, le=1.0)
+    learning_effectiveness: float = Field(ge=0.0, le=1.0)
+    strategy_stability: float = Field(ge=0.0, le=1.0)
+    confidence_accuracy: float = Field(ge=0.0, le=1.0)
+    decision_quality_score: float = Field(ge=0.0, le=1.0)
+    # Composite
+    health_score: float = Field(ge=0.0, le=1.0)
+
+
+ContinuousLearningProfile.model_rebuild()
+
+
+# ── Stage 4: Computation Functions ───────────────────────────────────────────
+
+def compute_decision_quality(slices: list[Any]) -> DecisionQualityMetric:
+    """Evidence-derived decision quality from completed strategy slices."""
+    if not slices:
+        return DecisionQualityMetric(
+            precision=0.0, recall=0.0, stability=0.0,
+            calibration_effectiveness=0.0, learning_impact=0.0, sample_size=0,
+        )
+
+    promote_slices = [s for s in slices if s.recommendation in ("BOOST", "KEEP")]
+    precision = (
+        sum(1 for s in promote_slices if s.win_rate >= 0.5) / len(promote_slices)
+        if promote_slices else 0.0
+    )
+
+    high_win_slices = [s for s in slices if s.win_rate >= 0.5]
+    recall = (
+        sum(1 for s in high_win_slices if s.recommendation in ("BOOST", "KEEP"))
+        / len(high_win_slices)
+        if high_win_slices else 0.0
+    )
+
+    stable_count = sum(
+        1 for s in slices
+        if (s.win_rate >= 0.5 and s.recommendation in ("BOOST", "KEEP"))
+        or (s.win_rate < 0.5 and s.recommendation in ("THROTTLE", "DISABLE", "OBSERVE_ONLY"))
+    )
+    stability = stable_count / len(slices)
+
+    cev_gaps = [
+        abs(s.confidence_evolution.total_delta)
+        for s in slices
+        if s.confidence_evolution is not None
+    ]
+    calibration_effectiveness = (
+        max(0.0, 1.0 - (sum(cev_gaps) / len(cev_gaps)) / 0.5)
+        if cev_gaps else 0.0
+    )
+
+    impact_vals = [
+        s.confidence_evolution.total_delta
+        for s in slices
+        if s.confidence_evolution is not None
+    ]
+    learning_impact = (
+        max(-1.0, min(1.0, sum(impact_vals) / len(impact_vals)))
+        if impact_vals else 0.0
+    )
+
+    return DecisionQualityMetric(
+        precision=round(precision, 4),
+        recall=round(recall, 4),
+        stability=round(stability, 4),
+        calibration_effectiveness=round(max(0.0, min(1.0, calibration_effectiveness)), 4),
+        learning_impact=round(learning_impact, 4),
+        sample_size=sum(s.sample_size for s in slices),
+    )
+
+
+def compute_recommendation_evolution(
+    slices: list[Any],
+) -> list[RecommendationEvolution]:
+    """Measure how each slice recommendation is evolving."""
+    results: list[RecommendationEvolution] = []
+    for s in slices:
+        if s.sample_size < MIN_SAMPLE_FOR_RECOMMENDATION:
+            maturity = "bootstrap"
+        elif s.sample_size < MIN_SAMPLE_FOR_BOOST:
+            maturity = "developing"
+        else:
+            maturity = "mature"
+
+        if s.confidence_evolution is None:
+            direction: Literal["improved", "degraded", "stable", "insufficient_data"] = "insufficient_data"
+            delta = 0.0
+        elif s.confidence_evolution.total_delta > 0.05:
+            direction = "improved"
+            delta = s.confidence_evolution.total_delta
+        elif s.confidence_evolution.total_delta < -0.05:
+            direction = "degraded"
+            delta = s.confidence_evolution.total_delta
+        else:
+            direction = "stable"
+            delta = s.confidence_evolution.total_delta
+
+        entity_id = f"{s.symbol}|{s.timeframe}|{s.regime or 'any'}|{s.signal}"
+        results.append(RecommendationEvolution(
+            entity_id=entity_id,
+            current_recommendation=s.recommendation,
+            direction=direction,
+            confidence_delta=round(delta, 4),
+            maturity=maturity,
+        ))
+    return results
+
+
+def compute_strategy_intelligence(slices: list[Any]) -> list[StrategyIntelligence]:
+    """Per-slice intelligence: maturity, reliability, adaptive confidence."""
+    results: list[StrategyIntelligence] = []
+    for s in slices:
+        maturity_score = min(1.0, s.sample_size / MIN_SAMPLE_FOR_BOOST)
+        reliability_score = s.relevance_score
+        # Adaptive confidence: win_rate weighted by maturity, defaulting toward 0.5 when immature
+        adaptive_confidence = round(
+            s.win_rate * maturity_score + 0.5 * (1.0 - maturity_score), 4
+        )
+        if s.win_rate >= 0.5 and s.recommendation in ("BOOST", "KEEP"):
+            recommendation_consistency = 1.0
+        elif s.win_rate < 0.4 and s.recommendation in ("THROTTLE", "DISABLE"):
+            recommendation_consistency = 1.0
+        elif s.recommendation == "OBSERVE_ONLY":
+            recommendation_consistency = 0.8
+        else:
+            recommendation_consistency = max(0.0, 1.0 - abs(s.win_rate - 0.5) * 2.0)
+
+        entity_id = f"{s.symbol}|{s.timeframe}|{s.regime or 'any'}|{s.signal}"
+        results.append(StrategyIntelligence(
+            entity_id=entity_id,
+            maturity_score=round(maturity_score, 4),
+            reliability_score=round(reliability_score, 4),
+            adaptive_confidence=adaptive_confidence,
+            recommendation_consistency=round(recommendation_consistency, 4),
+        ))
+    return results
+
+
+def compute_adaptive_health(
+    *,
+    scientific_health: ScientificLearningHealth,
+    decision_quality: DecisionQualityMetric | None,
+    strategy_intelligence: list[StrategyIntelligence],
+) -> AdaptiveIntelligenceHealth:
+    """Extend ScientificLearningHealth with 5 Stage 4 dimensions to form a 16-dim model."""
+    dq = decision_quality
+    has_dq = dq is not None and dq.sample_size > 0
+
+    recommendation_quality = round((dq.precision + dq.recall) / 2.0, 4) if has_dq else 0.0
+    learning_effectiveness = round(max(0.0, dq.learning_impact), 4) if has_dq else 0.0
+    strategy_stability = round(
+        sum(si.recommendation_consistency for si in strategy_intelligence) / len(strategy_intelligence),
+        4,
+    ) if strategy_intelligence else 0.0
+    confidence_accuracy = round(dq.stability, 4) if has_dq else 0.0
+    decision_quality_score = round(
+        (dq.precision + dq.stability + dq.calibration_effectiveness) / 3.0, 4
+    ) if has_dq else 0.0
+
+    all_dims = {
+        "replay_readiness": scientific_health.replay_readiness,
+        "version_completeness": scientific_health.version_completeness,
+        "evidence_quality": scientific_health.evidence_quality,
+        "feature_provenance": scientific_health.feature_provenance,
+        "learning_stability": scientific_health.learning_stability,
+        "calibration_quality": scientific_health.calibration_quality,
+        "drift_stability": scientific_health.drift_stability,
+        "learning_saturation": scientific_health.learning_saturation,
+        "explainability": scientific_health.explainability,
+        "audit_completeness": scientific_health.audit_completeness,
+        "confidence_consistency": scientific_health.confidence_consistency,
+        "recommendation_quality": recommendation_quality,
+        "learning_effectiveness": learning_effectiveness,
+        "strategy_stability": strategy_stability,
+        "confidence_accuracy": confidence_accuracy,
+        "decision_quality_score": decision_quality_score,
+    }
+    health_score = round(sum(all_dims.values()) / len(all_dims), 4)
+    return AdaptiveIntelligenceHealth(**all_dims, health_score=health_score)

@@ -11,15 +11,20 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.adaptive_intelligence.dto import (
+    EvaluationContext,
     RegimeAdaptation,
     RegimeAdapterResult,
+    ScientificVersionMetadata,
     _classify_recommendation,
+    build_decision_hash,
+    build_feature_provenance,
+    derive_evaluation_context,
+    filter_rows_for_context,
 )
 from app.modules.trading.validation.models import TradingSignalOutcome
 
@@ -29,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── Accumulator (reuses same maths as strategy_feedback) ──────────────────────
 
 class _Acc:
-    __slots__ = ("wins", "losses", "returns", "gross_profit", "gross_loss")
+    __slots__ = ("wins", "losses", "returns", "gross_profit", "gross_loss", "evidence_ids")
 
     def __init__(self) -> None:
         self.wins = 0
@@ -37,9 +42,12 @@ class _Acc:
         self.returns: list[float] = []
         self.gross_profit = 0.0
         self.gross_loss = 0.0
+        self.evidence_ids: list[str] = []
 
-    def add(self, ret: float) -> None:
+    def add(self, ret: float, evidence_id: str | None = None) -> None:
         self.returns.append(ret)
+        if evidence_id is not None:
+            self.evidence_ids.append(evidence_id)
         if ret > 0:
             self.wins += 1
             self.gross_profit += ret
@@ -92,25 +100,34 @@ class RegimeAdapter:
         Calendar days of outcomes to include (default: 30).
     """
 
-    def __init__(self, db: Session, lookback_days: int = 30) -> None:
+    def __init__(
+        self,
+        db: Session,
+        lookback_days: int = 30,
+        evaluation_context: EvaluationContext | None = None,
+    ) -> None:
         self._db = db
         self._lookback_days = lookback_days
+        self._evaluation_context = evaluation_context
 
     # ------------------------------------------------------------------
 
     def evaluate(self) -> RegimeAdapterResult:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self._lookback_days)
-
-        rows: list[TradingSignalOutcome] = (
+        all_rows: list[TradingSignalOutcome] = (
             self._db.query(TradingSignalOutcome)
             .filter(
-                TradingSignalOutcome.signal_at >= cutoff,
                 TradingSignalOutcome.outcome_correct.isnot(None),
                 TradingSignalOutcome.price_change_pct.isnot(None),
                 TradingSignalOutcome.regime.isnot(None),
             )
             .all()
         )
+        evaluation_context = derive_evaluation_context(
+            all_rows,
+            self._lookback_days,
+            self._evaluation_context,
+        )
+        rows = filter_rows_for_context(all_rows, evaluation_context, self._lookback_days)
 
         # Per-adaptation accumulator: (regime, signal, symbol, timeframe)
         detail_accs: dict[tuple[str, str, str, str], _Acc] = defaultdict(_Acc)
@@ -118,15 +135,18 @@ class RegimeAdapter:
         regime_accs: dict[str, _Acc] = defaultdict(_Acc)
         regime_counts: dict[str, int] = defaultdict(int)
 
+        versions = ScientificVersionMetadata()
+
         for row in rows:
             regime = row.regime or "unknown"
             symbol = row.symbol
             timeframe = row.timeframe
             signal = row.signal
             ret = float(row.price_change_pct or 0.0)
+            evidence_id = str(row.id) if getattr(row, "id", None) is not None else None
 
-            detail_accs[(regime, signal, symbol, timeframe)].add(ret)
-            regime_accs[regime].add(ret)
+            detail_accs[(regime, signal, symbol, timeframe)].add(ret, evidence_id)
+            regime_accs[regime].add(ret, evidence_id)
             regime_counts[regime] += 1
 
         # Build RegimeAdaptation list
@@ -135,7 +155,36 @@ class RegimeAdapter:
             rec = _classify_recommendation(
                 acc.win_rate, acc.expectancy, acc.profit_factor, acc.sample_size
             )
-            reason = _build_reason(rec, acc.win_rate, acc.expectancy, acc.sample_size, regime, signal)
+            reason = _build_reason(
+                rec,
+                acc.win_rate,
+                acc.expectancy,
+                acc.sample_size,
+                regime,
+                signal,
+            )
+            entity_id = f"{regime}|{signal}|{symbol or 'all'}|{timeframe or 'all'}"
+            provenance = build_feature_provenance(
+                evaluation_context=evaluation_context,
+                entity_id=entity_id,
+                features={
+                    "win_rate": acc.win_rate,
+                    "expectancy": acc.expectancy,
+                    "sample_size": acc.sample_size,
+                    "regime": regime,
+                    "signal": signal,
+                    "recommendation": rec,
+                },
+                evidence_ids=acc.evidence_ids,
+                versions=versions,
+            )
+            decision_hash = build_decision_hash(
+                evaluation_context=evaluation_context,
+                versions=versions,
+                provenance=provenance,
+                entity_id=entity_id,
+                recommendation=rec,
+            )
             adaptations.append(RegimeAdaptation(
                 regime=regime,
                 signal=signal,
@@ -146,6 +195,10 @@ class RegimeAdapter:
                 expectancy=acc.expectancy,
                 recommendation=rec,
                 reason=reason,
+                evidence_ids=sorted(acc.evidence_ids)[:25],
+                versions=versions,
+                provenance=provenance,
+                decision_hash=decision_hash,
             ))
 
         # Dominant regime = regime with most outcomes
@@ -163,7 +216,11 @@ class RegimeAdapter:
                 "sample_size": acc.sample_size,
                 "win_rate": round(acc.win_rate, 4),
                 "expectancy": round(acc.expectancy, 4),
-                "profit_factor": round(acc.profit_factor, 4) if acc.profit_factor is not None else None,
+                "profit_factor": (
+                    round(acc.profit_factor, 4)
+                    if acc.profit_factor is not None
+                    else None
+                ),
             }
 
         logger.info(
@@ -178,7 +235,7 @@ class RegimeAdapter:
         )
 
         return RegimeAdapterResult(
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=evaluation_context.evaluation_timestamp,
             adaptations=adaptations,
             regimes_observed=regimes_observed,
             dominant_regime=dominant_regime,

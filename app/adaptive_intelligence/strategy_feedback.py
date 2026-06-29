@@ -27,10 +27,14 @@ from app.adaptive_intelligence.dto import (
     build_feature_contributions,
     build_feature_provenance,
     build_scientific_lineage,
+    compute_adaptive_health,
+    compute_decision_quality,
     compute_freshness,
     compute_learning_saturation,
     compute_longitudinal_drift,
+    compute_recommendation_evolution,
     compute_scientific_health,
+    compute_strategy_intelligence,
     derive_evaluation_context,
     filter_rows_for_context,
 )
@@ -581,6 +585,15 @@ class StrategyFeedbackEngine:
             feature_provenance_score=feature_provenance_score,
         )
         freshness = compute_freshness(all_rows, evaluation_context)
+        # Stage 4: adaptive decision quality, recommendation evolution, strategy intelligence
+        adaptive_dq = compute_decision_quality(slices)
+        rec_evolution = compute_recommendation_evolution(slices)
+        strategy_intel = compute_strategy_intelligence(slices)
+        adaptive_health = compute_adaptive_health(
+            scientific_health=health,
+            decision_quality=adaptive_dq,
+            strategy_intelligence=strategy_intel,
+        )
         profile_hash = build_decision_hash(
             evaluation_context=evaluation_context,
             versions=versions,
@@ -665,6 +678,10 @@ class StrategyFeedbackEngine:
             learning_saturation=saturation,
             scientific_health=health,
             freshness=freshness,
+            adaptive_decision_quality=adaptive_dq,
+            recommendation_evolution=rec_evolution,
+            strategy_intelligence=strategy_intel,
+            adaptive_health=adaptive_health,
         )
 
         logger.info(

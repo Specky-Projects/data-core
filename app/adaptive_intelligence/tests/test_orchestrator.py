@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
+from app.adaptive_intelligence.dto import (
+    AdaptiveIntelligenceReport,
+    ConfidenceCalibrationResult,
+    RegimeAdapterResult,
+    RiskTuningResult,
+    StrategyFeedbackResult,
+)
 from app.adaptive_intelligence.orchestrator import (
     AdaptiveIntelligenceOrchestrator,
     _derive_overall,
@@ -15,14 +20,6 @@ from app.adaptive_intelligence.orchestrator import (
     _empty_risk,
     _empty_strategy,
 )
-from app.adaptive_intelligence.dto import (
-    AdaptiveIntelligenceReport,
-    ConfidenceCalibrationResult,
-    RegimeAdapterResult,
-    RiskTuningResult,
-    StrategyFeedbackResult,
-)
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -127,7 +124,17 @@ class TestDeriveOverall:
         assert rec == "KEEP"
 
     def test_disable_when_majority_underperformers(self):
-        strat = _strategy(total=50, underperf=["a", "b", "c"], summary={"DISABLE": 3, "KEEP": 0, "THROTTLE": 0, "BOOST": 0, "OBSERVE_ONLY": 0})
+        strat = _strategy(
+            total=50,
+            underperf=["a", "b", "c"],
+            summary={
+                "DISABLE": 3,
+                "KEEP": 0,
+                "THROTTLE": 0,
+                "BOOST": 0,
+                "OBSERVE_ONLY": 0,
+            },
+        )
         # risk_level=LOW but disable_recommended=True → DISABLE
         rec, _ = _derive_overall(strat, _calibration(), _risk("LOW", disable=True))
         assert rec == "DISABLE"

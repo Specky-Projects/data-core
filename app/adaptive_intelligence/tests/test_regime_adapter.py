@@ -9,7 +9,6 @@ import pytest
 
 from app.adaptive_intelligence.regime_adapter import RegimeAdapter
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_outcome(

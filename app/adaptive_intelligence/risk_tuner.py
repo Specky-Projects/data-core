@@ -10,22 +10,30 @@ Advisory-only: never writes to trading tables.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, Literal
 
 from sqlalchemy.orm import Session
 
 from app.adaptive_intelligence.dto import (
     ConfidenceCalibrationResult,
+    EvaluationContext,
     RegimeAdapterResult,
     RiskTuningResult,
+    ScientificVersionMetadata,
     StrategyFeedbackResult,
+    build_decision_hash,
+    build_feature_provenance,
+    derive_evaluation_context,
+    filter_rows_for_context,
 )
 from app.modules.trading.validation.models import TradingSignalOutcome
 
 logger = logging.getLogger(__name__)
 
 RiskLevel = Literal["LOW", "MODERATE", "HIGH", "CRITICAL"]
+
+_EPOCH = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 # Thresholds used to derive risk level from recent aggregate metrics
 _WIN_RATE_CRITICAL = 0.35
@@ -68,9 +76,16 @@ class RiskTuner:
         Calendar days of outcomes to use for recent aggregate stats (default: 14).
     """
 
-    def __init__(self, db: Session, lookback_days: int = 14) -> None:
+    def __init__(
+        self,
+        db: Session,
+        lookback_days: int = 14,
+        evaluation_context: EvaluationContext | None = None,
+    ) -> None:
         self._db = db
         self._lookback_days = lookback_days
+        self._evaluation_context = evaluation_context
+        self._resolved_evaluation_context = evaluation_context
 
     # ------------------------------------------------------------------
 
@@ -107,6 +122,41 @@ class RiskTuner:
         throttle_recommended = risk_level in ("HIGH", "CRITICAL") or throttle_pct >= 0.50
         disable_recommended = risk_level == "CRITICAL" or disable_pct >= 0.50
 
+        # O5 fix: guard against None if _fetch_recent_aggregates raised before assignment
+        ctx = self._resolved_evaluation_context or EvaluationContext(
+            evaluation_timestamp=_EPOCH,
+            replay_mode=True,
+            dataset_timestamp=_EPOCH,
+            dataset_version="fallback",
+            replay_configuration={"source": "risk_tuner_fallback"},
+            lookback_days=self._lookback_days,
+        )
+
+        # O3 fix: build scientific metadata for RiskTuningResult
+        versions = ScientificVersionMetadata()
+        provenance = build_feature_provenance(
+            evaluation_context=ctx,
+            entity_id="risk_tuning_result",
+            features={
+                "win_rate": wr,
+                "expectancy": exp,
+                "profit_factor": pf,
+                "max_drawdown": max_dd,
+                "risk_level": risk_level,
+                "size_multiplier": size_multiplier,
+                "min_confidence": min_conf,
+            },
+            evidence_ids=[],
+            versions=versions,
+        )
+        result_hash = build_decision_hash(
+            evaluation_context=ctx,
+            versions=versions,
+            provenance=provenance,
+            entity_id="risk_tuning_result",
+            recommendation=risk_level,
+        )
+
         # ── Policy hints (consumed by PolicyContract generator) ───────────────
         policy_hints: dict[str, Any] = {
             "source": "adaptive_intelligence",
@@ -120,6 +170,7 @@ class RiskTuner:
             "overconfidence_warning": calibration.overconfidence_warning,
             "top_performers": strategy.top_performers[:5],
             "underperformers": strategy.underperformers[:5],
+            "versions": versions.model_dump(mode="json"),
         }
 
         logger.info(
@@ -134,7 +185,7 @@ class RiskTuner:
         )
 
         return RiskTuningResult(
-            evaluated_at=datetime.now(timezone.utc),
+            evaluated_at=ctx.evaluation_timestamp,
             current_win_rate=wr,
             current_expectancy=exp,
             current_profit_factor=pf,
@@ -146,6 +197,9 @@ class RiskTuner:
             disable_recommended=disable_recommended,
             reasoning=reasoning,
             policy_hints=policy_hints,
+            versions=versions,
+            provenance=provenance,
+            decision_hash=result_hash,
         )
 
     # ------------------------------------------------------------------
@@ -156,16 +210,21 @@ class RiskTuner:
         self,
     ) -> tuple[float | None, float | None, float | None, float | None]:
         """Compute recent aggregate win_rate, expectancy, profit_factor, max_drawdown."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self._lookback_days)
-        rows: list[TradingSignalOutcome] = (
+        all_rows: list[TradingSignalOutcome] = (
             self._db.query(TradingSignalOutcome)
             .filter(
-                TradingSignalOutcome.signal_at >= cutoff,
                 TradingSignalOutcome.outcome_correct.isnot(None),
                 TradingSignalOutcome.price_change_pct.isnot(None),
             )
             .all()
         )
+        evaluation_context = derive_evaluation_context(
+            all_rows,
+            self._lookback_days,
+            self._evaluation_context,
+        )
+        self._resolved_evaluation_context = evaluation_context
+        rows = filter_rows_for_context(all_rows, evaluation_context, self._lookback_days)
 
         if not rows:
             return None, None, None, None
@@ -185,7 +244,11 @@ class RiskTuner:
         exp = wr * avg_win - (1 - wr) * avg_loss
         pf = (gross_profit / gross_loss) if gross_loss > 0 else None
 
-        adverse_vals = [abs(float(r.max_adverse_pct)) for r in rows if r.max_adverse_pct is not None]
+        adverse_vals = [
+            abs(float(r.max_adverse_pct))
+            for r in rows
+            if r.max_adverse_pct is not None
+        ]
         max_dd = max(adverse_vals) if adverse_vals else None
 
         return wr, exp, pf, max_dd
@@ -207,13 +270,17 @@ class RiskTuner:
 
         # ── Win rate assessment ───────────────────────────────────────────────
         if wr < _WIN_RATE_CRITICAL:
-            reasoning.append(f"win_rate={wr:.1%} below critical threshold ({_WIN_RATE_CRITICAL:.0%})")
+            reasoning.append(
+                f"win_rate={wr:.1%} below critical threshold ({_WIN_RATE_CRITICAL:.0%})"
+            )
             risk_wr: RiskLevel = "CRITICAL"
         elif wr < _WIN_RATE_HIGH:
             reasoning.append(f"win_rate={wr:.1%} below high-risk threshold ({_WIN_RATE_HIGH:.0%})")
             risk_wr = "HIGH"
         elif wr < _WIN_RATE_MODERATE:
-            reasoning.append(f"win_rate={wr:.1%} below moderate threshold ({_WIN_RATE_MODERATE:.0%})")
+            reasoning.append(
+                f"win_rate={wr:.1%} below moderate threshold ({_WIN_RATE_MODERATE:.0%})"
+            )
             risk_wr = "MODERATE"
         else:
             reasoning.append(f"win_rate={wr:.1%} acceptable")

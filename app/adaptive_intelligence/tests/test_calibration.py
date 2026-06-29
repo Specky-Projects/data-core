@@ -10,9 +10,7 @@ import pytest
 from app.adaptive_intelligence.confidence_calibration import (
     ConfidenceCalibrationEngine,
     _BucketAcc,
-    _BUCKETS,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

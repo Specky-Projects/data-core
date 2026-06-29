@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,8 +12,6 @@ from app.adaptive_intelligence.strategy_feedback import (
     _Acc,
     _slice_key,
 )
-from app.adaptive_intelligence.dto import StrategyFeedbackResult
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -9,35 +9,56 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.adaptive_intelligence import metrics as adaptive_metrics
 from app.adaptive_intelligence.confidence_calibration import ConfidenceCalibrationEngine
 from app.adaptive_intelligence.dto import (
     AdaptiveIntelligenceReport,
     ConfidenceCalibrationResult,
+    ContinuousLearningProfile,
+    ContinuousLearningSignal,
+    EvaluationContext,
     Recommendation,
     RegimeAdapterResult,
     RiskTuningResult,
+    ScientificVersionMetadata,
     StrategyFeedbackResult,
-    _classify_recommendation,
+    build_decision_hash,
+    build_feature_provenance,
 )
-from app.adaptive_intelligence import metrics as adaptive_metrics
 from app.adaptive_intelligence.regime_adapter import RegimeAdapter
 from app.adaptive_intelligence.risk_tuner import RiskTuner
 from app.adaptive_intelligence.strategy_feedback import StrategyFeedbackEngine
 
 logger = logging.getLogger(__name__)
 
+_EPOCH = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
+
+
+def _fallback_context(lookback_days: int) -> EvaluationContext:
+    return EvaluationContext(
+        evaluation_timestamp=_EPOCH,
+        replay_mode=True,
+        dataset_timestamp=_EPOCH,
+        dataset_version="dataset:empty",
+        replay_configuration={"derived_from": "fallback"},
+        lookback_days=lookback_days,
+    )
+
 
 # ── Fallback empty results ─────────────────────────────────────────────────────
 
-def _empty_strategy(lookback_days: int) -> StrategyFeedbackResult:
-    now = datetime.now(timezone.utc)
+def _empty_strategy(
+    lookback_days: int,
+    context: EvaluationContext | None = None,
+) -> StrategyFeedbackResult:
+    context = context or _fallback_context(lookback_days)
     return StrategyFeedbackResult(
-        evaluated_at=now,
+        evaluated_at=context.evaluation_timestamp,
         lookback_days=lookback_days,
         total_outcomes=0,
         slices=[],
@@ -47,10 +68,10 @@ def _empty_strategy(lookback_days: int) -> StrategyFeedbackResult:
     )
 
 
-def _empty_calibration() -> ConfidenceCalibrationResult:
-    now = datetime.now(timezone.utc)
+def _empty_calibration(context: EvaluationContext | None = None) -> ConfidenceCalibrationResult:
+    context = context or _fallback_context(30)
     return ConfidenceCalibrationResult(
-        evaluated_at=now,
+        evaluated_at=context.evaluation_timestamp,
         total_outcomes=0,
         buckets=[],
         calibrated_threshold=None,
@@ -59,13 +80,14 @@ def _empty_calibration() -> ConfidenceCalibrationResult:
         overconfidence_warning=False,
         underconfidence_warning=False,
         recommended_min_confidence=None,
+        evaluation_context=context,
     )
 
 
-def _empty_regime() -> RegimeAdapterResult:
-    now = datetime.now(timezone.utc)
+def _empty_regime(context: EvaluationContext | None = None) -> RegimeAdapterResult:
+    context = context or _fallback_context(30)
     return RegimeAdapterResult(
-        evaluated_at=now,
+        evaluated_at=context.evaluation_timestamp,
         adaptations=[],
         regimes_observed=[],
         dominant_regime=None,
@@ -74,10 +96,10 @@ def _empty_regime() -> RegimeAdapterResult:
     )
 
 
-def _empty_risk() -> RiskTuningResult:
-    now = datetime.now(timezone.utc)
+def _empty_risk(context: EvaluationContext | None = None) -> RiskTuningResult:
+    context = context or _fallback_context(30)
     return RiskTuningResult(
-        evaluated_at=now,
+        evaluated_at=context.evaluation_timestamp,
         current_win_rate=None,
         current_expectancy=None,
         current_profit_factor=None,
@@ -139,6 +161,96 @@ def _derive_overall(
     return rec, summary
 
 
+def _merge_learning_profile(
+    strategy: StrategyFeedbackResult,
+    calibration: ConfidenceCalibrationResult,
+    lookback_days: int,
+    context: EvaluationContext,
+) -> ContinuousLearningProfile | None:
+    profile = strategy.continuous_learning
+    if profile is None and not calibration.buckets:
+        return None
+
+    decision_quality: list[ContinuousLearningSignal] = []
+    for bucket in calibration.buckets:
+        if bucket.learning_audit is None:
+            continue
+        decision_quality.append(ContinuousLearningSignal(
+            dimension="decision_quality",
+            entity_id=bucket.label,
+            entity_type="confidence_bucket",
+            current_confidence=bucket.reliability_score,
+            uncertainty=round(1.0 - min(bucket.sample_size / 30.0, 1.0), 4),
+            evidence_ids=bucket.evidence_ids,
+            data_origin="trading_signal_outcomes",
+            positive_factors=bucket.learning_audit.positive_factors,
+            negative_factors=bucket.learning_audit.negative_factors,
+            rationale=bucket.learning_audit.rationale,
+            audit_trail=bucket.learning_audit,
+        ))
+
+    if profile is None:
+        avg_decision = (
+            sum(signal.current_confidence for signal in decision_quality) / len(decision_quality)
+            if decision_quality
+            else 0.0
+        )
+        coverage = min(calibration.total_outcomes / 100.0, 1.0)
+        return ContinuousLearningProfile(
+            evaluated_at=context.evaluation_timestamp,
+            lookback_days=lookback_days,
+            coverage_sample_size=calibration.total_outcomes,
+            decision_quality=decision_quality,
+            feedback={
+                "historical_calibration": calibration.historical_calibration,
+                "reinforcement_scoring": round(avg_decision, 4),
+            },
+            self_evaluation={
+                "current_confidence": round(avg_decision, 4),
+                "uncertainty": round(1.0 - coverage, 4),
+                "evidence_count": calibration.total_outcomes,
+                "justification": "Decision learning derived from confidence calibration buckets.",
+                "score_change_reason": "calibration evidence adjusted decision-quality score",
+            },
+            observability={
+                "confidence_evolution": round(avg_decision, 4),
+                "precision_evolution": round(avg_decision, 4),
+                "learning_rate": round(
+                    len(decision_quality) / max(calibration.total_outcomes, 1),
+                    4,
+                ),
+                "convergence_rate": round(coverage, 4),
+                "drift": round(1.0 - avg_decision, 4),
+                "stability": round(coverage, 4),
+                "historical_coverage": round(coverage, 4),
+            },
+            evaluation_context=context,
+            versions=ScientificVersionMetadata(),
+        )
+
+    profile.evaluated_at = context.evaluation_timestamp
+    profile.evaluation_context = context
+    profile.decision_quality = decision_quality
+    profile.feedback["historical_calibration"] = calibration.historical_calibration
+    if decision_quality:
+        decision_score = sum(s.current_confidence for s in decision_quality) / len(decision_quality)
+        profile.feedback["decision_reinforcement_scoring"] = round(decision_score, 4)
+        profile.observability["precision_evolution"] = round(decision_score, 4)
+        combined_confidence = (
+            float(profile.self_evaluation.get("current_confidence", 0.0)) + decision_score
+        ) / 2.0
+        profile.self_evaluation["current_confidence"] = round(combined_confidence, 4)
+        profile.self_evaluation["uncertainty"] = round(
+            1.0 - min(profile.coverage_sample_size / 100.0, 1.0),
+            4,
+        )
+        profile.self_evaluation["score_change_reason"] = (
+            "source, discovery, decision and economic learning were recalibrated "
+            "from the same historical evidence set"
+        )
+    return profile
+
+
 # ── Orchestrator ───────────────────────────────────────────────────────────────
 
 class AdaptiveIntelligenceOrchestrator:
@@ -159,59 +271,119 @@ class AdaptiveIntelligenceOrchestrator:
         db: Session,
         lookback_days: int = 30,
         environment: str = "production",
+        evaluation_context: EvaluationContext | None = None,
     ) -> None:
         self._db = db
         self._lookback_days = lookback_days
         self._environment = environment
+        self._evaluation_context = evaluation_context
 
     # ------------------------------------------------------------------
 
     def evaluate(self) -> AdaptiveIntelligenceReport:
         t0 = time.perf_counter()
+        context = self._evaluation_context or _fallback_context(self._lookback_days)
+        versions = ScientificVersionMetadata()
 
         # ── Strategy Feedback ─────────────────────────────────────────────────
         try:
-            strategy = StrategyFeedbackEngine(self._db, self._lookback_days).evaluate()
+            strategy = StrategyFeedbackEngine(
+                self._db,
+                self._lookback_days,
+                evaluation_context=self._evaluation_context,
+            ).evaluate()
+            if strategy.continuous_learning and strategy.continuous_learning.evaluation_context:
+                context = strategy.continuous_learning.evaluation_context
         except Exception as exc:
             logger.exception("adaptive.orchestrator: strategy_feedback failed: %s", exc)
-            strategy = _empty_strategy(self._lookback_days)
+            strategy = _empty_strategy(self._lookback_days, context)
 
         # ── Confidence Calibration ────────────────────────────────────────────
         try:
-            calibration = ConfidenceCalibrationEngine(self._db, self._lookback_days).evaluate()
+            calibration = ConfidenceCalibrationEngine(
+                self._db,
+                self._lookback_days,
+                evaluation_context=context,
+            ).evaluate()
         except Exception as exc:
             logger.exception("adaptive.orchestrator: confidence_calibration failed: %s", exc)
-            calibration = _empty_calibration()
+            calibration = _empty_calibration(context)
 
         # ── Regime Adapter ────────────────────────────────────────────────────
         try:
-            regime = RegimeAdapter(self._db, self._lookback_days).evaluate()
+            regime = RegimeAdapter(
+                self._db,
+                self._lookback_days,
+                evaluation_context=context,
+            ).evaluate()
         except Exception as exc:
             logger.exception("adaptive.orchestrator: regime_adapter failed: %s", exc)
-            regime = _empty_regime()
+            regime = _empty_regime(context)
 
         # ── Risk Tuner ────────────────────────────────────────────────────────
         try:
-            risk = RiskTuner(self._db, self._lookback_days).evaluate(
+            risk = RiskTuner(
+                self._db,
+                self._lookback_days,
+                evaluation_context=context,
+            ).evaluate(
                 strategy=strategy,
                 calibration=calibration,
                 regime=regime,
             )
         except Exception as exc:
             logger.exception("adaptive.orchestrator: risk_tuner failed: %s", exc)
-            risk = _empty_risk()
+            risk = _empty_risk(context)
 
         # ── Overall recommendation ────────────────────────────────────────────
         overall_rec, overall_reasoning = _derive_overall(strategy, calibration, risk)
+        continuous_learning = _merge_learning_profile(
+            strategy,
+            calibration,
+            self._lookback_days,
+            context,
+        )
 
         # ── Merged policy hints ───────────────────────────────────────────────
         policy_hints: dict[str, Any] = {
             **risk.policy_hints,
+            "versions": versions.model_dump(mode="json"),
+            "evaluation_context": context.model_dump(mode="json"),
             "overall_recommendation": overall_rec,
             "overall_reasoning": overall_reasoning,
             "calibrated_threshold": calibration.calibrated_threshold,
             "dominant_regime": regime.dominant_regime,
+            "continuous_learning": (
+                continuous_learning.model_dump(mode="json")
+                if continuous_learning is not None
+                else None
+            ),
         }
+        report_provenance = build_feature_provenance(
+            evaluation_context=context,
+            entity_id="adaptive_intelligence_report",
+            features={
+                "overall_recommendation": overall_rec,
+                "overall_reasoning": overall_reasoning,
+                "risk_level": risk.risk_level,
+                "strategy_outcomes": strategy.total_outcomes,
+                "calibration_outcomes": calibration.total_outcomes,
+            },
+            evidence_ids=(
+                continuous_learning.self_evaluation.get("evidence_ids", [])
+                if continuous_learning
+                else []
+            ),
+            versions=versions,
+        )
+        report_hash = build_decision_hash(
+            evaluation_context=context,
+            versions=versions,
+            provenance=report_provenance,
+            entity_id="adaptive_intelligence_report",
+            recommendation=overall_rec,
+        )
+        policy_hints["decision_hash"] = report_hash
 
         duration = time.perf_counter() - t0
 
@@ -227,7 +399,7 @@ class AdaptiveIntelligenceOrchestrator:
             pass
 
         report = AdaptiveIntelligenceReport(
-            generated_at=datetime.now(timezone.utc),
+            generated_at=context.evaluation_timestamp,
             environment=self._environment,
             lookback_days=self._lookback_days,
             strategy_feedback=strategy,
@@ -237,6 +409,10 @@ class AdaptiveIntelligenceOrchestrator:
             overall_recommendation=overall_rec,
             overall_reasoning=overall_reasoning,
             policy_hints=policy_hints,
+            continuous_learning=continuous_learning,
+            evaluation_context=context,
+            versions=versions,
+            decision_hash=report_hash,
         )
 
         logger.info(
