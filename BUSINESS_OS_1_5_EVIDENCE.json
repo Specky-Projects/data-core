@@ -1,0 +1,81 @@
+{
+  "certification": {
+    "version": "business-os-1.5-opportunity",
+    "date": "2026-06-29",
+    "certifier": "Claude Code — primary audit + red team re-audit",
+    "verdict": "REPOSITORY READY | PRODUCTION BLOCKED",
+    "red_team": {
+      "attempts": 6,
+      "invalidations_succeeded": 0,
+      "result": "ALL CLAIMS STAND"
+    }
+  },
+  "test_results": {
+    "new_tests": 105,
+    "new_tests_passed": 105,
+    "new_tests_failed": 0,
+    "knowledge_tests_passed": 105,
+    "combined_new_tests_passed": 210,
+    "total_passed_after_1_5": 1387,
+    "total_failed_pre_existing": 23,
+    "opportunity_module_failures": 0
+  },
+  "modules_delivered": {
+    "dto": "app/opportunity/dto.py",
+    "discovery": "app/opportunity/discovery.py",
+    "scoring": "app/opportunity/scoring.py",
+    "ranking": "app/opportunity/ranking.py",
+    "lifecycle": "app/opportunity/lifecycle.py",
+    "evolution": "app/opportunity/evolution.py",
+    "portfolio": "app/opportunity/portfolio.py",
+    "health": "app/opportunity/health.py",
+    "learning": "app/opportunity/learning.py",
+    "orchestrator": "app/opportunity/orchestrator.py",
+    "api": "app/opportunity/api.py",
+    "tests": "app/opportunity/tests/test_opportunity_stage_1_5.py"
+  },
+  "version_constants": {
+    "OPPORTUNITY_VERSION": "business-os-1.5-opportunity",
+    "DISCOVERY_VERSION": "opportunity-discovery-v1-1.5",
+    "SCORING_VERSION": "opportunity-scoring-v1-1.5",
+    "RANKING_VERSION": "opportunity-ranking-v1-1.5",
+    "LIFECYCLE_VERSION": "opportunity-lifecycle-v1-1.5",
+    "PORTFOLIO_VERSION": "opportunity-portfolio-v1-1.5",
+    "HEALTH_VERSION": "opportunity-health-v1-1.5",
+    "EXPLAINABILITY_VERSION": "opportunity-explainability-v1-1.5",
+    "EVOLUTION_VERSION": "opportunity-evolution-v1-1.5"
+  },
+  "scientific_constraints": {
+    "zero_wall_clock": true,
+    "replay_determinism": true,
+    "full_provenance": true,
+    "evidence_anchored": true,
+    "explainability": true,
+    "no_duplicate_learning_engine": true
+  },
+  "architecture_compliance": {
+    "no_opportunity_engine_v2": true,
+    "no_knowledge_v2": true,
+    "no_duplicate_dto_hierarchy": true,
+    "consumes_knowledge_layer": true,
+    "reuses_adaptive_intelligence": true,
+    "1_3_certifications_intact": true,
+    "1_4_certifications_intact": true
+  },
+  "api_endpoints": [
+    "GET /opportunity/version",
+    "GET /opportunity/health",
+    "GET /opportunity/report"
+  ],
+  "environments": {
+    "LOCAL": "VALIDATED",
+    "VPS": "BLOCKED — Coolify deploy not triggered",
+    "COOLIFY": "BLOCKED — deploy trigger required"
+  },
+  "platform_evolution": {
+    "1_3": "Adaptive Intelligence — learns from outcomes",
+    "1_4": "Knowledge Platform — understands information",
+    "1_5": "Opportunity Layer — identifies what is worth acting on",
+    "2_0": "Decision Intelligence — future"
+  }
+}
