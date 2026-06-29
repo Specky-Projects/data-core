@@ -1,0 +1,141 @@
+{
+  "audit_type": "INDEPENDENT_FINAL_CERTIFICATION",
+  "date": "2026-06-28",
+  "environment": "LOCAL",
+  "methodology": ["forward_trace", "backward_trace", "red_team", "audit_of_audit"],
+
+  "test_run": {
+    "command": "python -m pytest app/adaptive_intelligence/tests/ -v --tb=short",
+    "working_directory": "C:/Users/dev/Documents/Projetos/data-core",
+    "total": 140,
+    "passed": 140,
+    "failed": 0,
+    "errors": 0,
+    "duration_seconds": 7.53,
+    "verified_independently": true
+  },
+
+  "wall_clock_search": {
+    "pattern": "datetime\\.now|utcnow\\(\\)",
+    "production_files_matched": 0,
+    "test_files_matched": 6,
+    "test_file_locations": [
+      "tests/test_orchestrator.py:27",
+      "tests/test_risk_tuner.py:18",
+      "tests/test_risk_tuner.py:80",
+      "tests/test_regime_adapter.py:29",
+      "tests/test_calibration.py:27",
+      "tests/test_strategy_feedback.py:39"
+    ],
+    "verdict": "CLEAN — zero production wall-clock calls"
+  },
+
+  "stage_3_5_blocker_resolution": [
+    {"id": "B1",  "description": "Non-deterministic replay", "status": "VERIFIED_RESOLVED", "evidence": "derive_evaluation_context() uses max(row timestamps); fallback uses epoch constant; no datetime.now() in production"},
+    {"id": "B2",  "description": "Missing learning_version", "status": "VERIFIED_RESOLVED", "evidence": "dto.py:21 LEARNING_VERSION='business-os-1.3-stage-3.6'"},
+    {"id": "B3",  "description": "Missing calibration_version", "status": "VERIFIED_RESOLVED", "evidence": "dto.py:22"},
+    {"id": "B4",  "description": "Missing feature_version", "status": "VERIFIED_RESOLVED", "evidence": "dto.py:23"},
+    {"id": "B5",  "description": "Missing policy_version", "status": "VERIFIED_RESOLVED", "evidence": "dto.py:24"},
+    {"id": "B6",  "description": "Missing algorithm_version", "status": "VERIFIED_RESOLVED", "evidence": "dto.py:25"},
+    {"id": "B7",  "description": "Feature provenance incomplete", "status": "VERIFIED_RESOLVED_WITH_OBSERVATION", "evidence": "StrategySlice and CalibrationBucket carry full provenance; RegimeAdaptation and RiskTuningResult do not"},
+    {"id": "B8",  "description": "Learning Health not measurable", "status": "VERIFIED_RESOLVED", "evidence": "compute_scientific_health() with 11 evidence-derived dimensions; dto.py:432"},
+    {"id": "B9",  "description": "Longitudinal drift missing", "status": "VERIFIED_RESOLVED", "evidence": "compute_longitudinal_drift() at dto.py:322; 5 windows [7,30,90,180,365]"},
+    {"id": "B10", "description": "Learning saturation missing", "status": "VERIFIED_RESOLVED", "evidence": "compute_learning_saturation() at dto.py:357; plateau_detected threshold 0.02"},
+    {"id": "B11", "description": "Freshness hardcoded 0.0", "status": "VERIFIED_RESOLVED", "evidence": "compute_freshness() at dto.py:379; evidence-derived; strategy_feedback.py calls it"},
+    {"id": "B12", "description": "Replay entry point missing", "status": "VERIFIED_RESOLVED", "evidence": "EvaluationContext injectable at Orchestrator, StrategyFeedback, Calibration, Regime, Risk"}
+  ],
+
+  "observations": [
+    {
+      "id": "O1",
+      "description": "learning_stability and drift_stability in compute_scientific_health both assign the same drift_stability value",
+      "location": "dto.py:459,461",
+      "classification": "OBSERVATION",
+      "severity": "LOW",
+      "max_bias_in_health_score": 0.091,
+      "blocking": false,
+      "stage_4_backlog": true
+    },
+    {
+      "id": "O2",
+      "description": "datetime.now() in test fixtures",
+      "classification": "ARTIFACT",
+      "severity": "LOW",
+      "production_impact": "NONE",
+      "blocking": false
+    },
+    {
+      "id": "O3",
+      "description": "RegimeAdaptation and RiskTuningResult lack ScientificVersionMetadata and FeatureProvenance",
+      "classification": "SCIENTIFIC_GAP",
+      "severity": "LOW",
+      "compensating_control": "AdaptiveIntelligenceReport.versions and policy_hints['versions'] capture full version context",
+      "blocking": false,
+      "stage_4_backlog": true
+    },
+    {
+      "id": "O4",
+      "description": "evidence_ids LIST stored in FeatureProvenance is insertion-order-dependent; evidence_HASH uses sorted() and is deterministic",
+      "classification": "LOW",
+      "severity": "LOW",
+      "hash_deterministic": true,
+      "list_deterministic": false,
+      "blocking": false
+    },
+    {
+      "id": "O5",
+      "description": "RiskTuner._resolved_evaluation_context could be None if initialization skips and fetch fails before assignment",
+      "classification": "LATENT_EDGE_CASE",
+      "severity": "LOW",
+      "mitigation": "Orchestrator try/except catches and falls back to _empty_risk()",
+      "blocking": false
+    },
+    {
+      "id": "O6",
+      "description": "temporal_decay in ConfidenceCalibrationEngine uses lookback_days as proxy for age, not actual row timestamps",
+      "classification": "DESIGN_CHOICE",
+      "severity": "NONE",
+      "deterministic": true,
+      "blocking": false
+    }
+  ],
+
+  "red_team_results": [
+    {"challenge": "Find hidden wall-clock in production", "outcome": "FAILED", "finding": "None found"},
+    {"challenge": "Prove EvaluationContext injection is bypassed", "outcome": "FAILED", "finding": "Injection confirmed at all engines"},
+    {"challenge": "Prove version propagation is fake", "outcome": "PARTIAL", "finding": "Regime/risk DTOs lack versions (O3)"},
+    {"challenge": "Prove provenance is hardcoded", "outcome": "PARTIAL", "finding": "Regime/risk DTOs lack provenance (O3)"},
+    {"challenge": "Prove feature_provenance_score still 1.0", "outcome": "FAILED", "finding": "Evidence-derived, confirmed in source"},
+    {"challenge": "Prove health score is constant/fabricated", "outcome": "FAILED_O1_CONFIRMED", "finding": "Score varies with evidence; O1 double-count is a bias not fabrication"},
+    {"challenge": "Find silent regression", "outcome": "FAILED", "finding": "140/140 pass"},
+    {"challenge": "Prove freshness still hardcoded 0.0", "outcome": "FAILED", "finding": "compute_freshness() evidence-derived"}
+  ],
+
+  "audit_of_audit": {
+    "methodology": "backward_trace — from outputs back to sources",
+    "agreements_with_forward_audit": 14,
+    "disagreements": 0,
+    "additional_findings": [
+      {"id": "O6", "description": "temporal_decay uses lookback_days as proxy", "classification": "DESIGN_CHOICE"}
+    ]
+  },
+
+  "final_certification": {
+    "architectural_readiness": "GO",
+    "replay_readiness": "GO",
+    "scientific_readiness": "GO_WITH_OBSERVATIONS",
+    "operational_readiness": "GO",
+    "learning_health": "GO_WITH_OBSERVATIONS",
+    "technical_debt": "LOW",
+    "stage_4_authorization": "GO",
+    "observations_blocking_stage_4": 0,
+    "observations_for_stage_4_backlog": ["O1", "O3"]
+  },
+
+  "stage_4_backlog": [
+    "Add ScientificVersionMetadata to RegimeAdaptation and RiskTuningResult",
+    "Add FeatureProvenance and decision_hash to RegimeAdaptation",
+    "Differentiate learning_stability from drift_stability in compute_scientific_health",
+    "Migrate pre-Stage-3.6 test fixtures from datetime.now() to fixed timestamps"
+  ]
+}
