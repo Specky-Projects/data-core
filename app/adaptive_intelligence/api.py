@@ -36,11 +36,11 @@ def _get_db():
 DbDep = Annotated[Session, Depends(_get_db)]
 LookbackDaysQuery = Annotated[
     int,
-    Query(default=30, ge=1, le=180, description="Lookback window in calendar days"),
+    Query(ge=1, le=180, description="Lookback window in calendar days"),
 ]
-EvaluationTimestampQuery = Annotated[datetime | None, Query(default=None)]
-DatasetVersionQuery = Annotated[str | None, Query(default=None)]
-ReplayModeQuery = Annotated[bool, Query(default=False)]
+EvaluationTimestampQuery = Annotated[datetime | None, Query()]
+DatasetVersionQuery = Annotated[str | None, Query()]
+ReplayModeQuery = Annotated[bool, Query()]
 
 
 def _build_replay_context(
@@ -71,11 +71,11 @@ def _build_replay_context(
     response_model=AdaptiveIntelligenceReport,
 )
 def get_full_report(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> AdaptiveIntelligenceReport:
     """Runs all four adaptive intelligence engines and returns the combined report.
 
@@ -109,11 +109,11 @@ def get_full_report(
     response_model=dict,
 )
 def get_summary(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> dict[str, Any]:
     """Returns a compact advisory summary suitable for quick operator review
     or upstream enforcement hint consumption.
@@ -144,11 +144,11 @@ def get_summary(
     response_model=dict,
 )
 def get_strategy_feedback(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> dict[str, Any]:
     """Strategy performance by (symbol, timeframe, regime, signal) slice.
 
@@ -177,11 +177,11 @@ def get_strategy_feedback(
     response_model=dict,
 )
 def get_calibration(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> dict[str, Any]:
     """Confidence calibration analysis per bucket (0-20, 21-40, 41-60, 61-80, 81-100).
 
@@ -209,11 +209,11 @@ def get_calibration(
     response_model=dict,
 )
 def get_regime(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> dict[str, Any]:
     """Per-regime×signal×symbol adaptation recommendations.
 
@@ -241,11 +241,11 @@ def get_regime(
     response_model=dict,
 )
 def get_risk(
-    lookback_days: LookbackDaysQuery,
-    evaluation_timestamp: EvaluationTimestampQuery,
-    dataset_version: DatasetVersionQuery,
-    replay_mode: ReplayModeQuery,
-    db: DbDep,
+    lookback_days: LookbackDaysQuery = 30,
+    evaluation_timestamp: EvaluationTimestampQuery = None,
+    dataset_version: DatasetVersionQuery = None,
+    replay_mode: ReplayModeQuery = False,
+    db: DbDep = None,
 ) -> dict[str, Any]:
     """Returns the full risk tuning result including policy_hints.
 
