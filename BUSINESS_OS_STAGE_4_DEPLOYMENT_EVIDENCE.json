@@ -1,0 +1,108 @@
+{
+  "certification_type": "PRODUCTION_CERTIFICATION_ATTEMPT",
+  "date": "2026-06-29",
+  "certifier": "independent_audit",
+  "methodology": ["deployment_integrity", "runtime_probe", "wall_clock_scan", "local_verification"],
+
+  "repository": {
+    "remote": "https://github.com/Specky-Projects/data-core.git",
+    "branch": "main",
+    "local_head": "4b99d9194d29842e412a9727f76cdbd2ab646378",
+    "remote_head_verified": "4b99d9194d29842e412a9727f76cdbd2ab646378",
+    "local_remote_match": true,
+    "stage4_commit": "9aaa746",
+    "stage4_commit_full": "9aaa746 feat(adaptive-intelligence): Business OS 1.3 Stage 4 — Foundation",
+    "docs_commit": "4b99d91"
+  },
+
+  "local_verification": {
+    "learning_version": "business-os-1.3-stage-4",
+    "algorithm_version": "deterministic-adaptive-learning-v1-stage-4",
+    "adaptive_intelligence_health_class": "EXISTS",
+    "decision_quality_metric_class": "EXISTS",
+    "recommendation_evolution_class": "EXISTS",
+    "strategy_intelligence_class": "EXISTS",
+    "tests_total": 203,
+    "tests_passed": 203,
+    "tests_failed": 0,
+    "wall_clock_in_production_files": 0
+  },
+
+  "production_probe": {
+    "vps_ip": "65.109.239.250",
+    "production_url": "http://dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io",
+    "https_url": "https://dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io",
+    "health_probe": {
+      "url": "http://dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io/health",
+      "http_status": 404,
+      "response_body": "404 page not found",
+      "responder": "Traefik (not FastAPI)",
+      "interpretation": "Container not registered with Traefik — not running or Coolify deploy not triggered"
+    },
+    "readiness_probe": {
+      "url": "http://dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io/readiness",
+      "http_status": 404,
+      "responder": "Traefik",
+      "interpretation": "Same — container absent from Traefik routing table"
+    },
+    "direct_port_probe": {
+      "url": "http://65.109.239.250:8000/health",
+      "result": "timeout",
+      "interpretation": "Port 8000 not exposed externally (expected — uses Traefik proxy)"
+    },
+    "https_probe": {
+      "url": "https://dvq6dwsagsw4p4oqwuw7bak9.65.109.239.250.sslip.io/health",
+      "result": "no available server",
+      "interpretation": "SSL/HTTPS not configured at this URL"
+    },
+    "vps_connectivity": "CONFIRMED (Traefik responds within timeout)",
+    "api_container_state": "NOT_REGISTERED_WITH_TRAEFIK"
+  },
+
+  "deploy_state": {
+    "github_pushed": true,
+    "github_commit": "4b99d9194d29842e412a9727f76cdbd2ab646378",
+    "coolify_deploy_triggered": false,
+    "coolify_deploy_confirmed": false,
+    "container_running": "UNKNOWN — not verifiable without SSH or Coolify API",
+    "traefik_route_registered": false,
+    "conclusion": "Stage 4 code is on GitHub but NOT deployed to production"
+  },
+
+  "runtime_verification": {
+    "startup": "NOT_VERIFIABLE",
+    "migrations": "NOT_VERIFIABLE",
+    "metrics_endpoint": "NOT_VERIFIABLE",
+    "adaptive_intelligence_api": "NOT_VERIFIABLE",
+    "reason": "Production API not reachable"
+  },
+
+  "environment": {
+    "local": {
+      "python_version": "3.12.10",
+      "pydantic": "2.9.2",
+      "fastapi": "0.115.0",
+      "sqlalchemy": "2.0.35",
+      "status": "VERIFIED"
+    },
+    "production": {
+      "python_version": "UNKNOWN — not verifiable",
+      "base_image": "mcr.microsoft.com/playwright/python:v1.47.0-jammy",
+      "expected_pydantic": "2.9.2",
+      "expected_fastapi": "0.115.0",
+      "expected_sqlalchemy": "2.0.35",
+      "status": "NOT_VERIFIABLE — container not running"
+    }
+  },
+
+  "final_decision": {
+    "deployment_integrity": "BLOCKED",
+    "runtime_integrity": "BLOCKED",
+    "scientific_integrity": "GO (local evidence)",
+    "replay_integrity": "GO (local evidence)",
+    "production_readiness": "BLOCKED",
+    "overall": "BLOCKED",
+    "reason": "Coolify deployment not triggered. Container not registered with Traefik. No production runtime to certify.",
+    "required_action": "Trigger Coolify deploy for data-core service on VPS"
+  }
+}
