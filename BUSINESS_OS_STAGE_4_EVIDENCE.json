@@ -1,0 +1,139 @@
+{
+  "stage": "business-os-1.3-stage-4",
+  "date": "2026-06-28",
+  "environment": "LOCAL",
+  "commit": "9aaa746",
+
+  "test_run": {
+    "command": "python -m pytest app/adaptive_intelligence/tests/ -v --tb=short -q",
+    "working_directory": "C:/Users/dev/Documents/Projetos/data-core",
+    "total": 203,
+    "passed": 203,
+    "failed": 0,
+    "errors": 0,
+    "duration_seconds": 3.30,
+    "breakdown": {
+      "test_calibration.py": 12,
+      "test_dto.py": 17,
+      "test_orchestrator.py": 19,
+      "test_regime_adapter.py": 11,
+      "test_risk_tuner.py": 12,
+      "test_stage_3_6.py": 50,
+      "test_stage_4.py": 63,
+      "test_strategy_feedback.py": 19
+    },
+    "regressions": 0
+  },
+
+  "observation_resolution": [
+    {
+      "id": "O1",
+      "description": "learning_stability and drift_stability both assigned drift_stability value",
+      "status": "CLOSED",
+      "fix": "_compute_learning_stability() uses cross-window confidence variance; drift_stability unchanged",
+      "bias_before": 0.091,
+      "bias_after": 0.0,
+      "test_coverage": "TestO1LearningStabilityFix — 5 tests"
+    },
+    {
+      "id": "O3",
+      "description": "RegimeAdaptation and RiskTuningResult lack ScientificVersionMetadata, FeatureProvenance, decision_hash",
+      "status": "CLOSED",
+      "fix": "Both DTOs now carry evidence_ids, versions, provenance, decision_hash; engines build them",
+      "test_coverage": "TestO3RegimeAdaptationMetadata + TestO3RiskTuningMetadata — 8 tests"
+    },
+    {
+      "id": "O4",
+      "description": "evidence_ids list in FeatureProvenance was insertion-order dependent",
+      "status": "CLOSED",
+      "fix": "build_feature_provenance now uses sorted(evidence_ids)[:25]",
+      "hash_deterministic_before": true,
+      "list_deterministic_after": true,
+      "test_coverage": "TestO4EvidenceIdsOrdering — 3 tests"
+    },
+    {
+      "id": "O5",
+      "description": "RiskTuner._resolved_evaluation_context could be None if fetch fails before assignment",
+      "status": "CLOSED",
+      "fix": "_EPOCH fallback EvaluationContext used when _resolved_evaluation_context is None",
+      "test_coverage": "TestO5RiskTunerNullSafety — 2 tests"
+    },
+    {
+      "id": "O6",
+      "description": "temporal_decay used lookback_days as proxy, not actual row timestamps",
+      "status": "CLOSED",
+      "fix": "compute_temporal_decay_from_evidence() uses mean row age vs evaluation_timestamp; per-bucket in calibration",
+      "deterministic": true,
+      "wall_clock_introduced": false,
+      "test_coverage": "TestO6TemporalDecay — 4 tests"
+    }
+  ],
+
+  "new_capabilities": [
+    {
+      "name": "DecisionQualityMetric",
+      "type": "DTO",
+      "fields": ["precision", "recall", "stability", "calibration_effectiveness", "learning_impact", "sample_size"],
+      "computation": "compute_decision_quality(slices)",
+      "stored_in": "ContinuousLearningProfile.adaptive_decision_quality",
+      "evidence_derived": true
+    },
+    {
+      "name": "RecommendationEvolution",
+      "type": "DTO",
+      "fields": ["entity_id", "current_recommendation", "direction", "confidence_delta", "maturity"],
+      "computation": "compute_recommendation_evolution(slices)",
+      "stored_in": "ContinuousLearningProfile.recommendation_evolution",
+      "evidence_derived": true
+    },
+    {
+      "name": "StrategyIntelligence",
+      "type": "DTO",
+      "fields": ["entity_id", "maturity_score", "reliability_score", "adaptive_confidence", "recommendation_consistency"],
+      "computation": "compute_strategy_intelligence(slices)",
+      "stored_in": "ContinuousLearningProfile.strategy_intelligence",
+      "evidence_derived": true
+    },
+    {
+      "name": "AdaptiveIntelligenceHealth",
+      "type": "DTO",
+      "dimensions_stage36": 11,
+      "dimensions_stage4": 5,
+      "total_dimensions": 16,
+      "new_dims": ["recommendation_quality", "learning_effectiveness", "strategy_stability", "confidence_accuracy", "decision_quality_score"],
+      "computation": "compute_adaptive_health(scientific_health, decision_quality, strategy_intelligence)",
+      "stored_in": "ContinuousLearningProfile.adaptive_health",
+      "evidence_derived": true
+    }
+  ],
+
+  "version_constants": {
+    "LEARNING_VERSION": "business-os-1.3-stage-4",
+    "CALIBRATION_VERSION": "calibration-buckets-v1-stage-4",
+    "FEATURE_VERSION": "adaptive-learning-features-v1-stage-4",
+    "POLICY_VERSION": "adaptive-policy-hints-v1-stage-4",
+    "ALGORITHM_VERSION": "deterministic-adaptive-learning-v1-stage-4",
+    "RESEARCH_VERSION": "business-os-research-v1-stage-4",
+    "EVIDENCE_VERSION": "trading-signal-outcomes-v1-stage-4"
+  },
+
+  "wall_clock_check": {
+    "production_files_with_wall_clock": 0,
+    "test_files_with_wall_clock": 6,
+    "stage_4_new_wall_clock_in_production": 0,
+    "verdict": "CLEAN"
+  },
+
+  "architecture_integrity": {
+    "single_orchestrator": true,
+    "single_strategy_engine": true,
+    "single_calibration_engine": true,
+    "single_regime_adapter": true,
+    "single_risk_tuner": true,
+    "advisory_only": true,
+    "deterministic_replay": true,
+    "backward_compatible": true,
+    "no_parallel_pipelines": true,
+    "no_v2_engines": true
+  }
+}
