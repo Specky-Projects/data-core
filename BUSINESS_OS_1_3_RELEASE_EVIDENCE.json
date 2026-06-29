@@ -1,0 +1,129 @@
+{
+  "certification_id": "BUSINESS_OS_1_3_FINAL_RELEASE",
+  "certification_date": "2026-06-28",
+  "certifier": "independent_final_audit",
+  "method": ["repository_integrity", "static_verification", "import_verification", "test_execution", "wall_clock_scan", "dto_field_audit", "version_constant_audit"],
+
+  "repository": {
+    "remote": "https://github.com/Specky-Projects/data-core.git",
+    "branch": "main",
+    "head_commit": "ac7b1cb36da821a149da14f78271fd47eb6cb03f",
+    "stage4_implementation_commit": "9aaa746",
+    "stage4_docs_commit": "4b99d91",
+    "production_certification_commit": "ac7b1cb",
+    "commits_since_stage36_certification": [
+      "9aaa746 — feat(adaptive-intelligence): Business OS 1.3 Stage 4 — Foundation",
+      "4b99d91 — docs(adaptive-intelligence): Stage 4 deliverables — 7 certification documents",
+      "ac7b1cb — docs(adaptive-intelligence): Business OS 1.3 Stage 4 — Production Certification"
+    ],
+    "no_regression_commits": true
+  },
+
+  "version_constants": {
+    "LEARNING_VERSION": "business-os-1.3-stage-4",
+    "CALIBRATION_VERSION": "calibration-buckets-v1-stage-4",
+    "FEATURE_VERSION": "adaptive-learning-features-v1-stage-4",
+    "POLICY_VERSION": "adaptive-policy-hints-v1-stage-4",
+    "ALGORITHM_VERSION": "deterministic-adaptive-learning-v1-stage-4",
+    "RESEARCH_VERSION": "business-os-research-v1-stage-4",
+    "EVIDENCE_VERSION": "trading-signal-outcomes-v1-stage-4",
+    "all_contain_stage_4": true
+  },
+
+  "test_suite": {
+    "total": 203,
+    "passed": 203,
+    "failed": 0,
+    "errors": 0,
+    "duration_seconds": 3.07,
+    "stage3_6_tests_preserved": 140,
+    "stage4_new_tests": 63
+  },
+
+  "wall_clock": {
+    "datetime_now_in_production_files": 0,
+    "utcnow_in_production_files": 0,
+    "production_files_scanned": ["dto.py", "orchestrator.py", "strategy_feedback.py", "confidence_calibration.py", "regime_adapter.py", "risk_tuner.py"],
+    "verdict": "ZERO_WALL_CLOCK"
+  },
+
+  "dtos_verified": {
+    "AdaptiveIntelligenceHealth": {
+      "present": true,
+      "dimensions": 16,
+      "stage3_6_dims": 11,
+      "stage4_dims": 5,
+      "health_score_field": true
+    },
+    "DecisionQualityMetric": {"present": true},
+    "RecommendationEvolution": {"present": true},
+    "StrategyIntelligence": {"present": true},
+    "ContinuousLearningProfile_stage4_fields": {
+      "adaptive_decision_quality": "default=None",
+      "recommendation_evolution": "default=[]",
+      "strategy_intelligence": "default=[]",
+      "adaptive_health": "default=None",
+      "backward_compatible": true
+    }
+  },
+
+  "observation_resolutions": {
+    "O1": {
+      "status": "CLOSED",
+      "fix": "_compute_learning_stability() — cross-window confidence variance; distinct from drift_stability (mean per-window stability)",
+      "verified": {"learning_stability": 0.5448, "drift_stability": 0.8000, "distinct": true}
+    },
+    "O3": {
+      "status": "CLOSED",
+      "fix": "RegimeAdaptation and RiskTuningResult carry evidence_ids, versions, provenance, decision_hash",
+      "verified": {"RegimeAdaptation_fields": true, "RiskTuningResult_fields": true}
+    },
+    "O4": {
+      "status": "CLOSED",
+      "fix": "sorted(evidence_ids)[:25] — canonical list ordering in build_feature_provenance",
+      "verified": {"sorted_output": ["a", "b", "c"], "input": ["c", "a", "b"]}
+    },
+    "O5": {
+      "status": "CLOSED",
+      "fix": "_EPOCH = datetime.fromisoformat('1970-01-01T00:00:00+00:00') — null guard in RiskTuner.evaluate()",
+      "verified": {"_EPOCH_present": true, "value": "1970-01-01 00:00:00+00:00"}
+    },
+    "O6": {
+      "status": "CLOSED",
+      "fix": "Per-bucket temporal decay uses actual row timestamps via compute_temporal_decay_from_evidence()",
+      "verified": {"function_present": true, "evidence_anchored": true}
+    }
+  },
+
+  "dependencies": {
+    "python": "3.12.10",
+    "python_minimum": ">=3.10",
+    "pydantic": "2.9.2",
+    "fastapi": "0.115.0",
+    "sqlalchemy": "2.0.35",
+    "alembic": "1.13.3"
+  },
+
+  "production_probe": {
+    "vps_ip": "65.109.239.250",
+    "traefik_alive": true,
+    "container_registered": false,
+    "api_http_status": 404,
+    "api_responder": "Traefik",
+    "deployment_triggered": false,
+    "conclusion": "Code certified. Deploy not triggered."
+  },
+
+  "final_classification": {
+    "repository_status": "READY",
+    "engineering_status": "COMPLETE",
+    "scientific_status": "READY",
+    "architecture_status": "READY",
+    "deployment_status": "BLOCKED",
+    "infrastructure_status": "READY",
+    "business_os_release": "RELEASE_READY",
+    "remaining_blocker_category": "DEPLOYMENT",
+    "remaining_blocker_type": "OPERATIONAL",
+    "engineering_work_remaining": false
+  }
+}
