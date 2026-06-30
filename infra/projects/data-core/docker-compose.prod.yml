@@ -75,6 +75,8 @@ services:
       COOLIFY_RESOURCE_UUID: ${COOLIFY_RESOURCE_UUID:-dvq6dwsagsw4p4oqwuw7bak9}
       # Container healer: Redis container name (separate compose project)
       REDIS_CONTAINER_NAME: ${REDIS_CONTAINER_NAME:-multi_project_infra-redis-1}
+      # Container restarts require explicit opt-in, e.g. "redis,scheduler,workers".
+      AUTO_HEALING_CONTAINER_RESTART_ALLOWLIST: ${AUTO_HEALING_CONTAINER_RESTART_ALLOWLIST:-}
       # Use system malloc instead of pymalloc so malloc_trim(0) can reclaim
       # all freed pages — not just those above the pymalloc threshold.
       PYTHONMALLOC: "malloc"
@@ -103,8 +105,13 @@ services:
     networks:
       app:
       infra_internal:
+        aliases:
+          - data-core-scheduler
+      coolify:
+        aliases:
+          - data-core-scheduler
     # Allow the app user to read the Docker socket (GID 988 = docker group on host).
-    # Required for container_healer.py to restart redis/scheduler/worker containers.
+    # Container restarts are additionally gated by AUTO_HEALING_CONTAINER_RESTART_ALLOWLIST.
     group_add:
       - "988"
     volumes:
@@ -152,6 +159,11 @@ services:
     networks:
       app:
       infra_internal:
+        aliases:
+          - data-core-worker
+      coolify:
+        aliases:
+          - data-core-worker
     volumes:
       - runtime-logs:/app/runtime-logs
       - runtime-data:/app/runtime-data
