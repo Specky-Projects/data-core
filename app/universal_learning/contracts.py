@@ -6,7 +6,7 @@ All outputs are read-only snapshots derived from existing operational data.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -18,7 +18,7 @@ LEARNING_CONTRACT_VERSION = "universal-learning-v1"
 # ---------------------------------------------------------------------------
 
 
-class LearningSource(StrEnum):
+class LearningSource(str, Enum):
     MIRROR = "MIRROR"
     RESEARCH = "RESEARCH"
     OUTCOME = "OUTCOME"
@@ -27,7 +27,7 @@ class LearningSource(StrEnum):
     EVIDENCE = "EVIDENCE"
 
 
-class LearningSignalKind(StrEnum):
+class LearningSignalKind(str, Enum):
     EDGE_CONFIRMATION = "EDGE_CONFIRMATION"
     EDGE_REJECTION = "EDGE_REJECTION"
     CONFIDENCE_DRIFT = "CONFIDENCE_DRIFT"
@@ -37,7 +37,7 @@ class LearningSignalKind(StrEnum):
     REPLAY_DIVERGENCE = "REPLAY_DIVERGENCE"
 
 
-class LearningMaturity(StrEnum):
+class LearningMaturity(str, Enum):
     BOOTSTRAP = "BOOTSTRAP"
     EMERGING = "EMERGING"
     STABLE = "STABLE"

@@ -6,7 +6,7 @@ Contracts only — must not alter any decision logic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -18,7 +18,7 @@ EXPLAINABILITY_CONTRACT_VERSION = "explainability-v2"
 # ---------------------------------------------------------------------------
 
 
-class ExplainabilityNodeKind(StrEnum):
+class ExplainabilityNodeKind(str, Enum):
     CONTEXT = "CONTEXT"
     EVIDENCE_USED = "EVIDENCE_USED"
     EVIDENCE_ABSENT = "EVIDENCE_ABSENT"
@@ -32,7 +32,7 @@ class ExplainabilityNodeKind(StrEnum):
     FINAL_DECISION = "FINAL_DECISION"
 
 
-class CounterfactualDirection(StrEnum):
+class CounterfactualDirection(str, Enum):
     WOULD_APPROVE = "WOULD_APPROVE"
     WOULD_REJECT = "WOULD_REJECT"
     WOULD_DELAY = "WOULD_DELAY"

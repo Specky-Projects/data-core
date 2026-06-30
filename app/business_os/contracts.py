@@ -7,7 +7,7 @@ No domain-specific business logic in this module.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -19,7 +19,7 @@ BUSINESS_OS_CONTRACT_VERSION = "business-os-contracts-v1"
 # ---------------------------------------------------------------------------
 
 
-class DomainKind(StrEnum):
+class DomainKind(str, Enum):
     CRYPTO = "CRYPTO"
     AFFILIATE = "AFFILIATE"
     SEO = "SEO"
@@ -31,20 +31,20 @@ class DomainKind(StrEnum):
     GENERIC = "GENERIC"
 
 
-class MissionStatus(StrEnum):
+class MissionStatus(str, Enum):
     ACTIVE = "ACTIVE"
     PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     ARCHIVED = "ARCHIVED"
 
 
-class CapabilityStatus(StrEnum):
+class CapabilityStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
     DEGRADED = "DEGRADED"
     UNAVAILABLE = "UNAVAILABLE"
 
 
-class ExecutionStatus(StrEnum):
+class ExecutionStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -52,7 +52,7 @@ class ExecutionStatus(StrEnum):
     BLOCKED = "BLOCKED"
 
 
-class OpportunityStatus(StrEnum):
+class OpportunityStatus(str, Enum):
     DISCOVERED = "DISCOVERED"
     EVALUATED = "EVALUATED"
     APPROVED = "APPROVED"
@@ -61,14 +61,14 @@ class OpportunityStatus(StrEnum):
     CLOSED = "CLOSED"
 
 
-class OutcomeKind(StrEnum):
+class OutcomeKind(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
     PARTIAL = "PARTIAL"
     INCONCLUSIVE = "INCONCLUSIVE"
 
 
-class ProjectStatus(StrEnum):
+class ProjectStatus(str, Enum):
     ACTIVE = "ACTIVE"
     STANDBY = "STANDBY"
     BLOCKED = "BLOCKED"

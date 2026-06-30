@@ -7,7 +7,7 @@ Never alters existing tables.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -19,7 +19,7 @@ LEDGER_CONTRACT_VERSION = "execution-ledger-v1"
 # ---------------------------------------------------------------------------
 
 
-class LedgerEntryKind(StrEnum):
+class LedgerEntryKind(str, Enum):
     DECISION = "DECISION"
     TRADE = "TRADE"
     PREVIEW = "PREVIEW"
@@ -31,7 +31,7 @@ class LedgerEntryKind(StrEnum):
     LEARNING = "LEARNING"
 
 
-class LedgerEntryStatus(StrEnum):
+class LedgerEntryStatus(str, Enum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
     REPLAYED = "REPLAYED"

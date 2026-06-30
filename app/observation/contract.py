@@ -17,7 +17,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -30,8 +30,8 @@ OBSERVATION_VERSION = "observation-v1"
 def _normalize(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
-    if isinstance(value, StrEnum):
-        return str(value)
+    if isinstance(value, Enum):
+        return value.value
     if isinstance(value, dict):
         return {str(k): _normalize(value[k]) for k in sorted(value)}
     if isinstance(value, list | tuple):
@@ -50,7 +50,7 @@ def stable_hash(value: Any, length: int = 32) -> str:
 # ── Observation type taxonomy ─────────────────────────────────────────────────
 
 
-class ObservationType(StrEnum):
+class ObservationType(str, Enum):
     """All fact types the platform can observe."""
 
     SIGNAL = "SIGNAL"
@@ -68,7 +68,7 @@ class ObservationType(StrEnum):
     GENERIC = "GENERIC"
 
 
-class ObservationQuality(StrEnum):
+class ObservationQuality(str, Enum):
     CERTIFIED = "CERTIFIED"
     VERIFIED = "VERIFIED"
     RAW = "RAW"

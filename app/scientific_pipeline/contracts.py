@@ -7,7 +7,7 @@ No decision logic.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -19,7 +19,7 @@ PIPELINE_CONTRACT_VERSION = "scientific-pipeline-v1"
 # ---------------------------------------------------------------------------
 
 
-class PipelineStatus(StrEnum):
+class PipelineStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -28,7 +28,7 @@ class PipelineStatus(StrEnum):
     BLOCKED = "BLOCKED"
 
 
-class StageKind(StrEnum):
+class StageKind(str, Enum):
     CONTEXT = "CONTEXT"
     EVIDENCE = "EVIDENCE"
     BAYESIAN = "BAYESIAN"
@@ -38,7 +38,7 @@ class StageKind(StrEnum):
     LEARNING = "LEARNING"
 
 
-class StageStatus(StrEnum):
+class StageStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     PASSED = "PASSED"

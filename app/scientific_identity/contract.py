@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -23,8 +23,8 @@ SCIENTIFIC_IDENTITY_VERSION = "scientific-identity-v1"
 def _normalize(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
-    if isinstance(value, StrEnum):
-        return str(value)
+    if isinstance(value, Enum):
+        return value.value
     if isinstance(value, dict):
         return {str(k): _normalize(value[k]) for k in sorted(value)}
     if isinstance(value, list | tuple):
@@ -43,7 +43,7 @@ def stable_hash(value: Any, length: int = 32) -> str:
 # ── Entity type taxonomy ───────────────────────────────────────────────────────
 
 
-class ScientificEntityType(StrEnum):
+class ScientificEntityType(str, Enum):
     """All entities that can carry a ScientificIdentity."""
 
     OBSERVATION = "OBSERVATION"

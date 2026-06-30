@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from app.scientific_identity.contract import (
     ScientificEntityType,
@@ -12,7 +12,7 @@ from app.scientific_identity.contract import (
 )
 
 
-class ValidationSeverity(StrEnum):
+class ValidationSeverity(str, Enum):
     ERROR = "ERROR"
     WARNING = "WARNING"
 
