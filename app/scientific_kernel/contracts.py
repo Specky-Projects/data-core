@@ -6,7 +6,7 @@ All implementations must be provided via adapters referencing existing modules.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
@@ -18,7 +18,7 @@ KERNEL_CONTRACTS_VERSION = "scientific-kernel-contracts-v1"
 # ---------------------------------------------------------------------------
 
 
-class EvidenceKind(StrEnum):
+class EvidenceKind(str, Enum):
     EMPIRICAL = "EMPIRICAL"
     STATISTICAL = "STATISTICAL"
     CAUSAL = "CAUSAL"
@@ -28,7 +28,7 @@ class EvidenceKind(StrEnum):
     EXCHANGE = "EXCHANGE"
 
 
-class EvidenceQuality(StrEnum):
+class EvidenceQuality(str, Enum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
@@ -63,7 +63,7 @@ class ScientificEvidence:
 # ---------------------------------------------------------------------------
 
 
-class ClaimStatus(StrEnum):
+class ClaimStatus(str, Enum):
     PROPOSED = "PROPOSED"
     SUPPORTED = "SUPPORTED"
     REFUTED = "REFUTED"
@@ -101,7 +101,7 @@ class ScientificClaim:
 # ---------------------------------------------------------------------------
 
 
-class ReplayStatus(StrEnum):
+class ReplayStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -178,7 +178,7 @@ class CounterfactualResult:
 # ---------------------------------------------------------------------------
 
 
-class KnowledgeEdgeKind(StrEnum):
+class KnowledgeEdgeKind(str, Enum):
     CAUSES = "CAUSES"
     CORRELATES = "CORRELATES"
     CONTRADICTS = "CONTRADICTS"
@@ -290,7 +290,7 @@ class ExecutionMemoryRecord:
 # ---------------------------------------------------------------------------
 
 
-class ConfidenceSource(StrEnum):
+class ConfidenceSource(str, Enum):
     BAYESIAN = "BAYESIAN"
     COMMITTEE = "COMMITTEE"
     HISTORICAL = "HISTORICAL"
@@ -358,7 +358,7 @@ class ScientificIdentity:
 # ---------------------------------------------------------------------------
 
 
-class FitnessResult(StrEnum):
+class FitnessResult(str, Enum):
     PASS = "PASS"
     WARN = "WARN"
     FAIL = "FAIL"
@@ -395,7 +395,7 @@ class ArchitectureFitnessReport:
 # ---------------------------------------------------------------------------
 
 
-class ExperimentStatus(StrEnum):
+class ExperimentStatus(str, Enum):
     DRAFT = "DRAFT"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"

@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class DecisionKind(StrEnum):
+class DecisionKind(str, Enum):
     ACT = "ACT"
     DONT_ACT = "DONT_ACT"
     DEFER = "DEFER"

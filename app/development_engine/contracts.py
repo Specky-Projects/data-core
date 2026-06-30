@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class ReuseAction(StrEnum):
+class ReuseAction(str, Enum):
     REUSE = "REUSE"
     EXTEND = "EXTEND"
     GENERALIZE = "GENERALIZE"

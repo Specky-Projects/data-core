@@ -6,14 +6,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any, Callable
 
 
 CAPABILITY_ORCHESTRATOR_VERSION = "capability-orchestrator-v1"
 
 
-class CapabilityKind(StrEnum):
+class CapabilityKind(str, Enum):
     OBSERVATION = "observation"
     INTELLIGENCE = "intelligence"
     DEVELOPMENT = "development"

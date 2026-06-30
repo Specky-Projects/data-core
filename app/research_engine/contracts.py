@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class ResearchKind(StrEnum):
+class ResearchKind(str, Enum):
     COMPARATIVE = "COMPARATIVE"
     ARCHITECTURE = "ARCHITECTURE"
     TECHNOLOGY = "TECHNOLOGY"

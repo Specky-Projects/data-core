@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class AISpecialistKind(StrEnum):
+class AISpecialistKind(str, Enum):
     DIAGNOSTICS = "DIAGNOSTICS"
     ARCHITECTURE = "ARCHITECTURE"
     PERFORMANCE = "PERFORMANCE"

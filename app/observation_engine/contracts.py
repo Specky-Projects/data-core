@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 
 from app.scientific_identity.contract import stable_hash
 
@@ -15,14 +15,14 @@ from app.scientific_identity.contract import stable_hash
 OBSERVATION_RECORD_VERSION = "observation-record-v1"
 
 
-class ObservationSeverity(StrEnum):
+class ObservationSeverity(str, Enum):
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
 
 
-class ObservationHealth(StrEnum):
+class ObservationHealth(str, Enum):
     HEALTHY = "HEALTHY"
     DEGRADED = "DEGRADED"
     CRITICAL = "CRITICAL"

@@ -7,17 +7,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class KnowledgeScope(StrEnum):
+class KnowledgeScope(str, Enum):
     LOCAL = "LOCAL"
     PROJECT = "PROJECT"
     ECOSYSTEM = "ECOSYSTEM"
 
 
-class KnowledgeStatus(StrEnum):
+class KnowledgeStatus(str, Enum):
     ACTIVE = "ACTIVE"
     DEPRECATED = "DEPRECATED"
     DEMOTED = "DEMOTED"

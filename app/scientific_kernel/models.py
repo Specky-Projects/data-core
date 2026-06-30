@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 
 
 KERNEL_VERSION = "business-os-4.5-unified-scientific-platform"
 
 
-class KernelCapability(StrEnum):
+class KernelCapability(str, Enum):
     EVIDENCE = "evidence"
     SCIENTIFIC_CLAIMS = "scientific_claims"
     REPLAY = "replay"
@@ -25,7 +25,7 @@ class KernelCapability(StrEnum):
     ADAPTIVE_INTELLIGENCE = "adaptive_intelligence"
 
 
-class MemoryScope(StrEnum):
+class MemoryScope(str, Enum):
     GLOBAL_SCIENTIFIC = "global_scientific"
     PROJECT = "project"
     EXECUTION = "execution"
@@ -34,7 +34,7 @@ class MemoryScope(StrEnum):
     KNOWLEDGE = "knowledge"
 
 
-class ProjectKind(StrEnum):
+class ProjectKind(str, Enum):
     POUPI_BABY = "poupi_baby"
     MIRROR = "mirror"
     RESEARCH = "research"
