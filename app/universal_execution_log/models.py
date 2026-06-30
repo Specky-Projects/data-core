@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ UEL_SCHEMA_VERSION = "uel-v1-5.0"
 # ── Enums ──────────────────────────────────────────────────────────────────────
 
 
-class ExecutionSurface(StrEnum):
+class ExecutionSurface(str, Enum):
     TRADING = "trading"
     SEO = "seo"
     CONTENT = "content"
@@ -44,7 +44,7 @@ class ExecutionSurface(StrEnum):
     UNKNOWN = "unknown"
 
 
-class ExecutionType(StrEnum):
+class ExecutionType(str, Enum):
     """Functional classification of what the execution *does*."""
     TRADE = "trade"
     SIGNAL = "signal"
@@ -71,7 +71,7 @@ class ExecutionType(StrEnum):
     UNKNOWN = "unknown"
 
 
-class UELStatus(StrEnum):
+class UELStatus(str, Enum):
     PLANNED = "planned"
     APPROVED = "approved"
     RUNNING = "running"
@@ -85,7 +85,7 @@ class UELStatus(StrEnum):
     ADVISORY = "advisory"
 
 
-class ExecutionRelation(StrEnum):
+class ExecutionRelation(str, Enum):
     PARENT = "parent"
     CHILD = "child"
     RETRY = "retry"
@@ -96,7 +96,7 @@ class ExecutionRelation(StrEnum):
     PARALLEL = "parallel"
 
 
-class ProjectId(StrEnum):
+class ProjectId(str, Enum):
     POUPI_CRYPTO = "poupi_crypto"
     POUPI_BABY = "poupi_baby"
     SINALO = "sinalo"
