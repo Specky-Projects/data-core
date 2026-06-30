@@ -15,11 +15,15 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from database.models import Base, JSONB_COMPAT
+from database.models import Base
+
+# JSONB on PostgreSQL, JSON on SQLite (for tests)
+_JSONB = JSONB().with_variant(JSON(), "sqlite")
 
 
 class UniversalExecutionRecord(Base):
@@ -39,7 +43,7 @@ class UniversalExecutionRecord(Base):
     portfolio_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     project_id: Mapped[str] = mapped_column(String(64), index=True)
     capability_id: Mapped[str] = mapped_column(String(128), index=True)
-    lineage: Mapped[dict[str, Any]] = mapped_column(JSONB_COMPAT, default=dict)
+    lineage: Mapped[dict[str, Any]] = mapped_column(_JSONB, default=dict)
 
     # ── Surface & type ────────────────────────────────────────────────────────
     execution_surface: Mapped[str] = mapped_column(String(64), index=True)
@@ -65,19 +69,19 @@ class UniversalExecutionRecord(Base):
 
     # ── State ─────────────────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(String(32), index=True)
-    decision: Mapped[dict[str, Any]] = mapped_column(JSONB_COMPAT, default=dict)
-    outcome: Mapped[dict[str, Any]] = mapped_column(JSONB_COMPAT, default=dict)
+    decision: Mapped[dict[str, Any]] = mapped_column(_JSONB, default=dict)
+    outcome: Mapped[dict[str, Any]] = mapped_column(_JSONB, default=dict)
 
     # ── Evidence & learning ───────────────────────────────────────────────────
-    evidence_ids: Mapped[list[Any]] = mapped_column(JSONB_COMPAT, default=list)
-    knowledge_ids: Mapped[list[Any]] = mapped_column(JSONB_COMPAT, default=list)
-    learning_ids: Mapped[list[Any]] = mapped_column(JSONB_COMPAT, default=list)
+    evidence_ids: Mapped[list[Any]] = mapped_column(_JSONB, default=list)
+    knowledge_ids: Mapped[list[Any]] = mapped_column(_JSONB, default=list)
+    learning_ids: Mapped[list[Any]] = mapped_column(_JSONB, default=list)
 
     # ── Metrics ───────────────────────────────────────────────────────────────
-    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB_COMPAT, default=dict)
+    metrics: Mapped[dict[str, Any]] = mapped_column(_JSONB, default=dict)
 
     # ── Tags ──────────────────────────────────────────────────────────────────
-    tags: Mapped[dict[str, Any]] = mapped_column(JSONB_COMPAT, default=dict)
+    tags: Mapped[dict[str, Any]] = mapped_column(_JSONB, default=dict)
 
     # ── UEL version ───────────────────────────────────────────────────────────
     uel_version: Mapped[str] = mapped_column(String(80))
