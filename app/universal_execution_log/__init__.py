@@ -44,7 +44,11 @@ from app.universal_execution_log.models import (
     UniversalExecution,
     build_execution_id,
 )
+from app.universal_execution_log.health import UELHealthReport, compute_uel_health
+from app.universal_execution_log.ledger import LEDGER_VERSION, UELDBRepository
+from app.universal_execution_log.protocol import UELLedgerProtocol
 from app.universal_execution_log.repository import UELRepository
+from app.universal_execution_log.scientific_bridge import ScientificLedgerBridge
 
 __all__ = [
     # models
@@ -68,8 +72,18 @@ __all__ = [
     "ExecutionQuery",
     "UELDashboardReport",
     "build_execution_id",
-    # repository
+    # repository (in-memory)
     "UELRepository",
+    # ledger (SQLAlchemy-backed)
+    "LEDGER_VERSION",
+    "UELDBRepository",
+    # protocol
+    "UELLedgerProtocol",
+    # scientific bridge
+    "ScientificLedgerBridge",
+    # health
+    "UELHealthReport",
+    "compute_uel_health",
     # adapters
     "UELAdapter",
     "CryptoUELAdapter",

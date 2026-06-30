@@ -13,7 +13,7 @@ indexes required for dashboard and lineage queries.
 from __future__ import annotations
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 
 from alembic import op
 
@@ -28,7 +28,7 @@ def upgrade() -> None:
         "universal_executions",
 
         # ── Identity ──────────────────────────────────────────────────────────
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True),
+        sa.Column("id", PG_UUID(as_uuid=True),
                   nullable=False, primary_key=True,
                   server_default=sa.text("gen_random_uuid()")),
         sa.Column("execution_id", sa.String(64), nullable=False),

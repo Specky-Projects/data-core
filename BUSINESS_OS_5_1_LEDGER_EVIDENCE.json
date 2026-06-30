@@ -1,0 +1,87 @@
+{
+  "component": "Universal Execution Ledger",
+  "version": "business-os-5.1-universal-execution-ledger",
+  "promoted_from": "business-os-5.0-universal-execution-log",
+  "date": "2026-06-29",
+  "status": "CERTIFIED_LOCAL",
+
+  "tests": {
+    "stage_5_0": { "total": 32, "passed": 32, "failed": 0 },
+    "stage_5_1": { "total": 33, "passed": 33, "failed": 0 },
+    "combined": { "total": 65, "passed": 65, "failed": 0, "regressions": 0 },
+    "command": "python -m pytest app/universal_execution_log/ -v",
+    "duration_seconds": 2.94,
+    "db_backend": "SQLite in-memory (pytest) / PostgreSQL (production)"
+  },
+
+  "files_created": [
+    "app/universal_execution_log/ledger.py",
+    "app/universal_execution_log/protocol.py",
+    "app/universal_execution_log/scientific_bridge.py",
+    "app/universal_execution_log/health.py",
+    "app/universal_execution_log/tests/test_uel_ledger_stage_5_1.py",
+    "BUSINESS_OS_5_1_LEDGER_ADR.md",
+    "BUSINESS_OS_5_1_LEDGER_EVIDENCE.json"
+  ],
+
+  "files_modified": [
+    "app/universal_execution_log/__init__.py",
+    "alembic/versions/0104_universal_execution_log.py"
+  ],
+
+  "ledger_guarantees": {
+    "immutable": "identity fields write-once; status transitions only",
+    "idempotent": "emit_execution returns existing if execution_id duplicated",
+    "deterministic": "SHA-256 execution_id; _ensure_utc() for tz safety",
+    "transactional": "caller controls commit/rollback (unit-of-work)",
+    "interchangeable": "UELLedgerProtocol satisfied by both implementations",
+    "performance": "SQL-level aggregation in dashboard"
+  },
+
+  "protocol": {
+    "name": "UELLedgerProtocol",
+    "runtime_checkable": true,
+    "implementations": ["UELRepository (in-memory)", "UELDBRepository (SQLAlchemy)"]
+  },
+
+  "scientific_bridge": {
+    "projections": [
+      "load_execution_memory()",
+      "load_replay_corpus()",
+      "load_counterfactual_baseline()",
+      "evidence_feed()",
+      "learning_feed()",
+      "research_feed()",
+      "opportunity_evidence()",
+      "load_experiments()",
+      "load_simulations()"
+    ],
+    "access": "read-only",
+    "side_effects": "none"
+  },
+
+  "migration": {
+    "id": "0104_universal_execution_log",
+    "down_revision": "0033_merge_wnba_telegram",
+    "fix_applied": "PG_UUID import corrected (sa.dialects.postgresql.UUID → PG_UUID)",
+    "table": "universal_executions",
+    "indexes": 14
+  },
+
+  "blocked": [
+    {
+      "item": "Migration not applied in VPS/Coolify",
+      "command": "alembic upgrade 0104_universal_execution_log",
+      "validation": "SELECT COUNT(*) FROM universal_executions; → 0",
+      "criticality": "HIGH",
+      "env": "VPS + COOLIFY"
+    }
+  ],
+
+  "environments": {
+    "LOCAL": "GO — 65/65 tests passing",
+    "VPS": "BLOCKED — migration pending",
+    "COOLIFY": "BLOCKED — migration pending",
+    "NEON": "BLOCKED — migration pending"
+  }
+}
