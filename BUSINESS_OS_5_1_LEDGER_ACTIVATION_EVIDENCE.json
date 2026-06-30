@@ -1,0 +1,105 @@
+{
+  "component": "Universal Execution Ledger — Production Activation",
+  "version": "business-os-5.1-universal-execution-ledger",
+  "activation_date": "2026-06-30",
+  "status": "ACTIVATED",
+
+  "git": {
+    "local_commits_pushed": [
+      "67d9cf1 — feat(uel): Business OS 5.0 — Universal Execution Log",
+      "89019fd — feat(uel): Business OS 5.1 — Universal Execution Ledger (SQLAlchemy)",
+      "9cb22a9 — fix(migration): add 0033 merge migration (was untracked)",
+      "d075e91 — fix(migration): 0104 JSONB server_default requires ::jsonb cast",
+      "eaa2948 — fix(uel): replace StrEnum with str+Enum for Python 3.10 compatibility",
+      "b31b206 — fix(uel): db_models self-contained JSONB — remove JSONB_COMPAT dependency"
+    ],
+    "remote": "https://github.com/Specky-Projects/data-core",
+    "final_head": "b31b206"
+  },
+
+  "migration": {
+    "applied": ["0033_merge_wnba_telegram", "0104_universal_execution_log"],
+    "current_head": "0104_universal_execution_log",
+    "command_used": "docker exec dvq6dwsagsw4p4oqwuw7bak9-scheduler-1 alembic upgrade head",
+    "rollback_command": "alembic downgrade 0033_merge_wnba_telegram"
+  },
+
+  "table_validation": {
+    "table": "universal_executions",
+    "count": 0,
+    "columns": 33,
+    "indexes": 15,
+    "index_names": [
+      "universal_executions_pkey",
+      "uq_uel_execution_id",
+      "ix_uel_project_id",
+      "ix_uel_capability_id",
+      "ix_uel_mission_id",
+      "ix_uel_status",
+      "ix_uel_timestamp",
+      "ix_uel_actor",
+      "ix_uel_correlation_id",
+      "ix_uel_parent_execution_id",
+      "ix_uel_project_surface",
+      "ix_uel_project_status",
+      "ix_uel_mission_capability",
+      "ix_uel_timestamp_status",
+      "ix_uel_active"
+    ]
+  },
+
+  "smoke_test": {
+    "result": "ALL PASSED",
+    "checks": [
+      "UELRepository satisfies UELLedgerProtocol",
+      "UELDBRepository satisfies UELLedgerProtocol",
+      "dashboard() returns total=0 (empty table)",
+      "ScientificLedgerBridge.evidence_feed() returns []",
+      "ScientificLedgerBridge.load_execution_memory() returns []",
+      "ScientificLedgerBridge.load_replay_corpus() returns []",
+      "CryptoUELAdapter instantiation OK",
+      "BabyUELAdapter instantiation OK",
+      "SinaloUELAdapter instantiation OK"
+    ],
+    "no_data_written": true
+  },
+
+  "health": {
+    "api": "healthy",
+    "worker": "healthy",
+    "scheduler": "healthy",
+    "postgres": "ok",
+    "redis": "ok",
+    "regressions": "NONE"
+  },
+
+  "bugs_found_and_fixed": [
+    {
+      "bug": "0033 merge migration was untracked (never committed)",
+      "fix": "Committed and pushed 0033_merge_wnba_and_telegram_heads.py",
+      "severity": "HIGH — migration would fail without it"
+    },
+    {
+      "bug": "JSONB server_default used bare string '{}' without ::jsonb cast",
+      "fix": "Replace with sa.text(\"'{}'::jsonb\") for all JSONB columns",
+      "severity": "HIGH — migration DDL rejected by PostgreSQL"
+    },
+    {
+      "bug": "StrEnum requires Python 3.11+; container uses Python 3.10",
+      "fix": "Replace all StrEnum with (str, Enum)",
+      "severity": "HIGH — ImportError on import"
+    },
+    {
+      "bug": "db_models.py imported JSONB_COMPAT from database.models (uncommitted symbol)",
+      "fix": "Define _JSONB = JSONB().with_variant(JSON(), 'sqlite') inline",
+      "severity": "HIGH — ImportError on import"
+    }
+  ],
+
+  "environments": {
+    "LOCAL": "GO — 65/65 tests passing",
+    "VPS": "GO — migration applied, smoke test passed, health OK",
+    "COOLIFY": "GO (same instance as VPS)",
+    "NEON": "N/A — this project uses VPS PostgreSQL"
+  }
+}
