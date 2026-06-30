@@ -39,7 +39,7 @@ def upgrade() -> None:
         sa.Column("portfolio_id", sa.String(128), nullable=True),
         sa.Column("project_id", sa.String(64), nullable=False),
         sa.Column("capability_id", sa.String(128), nullable=False),
-        sa.Column("lineage", JSONB, nullable=False, server_default="'{}'"),
+        sa.Column("lineage", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 
         # ── Surface & type ────────────────────────────────────────────────────
         sa.Column("execution_surface", sa.String(64), nullable=False),
@@ -65,19 +65,19 @@ def upgrade() -> None:
 
         # ── State ─────────────────────────────────────────────────────────────
         sa.Column("status", sa.String(32), nullable=False),
-        sa.Column("decision", JSONB, nullable=False, server_default="'{}'"),
-        sa.Column("outcome", JSONB, nullable=False, server_default="'{}'"),
+        sa.Column("decision", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column("outcome", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 
         # ── Evidence & learning ───────────────────────────────────────────────
-        sa.Column("evidence_ids", JSONB, nullable=False, server_default="'[]'"),
-        sa.Column("knowledge_ids", JSONB, nullable=False, server_default="'[]'"),
-        sa.Column("learning_ids", JSONB, nullable=False, server_default="'[]'"),
+        sa.Column("evidence_ids", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+        sa.Column("knowledge_ids", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+        sa.Column("learning_ids", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
 
         # ── Metrics ───────────────────────────────────────────────────────────
-        sa.Column("metrics", JSONB, nullable=False, server_default="'{}'"),
+        sa.Column("metrics", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 
         # ── Tags ──────────────────────────────────────────────────────────────
-        sa.Column("tags", JSONB, nullable=False, server_default="'{}'"),
+        sa.Column("tags", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
 
         # ── UEL version ───────────────────────────────────────────────────────
         sa.Column("uel_version", sa.String(80), nullable=False),
