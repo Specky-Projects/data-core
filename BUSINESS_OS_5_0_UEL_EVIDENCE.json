@@ -1,0 +1,165 @@
+{
+  "component": "Universal Execution Log",
+  "version": "business-os-5.0-universal-execution-log",
+  "schema_version": "uel-v1-5.0",
+  "date": "2026-06-29",
+  "status": "CERTIFIED",
+
+  "tests": {
+    "total": 32,
+    "passed": 32,
+    "failed": 0,
+    "command": "python -m pytest app/universal_execution_log/tests/test_uel_stage_5_0.py -v",
+    "duration_seconds": 0.62,
+    "coverage_areas": [
+      "deterministic execution ID generation",
+      "canonical contract completeness (all fields)",
+      "full lifecycle: emit → complete / fail / rollback",
+      "evidence attachment + deduplication",
+      "knowledge attachment",
+      "learning attachment",
+      "parent-child lineage",
+      "retry relation",
+      "query by project / status / mission / capability",
+      "query pagination",
+      "dashboard aggregation (empty + multi-project)",
+      "CryptoUELAdapter: emit_signal, emit_trade, full lifecycle",
+      "BabyUELAdapter: emit_discovery, emit_alert",
+      "SinaloUELAdapter: emit_content, emit_seo",
+      "BusinessOSUELAdapter: emit",
+      "shared repository across multiple adapters",
+      "cross-project canonical schema validation"
+    ]
+  },
+
+  "files_created": [
+    "app/universal_execution_log/__init__.py",
+    "app/universal_execution_log/models.py",
+    "app/universal_execution_log/db_models.py",
+    "app/universal_execution_log/repository.py",
+    "app/universal_execution_log/adapters.py",
+    "app/universal_execution_log/tests/__init__.py",
+    "app/universal_execution_log/tests/test_uel_stage_5_0.py",
+    "alembic/versions/0104_universal_execution_log.py",
+    "BUSINESS_OS_5_0_UEL_ADR.md",
+    "BUSINESS_OS_5_0_UEL_EVIDENCE.json"
+  ],
+
+  "canonical_contract": {
+    "execution_surfaces": [
+      "trading", "seo", "content", "affiliate", "social_media",
+      "analytics", "research", "replay", "experiment", "simulation",
+      "manual_action", "api_call", "scheduler", "human_review",
+      "autonomous_decision", "workflow", "external_connector", "unknown"
+    ],
+    "execution_types": [
+      "trade", "signal", "discovery", "scrape", "collect", "analyze",
+      "score", "rank", "alert", "publish", "review", "approve",
+      "rollback", "replay", "experiment", "simulate", "train",
+      "infer", "report", "notify", "schedule", "orchestrate", "unknown"
+    ],
+    "execution_statuses": [
+      "planned", "approved", "running", "success", "failed",
+      "rollback", "cancelled", "partial", "shadow", "simulation", "advisory"
+    ],
+    "execution_relations": [
+      "parent", "child", "retry", "replay", "rollback",
+      "derived", "counterfactual", "parallel"
+    ],
+    "project_ids": [
+      "poupi_crypto", "poupi_baby", "sinalo", "mirror",
+      "nba", "wnba", "jobs", "real_estate", "business_os", "unknown"
+    ]
+  },
+
+  "api": [
+    "emit_execution(EmitExecutionRequest) -> UniversalExecution",
+    "complete_execution(CompleteExecutionRequest) -> UniversalExecution",
+    "fail_execution(FailExecutionRequest) -> UniversalExecution",
+    "rollback_execution(RollbackExecutionRequest) -> UniversalExecution",
+    "attach_evidence(AttachRequest) -> UniversalExecution",
+    "attach_knowledge(AttachRequest) -> UniversalExecution",
+    "attach_learning(AttachRequest) -> UniversalExecution",
+    "query_execution(execution_id) -> UniversalExecution | None",
+    "query_executions(ExecutionQuery) -> list[UniversalExecution]",
+    "query_by_mission(mission_id) -> list[UniversalExecution]",
+    "query_by_capability(capability_id) -> list[UniversalExecution]",
+    "query_children(parent_execution_id) -> list[UniversalExecution]",
+    "dashboard() -> UELDashboardReport"
+  ],
+
+  "adapters": {
+    "CryptoUELAdapter": {
+      "project_id": "poupi_crypto",
+      "default_surface": "trading",
+      "default_type": "signal",
+      "methods": ["emit_signal", "emit_trade"]
+    },
+    "BabyUELAdapter": {
+      "project_id": "poupi_baby",
+      "default_surface": "analytics",
+      "default_type": "discovery",
+      "methods": ["emit_discovery", "emit_alert"]
+    },
+    "SinaloUELAdapter": {
+      "project_id": "sinalo",
+      "default_surface": "seo",
+      "default_type": "publish",
+      "methods": ["emit_content", "emit_seo"]
+    },
+    "BusinessOSUELAdapter": {
+      "project_id": "business_os",
+      "default_surface": "autonomous_decision",
+      "default_type": "orchestrate",
+      "methods": ["emit"]
+    }
+  },
+
+  "database": {
+    "table": "universal_executions",
+    "migration": "0104_universal_execution_log",
+    "down_revision": "0033_merge_wnba_telegram",
+    "indexes": [
+      "uq_uel_execution_id (unique)",
+      "ix_uel_project_id",
+      "ix_uel_capability_id",
+      "ix_uel_mission_id",
+      "ix_uel_status",
+      "ix_uel_timestamp",
+      "ix_uel_actor",
+      "ix_uel_correlation_id",
+      "ix_uel_parent_execution_id",
+      "ix_uel_project_surface (composite)",
+      "ix_uel_project_status (composite)",
+      "ix_uel_mission_capability (composite)",
+      "ix_uel_timestamp_status (composite)",
+      "ix_uel_active (partial: status IN planned/approved/running)"
+    ]
+  },
+
+  "compatibility": {
+    "does_not_replace": [
+      "execution_runtime logs (3.x)",
+      "signal_outcomes table",
+      "mirror trade records",
+      "SIP audit (execution_runtime/auditor.py)",
+      "Omega metrics",
+      "Poupi Baby observability"
+    ],
+    "acts_as": "canonical layer above all project-specific logs via adapters",
+    "integration_model": "adapter pattern — projects emit into UEL, UEL does not pull from projects"
+  },
+
+  "principles": {
+    "canonical": true,
+    "immutable": "status transitions only — content never mutated",
+    "versioned": "schema_version + uel_version on every record",
+    "auditable": "lineage_hash, correlation_id, parent_execution_id on every record",
+    "deterministic": "build_execution_id() via SHA-256 over content — no wall-clock UUID",
+    "domain_independent": "ExecutionSurface covers all known and future domains"
+  },
+
+  "blocked": [],
+  "environment": "LOCAL",
+  "deploy_status": "BLOCKED — awaiting Coolify deploy"
+}
