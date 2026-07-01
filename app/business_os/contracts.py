@@ -405,3 +405,123 @@ class BusinessOSRegistry:
         for domain in self.domains:
             errors.extend(domain.validate())
         return errors
+
+
+# ---------------------------------------------------------------------------
+# Evaluation Bundle
+# ---------------------------------------------------------------------------
+#
+# Evaluation exists only implicitly today, spread across scientific_kernel,
+# explainability_v2 and research_lab. This bundle is a pure composition of
+# references — it must never duplicate the evidence/context/statistics data
+# itself, only point to the existing contracts by id.
+
+
+@dataclass(frozen=True)
+class EvaluationBundle:
+    """Aggregates references to the existing evaluation contracts for one candidate/opportunity."""
+
+    bundle_id: str
+    domain: DomainKind
+    evidence_refs: tuple[str, ...]
+    context_ref: str | None
+    statistics_ref: str | None
+    confidence_ref: str | None
+    explainability_ref: str | None
+    replay_ref: str | None
+    evaluated_at: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def validate(self) -> list[str]:
+        errors: list[str] = []
+        if not self.bundle_id:
+            errors.append("bundle_id is required")
+        if not self.evaluated_at:
+            errors.append("evaluated_at is required")
+        if not (
+            self.evidence_refs
+            or self.context_ref
+            or self.statistics_ref
+            or self.confidence_ref
+            or self.explainability_ref
+            or self.replay_ref
+        ):
+            errors.append("bundle must reference at least one evaluation contract")
+        return errors
+
+
+# ---------------------------------------------------------------------------
+# Ranking Score
+# ---------------------------------------------------------------------------
+#
+# Ranking, priority, impact and urgency are distinct concepts that must never
+# be conflated. RankingScore never recomputes confidence or expected_value —
+# it only references the Opportunity that already carries them.
+
+
+@dataclass(frozen=True)
+class RankingScore:
+    """Relative ranking of an Opportunity — references, never recomputes, its inputs."""
+
+    ranking_id: str
+    opportunity_ref: str
+    confidence_ref: str | None
+    priority: float
+    impact: float
+    roi: float | None
+    urgency: float | None
+    computed_at: str
+    rationale: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def validate(self) -> list[str]:
+        errors: list[str] = []
+        if not self.ranking_id:
+            errors.append("ranking_id is required")
+        if not self.opportunity_ref:
+            errors.append("opportunity_ref is required")
+        for field_name, value in [("priority", self.priority), ("impact", self.impact)]:
+            if not 0.0 <= value <= 1.0:
+                errors.append(f"{field_name} must be between 0 and 1")
+        if self.roi is not None and self.roi < -1.0:
+            errors.append("roi must be >= -1.0")
+        if self.urgency is not None and not 0.0 <= self.urgency <= 1.0:
+            errors.append("urgency must be between 0 and 1")
+        return errors
+
+
+# ---------------------------------------------------------------------------
+# Business Snapshot
+# ---------------------------------------------------------------------------
+#
+# Point-in-time composition of an opportunity's full lifecycle state. Every
+# field is a reference id into an existing contract (Opportunity, Evaluation
+# Bundle, Execution Plan/Ledger, Outcome, Learning, Knowledge) — no payload
+# is duplicated here.
+
+
+@dataclass(frozen=True)
+class BusinessSnapshot:
+    """Composition-only snapshot of an Opportunity's lifecycle state at a point in time."""
+
+    snapshot_id: str
+    domain: DomainKind
+    captured_at: str
+    opportunity_ref: str | None
+    evaluation_ref: str | None
+    ranking_ref: str | None
+    execution_plan_ref: str | None
+    execution_ref: str | None
+    outcome_ref: str | None
+    learning_ref: str | None
+    knowledge_refs: tuple[str, ...] = ()
+    metadata: dict[str, Any] = field(default_factory=dict)
+    contract_version: str = BUSINESS_OS_CONTRACT_VERSION
+
+    def validate(self) -> list[str]:
+        errors: list[str] = []
+        if not self.snapshot_id:
+            errors.append("snapshot_id is required")
+        if not self.captured_at:
+            errors.append("captured_at is required")
+        return errors

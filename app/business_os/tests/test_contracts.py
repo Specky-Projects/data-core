@@ -2,11 +2,13 @@ from app.business_os.contracts import (
     BusinessOSExecution,
     BusinessOSProject,
     BusinessOSRegistry,
+    BusinessSnapshot,
     CapabilityRef,
     CapabilityStatus,
     DomainCapability,
     DomainKind,
     DomainKnowledge,
+    EvaluationBundle,
     ExecutionDomain,
     ExecutionDomainConfig,
     ExecutionStatus,
@@ -20,6 +22,7 @@ from app.business_os.contracts import (
     OutcomeKind,
     ProjectExecution,
     ProjectStatus,
+    RankingScore,
 )
 
 
@@ -248,3 +251,111 @@ def test_registry_project_for_domain() -> None:
     registry = BusinessOSRegistry(registry_id="reg-001", projects=(project,), domains=(dom,))
     assert registry.project_for_domain(DomainKind.CRYPTO) == (project,)
     assert registry.project_for_domain(DomainKind.SEO) == ()
+
+
+def test_evaluation_bundle_validates() -> None:
+    bundle = EvaluationBundle(
+        bundle_id="eval-001",
+        domain=DomainKind.CRYPTO,
+        evidence_refs=("ev-001", "ev-002"),
+        context_ref="ctx-001",
+        statistics_ref="stats-001",
+        confidence_ref="conf-001",
+        explainability_ref="expl-001",
+        replay_ref=None,
+        evaluated_at="2026-06-30T00:00:00Z",
+    )
+    assert bundle.validate() == []
+
+
+def test_evaluation_bundle_requires_at_least_one_reference() -> None:
+    bundle = EvaluationBundle(
+        bundle_id="eval-001",
+        domain=DomainKind.CRYPTO,
+        evidence_refs=(),
+        context_ref=None,
+        statistics_ref=None,
+        confidence_ref=None,
+        explainability_ref=None,
+        replay_ref=None,
+        evaluated_at="t",
+    )
+    errors = bundle.validate()
+    assert any("reference" in e for e in errors)
+
+
+def test_ranking_score_validates() -> None:
+    ranking = RankingScore(
+        ranking_id="rank-001",
+        opportunity_ref="opp-001",
+        confidence_ref="conf-001",
+        priority=0.7,
+        impact=0.9,
+        roi=0.12,
+        urgency=0.5,
+        computed_at="2026-06-30T00:00:00Z",
+    )
+    assert ranking.validate() == []
+
+
+def test_ranking_score_invalid_priority() -> None:
+    ranking = RankingScore(
+        ranking_id="rank-001",
+        opportunity_ref="opp-001",
+        confidence_ref=None,
+        priority=1.5,
+        impact=0.5,
+        roi=None,
+        urgency=None,
+        computed_at="t",
+    )
+    errors = ranking.validate()
+    assert any("priority" in e for e in errors)
+
+
+def test_ranking_score_missing_opportunity_ref() -> None:
+    ranking = RankingScore(
+        ranking_id="rank-001",
+        opportunity_ref="",
+        confidence_ref=None,
+        priority=0.5,
+        impact=0.5,
+        roi=None,
+        urgency=None,
+        computed_at="t",
+    )
+    errors = ranking.validate()
+    assert any("opportunity_ref" in e for e in errors)
+
+
+def test_business_snapshot_validates() -> None:
+    snapshot = BusinessSnapshot(
+        snapshot_id="snap-001",
+        domain=DomainKind.CRYPTO,
+        captured_at="2026-06-30T00:00:00Z",
+        opportunity_ref="opp-001",
+        evaluation_ref="eval-001",
+        ranking_ref="rank-001",
+        execution_plan_ref=None,
+        execution_ref=None,
+        outcome_ref=None,
+        learning_ref=None,
+    )
+    assert snapshot.validate() == []
+
+
+def test_business_snapshot_requires_snapshot_id() -> None:
+    snapshot = BusinessSnapshot(
+        snapshot_id="",
+        domain=DomainKind.CRYPTO,
+        captured_at="t",
+        opportunity_ref=None,
+        evaluation_ref=None,
+        ranking_ref=None,
+        execution_plan_ref=None,
+        execution_ref=None,
+        outcome_ref=None,
+        learning_ref=None,
+    )
+    errors = snapshot.validate()
+    assert any("snapshot_id" in e for e in errors)
