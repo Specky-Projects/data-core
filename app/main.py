@@ -22,6 +22,7 @@ import app.modules.nba.models  # noqa: F401 — ensure NBA tables registered
 import app.modules.nba.quant.models  # noqa: F401 — ensure NBA quant tables registered
 import app.modules.trading.validation.models  # noqa: F401
 import app.scrapers.models  # noqa: F401 — ensure ScraperDriftEvent table is registered
+import app.observer_framework.models  # noqa: F401 — ensure ObserverSnapshotRun table registered
 import app.watchdog.models  # noqa: F401 — ensure WatchdogRun + TelegramPublicationEvent registered
 from api.auth import verify_api_key
 from api.live_metrics_updater import refresh_live_metrics
@@ -77,6 +78,13 @@ except Exception:  # noqa: BLE001
     universal_platform_router = None  # type: ignore[assignment]
     _get_universal_platform = None  # type: ignore[assignment]
 
+# Observer Framework (Business OS 6.0 Phase 2, WS1+WS2) — read-only history +
+# manual-trigger endpoints. Import is guarded the same way as Universal Platform.
+try:
+    from app.observer_framework.api import router as observer_framework_router
+except Exception:  # noqa: BLE001
+    observer_framework_router = None  # type: ignore[assignment]
+
 _ = sports_odds_models
 _ = raw_models
 _ = normalization_models
@@ -86,6 +94,7 @@ _ = documentation_models
 _ = pipeline_models
 _ = app.scrapers.models
 _ = app.watchdog.models
+_ = app.observer_framework.models
 _ = app.modules.trading.validation.models
 _ = app.modules.basketball.wnba.models
 _ = app.modules.nba.models
@@ -298,6 +307,10 @@ def create_app() -> FastAPI:
     app.include_router(scrapers_router, dependencies=auth_dep)
     app.include_router(runtime_router, dependencies=auth_dep)
     app.include_router(watchdog_router, dependencies=auth_dep)
+    # Observer Framework — /observer/{latest,history,run}. /run mutates the
+    # history table and sends Telegram, so it stays behind auth like watchdog.
+    if observer_framework_router is not None:
+        app.include_router(observer_framework_router, dependencies=auth_dep)
     app.include_router(trading_validation_router, dependencies=auth_dep)
     # Operational Truth Layer — /health/operational, /health/runtime, etc.
     # No auth_dep: health endpoints are intentionally public (monitored by Prometheus/Grafana).

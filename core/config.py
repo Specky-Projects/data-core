@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     watchdog_anti_bot_hourly_threshold: int = 3  # alert if anti-bot rate > N/h
     watchdog_enabled: bool = True
 
+    # Observer Framework (Business OS 6.0 Phase 2, WS1+WS2) — continuous
+    # snapshot + diagnosis cycle. observer_framework_enabled gates both the
+    # manual-trigger endpoint and the scheduled job; schedule_enabled gates
+    # only the twice-daily cron registration (kept off until a manual run has
+    # been validated in production, per the activation runbook).
+    observer_framework_enabled: bool = True
+    observer_framework_schedule_enabled: bool = False
+
     # Scheduler reliability protection layer. Defaults are observe-only.
     scheduler_reliability_enabled: bool = False
     scheduler_reliability_dry_run: bool = True

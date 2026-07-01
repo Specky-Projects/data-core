@@ -26,6 +26,7 @@ from scheduler.job_wrappers import (
     run_performance_guard_daily,
     run_nba_quant_pipeline_reliable,
     run_normalize_reliable,
+    run_observer_framework_cycle_with_retry,
     run_operational_watchdog_with_retry,
     run_poupi_baby_coverage_intelligence_reliable,
     run_crypto_edge_outcomes_reliable,
@@ -302,6 +303,22 @@ def create_scheduler(
             "interval",
             minutes=30,
             id="platform:operational_watchdog",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    # ── Observer Framework — continuous snapshot + diagnosis (Business OS 6.0
+    # Phase 2, WS1+WS2). Off by default (observer_framework_schedule_enabled)
+    # until a manual /observer/run cycle has been validated in production.
+    if settings.observer_framework_enabled and settings.observer_framework_schedule_enabled:
+        _add_job_preserving_persisted(
+            scheduler,
+            run_observer_framework_cycle_with_retry,
+            "cron",
+            hour="8,20",
+            minute=0,
+            id="platform:observer_framework_cycle",
             replace_existing=True,
             max_instances=1,
             coalesce=True,

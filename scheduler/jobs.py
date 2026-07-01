@@ -1197,6 +1197,66 @@ def analytics_job(module: str | None = None, limit: int = 100) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Observer Framework — continuous snapshot + diagnosis cycle (Business OS 6.0
+# Phase 2, WS1+WS2). Reuses ObservationEngine/RuntimeSnapshotBuilder/
+# SnapshotDiagnosisEngine unchanged — see app/observer_framework/pipeline.py.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def observer_framework_cycle_job() -> None:
+    """Run one Observer Framework cycle (snapshot -> diagnosis -> certification).
+
+    Persists an ObserverSnapshotRun row and sends one Telegram executive
+    summary. Never executes a recovery action and never touches Mirror,
+    Committee, Executor, Kill Switch, or Universal Platform.
+    """
+    if not settings.observer_framework_enabled:
+        logger.debug("observer_framework_cycle_job: disabled via settings")
+        return
+
+    from app.observer_framework.pipeline import run_observer_cycle
+
+    run_id = str(uuid.uuid4())
+    logger.info(
+        "Job run started",
+        extra={"run_id": run_id, "job": "observer_framework_cycle_job", "domain": "platform", "source": "observer_framework"},
+    )
+    try:
+        db = SessionLocal()
+        try:
+            run = run_observer_cycle(db)
+            logger.info(
+                "Job run finished",
+                extra={
+                    "run_id": run_id,
+                    "job": "observer_framework_cycle_job",
+                    "domain": "platform",
+                    "source": "observer_framework",
+                    "classification": run.classification,
+                    "operational_score": run.operational_score,
+                    "incident_count": run.incident_count,
+                    "last_success_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.error(
+            "Job run finished",
+            extra={
+                "run_id": run_id,
+                "job": "observer_framework_cycle_job",
+                "domain": "platform",
+                "source": "observer_framework",
+                "status": "error",
+                "error": str(exc),
+                "last_failure_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        raise
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Phase WATCHDOG — Operational watchdog jobs
 # ──────────────────────────────────────────────────────────────────────────────
 

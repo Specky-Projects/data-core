@@ -16,6 +16,7 @@ from scheduler.jobs import (
     data_retention_job,
     dataset_quality_crypto_job,
     normalize_job,
+    observer_framework_cycle_job,
     operational_watchdog_job,
     poupi_baby_coverage_intelligence_job,
     run_ecommerce_url_targets_job,
@@ -189,6 +190,10 @@ def run_daily_snapshot_with_retry() -> None:
     with_retry(take_daily_snapshot_job, job_name="take_daily_snapshot_job")
 
 
+def run_observer_framework_cycle_with_retry() -> None:
+    with_retry(observer_framework_cycle_job, job_name="observer_framework_cycle_job")
+
+
 def run_incident_history_aggregation() -> None:
     from app.incident_history.job import incident_history_aggregation_job
     with_retry(incident_history_aggregation_job, job_name="incident_history_aggregation_job")
@@ -243,7 +248,17 @@ def run_global_auto_health_daily() -> None:
         return
 
     # Diário: sempre envia. Imediato extra somente para INVESTIGAR/BLOCKED.
-    _send_telegram(token, chat_id, text)
+    _send_telegram(
+        token,
+        chat_id,
+        text,
+        event_type="global_auto_health_daily",
+        channel="operations",
+        severity="warning" if status in ("INVESTIGAR", "DEGRADED") else "critical",
+        template_name="global_auto_health_daily_v1",
+        correlation_id=str(checked_at or status),
+        payload={"status": status, "checked_at": checked_at},
+    )
     _log.info("global_auto_health_daily: sent, status=%s", status)
 
 
@@ -268,23 +283,113 @@ def run_performance_guard_daily() -> None:
             or getattr(settings, "telegram_chat_id", "")
         )
         if token and chat_id:
-            _send_telegram(token, chat_id, report.to_telegram())
+            _send_telegram(
+                token,
+                chat_id,
+                report.to_telegram(),
+                event_type="performance_guard_daily",
+                channel="operations",
+                severity="critical",
+                template_name="performance_guard_daily_v1",
+                correlation_id=str(getattr(report, "checked_at", "") or getattr(report, "verdict", "")),
+                payload={"verdict": getattr(report, "verdict", None)},
+            )
     except Exception as exc:
         logging.getLogger(__name__).warning(
             "performance_guard_daily failed: %s", exc, exc_info=True
         )
 
 
-def _send_telegram(token: str, chat_id: str, text: str) -> None:
+def _send_telegram(
+    token: str,
+    chat_id: str,
+    text: str,
+    *,
+    event_type: str = "scheduler.telegram_send",
+    strategy: str | None = None,
+    setup_id: str | None = None,
+    channel: str = "operations",
+    severity: str = "info",
+    template_name: str = "scheduler_message",
+    correlation_id: str | None = None,
+    payload: dict | None = None,
+    dedup_key: str | None = None,
+) -> None:
     import logging
     _log = logging.getLogger(__name__)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
+    summary = None
+    final_dedup_key = dedup_key
+    try:
+        from app.observability.telegram_audit import (
+            build_dedup_key,
+            record_telegram_delivery,
+            summarize_payload,
+        )
+
+        summary = summarize_payload(text_value=text, payload=payload)
+        final_dedup_key = final_dedup_key or build_dedup_key(
+            event_type=event_type,
+            strategy=strategy,
+            setup_id=setup_id,
+            channel=channel,
+            template_name=template_name,
+            correlation_id=correlation_id,
+            text_value=text,
+        )
+    except Exception:
+        record_telegram_delivery = None
     try:
         import httpx
-        httpx.post(
+        resp = httpx.post(
             url,
             json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
             timeout=10.0,
         )
+        ok = resp.status_code == 200
+        message_id = None
+        if ok:
+            try:
+                message_id = (resp.json().get("result") or {}).get("message_id")
+            except Exception:
+                message_id = None
+        if record_telegram_delivery is not None:
+            record_telegram_delivery(
+                origin="data-core",
+                trigger=event_type,
+                bot_token=token,
+                chat_id=chat_id,
+                status="sent" if ok else "failed",
+                event_type=event_type,
+                strategy=strategy,
+                setup_id=setup_id,
+                channel=channel,
+                severity=severity,
+                template_name=template_name,
+                correlation_id=correlation_id,
+                payload_summary=summary,
+                dedup_key=final_dedup_key,
+                message_id=message_id,
+                error=None if ok else resp.text[:500],
+                sent_at=None,
+            )
     except Exception as exc:
         _log.warning("global_auto_health: telegram send failed: %s", exc)
+        if record_telegram_delivery is not None:
+            record_telegram_delivery(
+                origin="data-core",
+                trigger=event_type,
+                bot_token=token,
+                chat_id=chat_id,
+                status="failed",
+                event_type=event_type,
+                strategy=strategy,
+                setup_id=setup_id,
+                channel=channel,
+                severity=severity,
+                template_name=template_name,
+                correlation_id=correlation_id,
+                payload_summary=summary,
+                dedup_key=final_dedup_key,
+                error=str(exc)[:500],
+            )
