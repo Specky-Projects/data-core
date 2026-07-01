@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 from collections.abc import AsyncGenerator
@@ -67,6 +68,15 @@ from database.session import SessionLocal, engine
 from logs.config import configure_logging
 from scheduler.service import create_scheduler, start_scheduler, stop_scheduler
 
+# Universal Platform (Business OS 6.0 Phase 2) — advisory-only, read-only.
+# Import is guarded: a failure here must never prevent the API from booting.
+try:
+    from app.universal_platform.api import router as universal_platform_router
+    from app.universal_platform.bootstrap import get_platform as _get_universal_platform
+except Exception:  # noqa: BLE001
+    universal_platform_router = None  # type: ignore[assignment]
+    _get_universal_platform = None  # type: ignore[assignment]
+
 _ = sports_odds_models
 _ = raw_models
 _ = normalization_models
@@ -80,6 +90,8 @@ _ = app.modules.trading.validation.models
 _ = app.modules.basketball.wnba.models
 _ = app.modules.nba.models
 _ = app.modules.nba.quant.models
+
+logger = logging.getLogger(__name__)
 
 
 def _metrics_refresh_loop(stop_event: threading.Event, interval: int = 60) -> None:
@@ -109,6 +121,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _t = threading.Thread(target=_metrics_refresh_loop, args=(_stop,), daemon=True, name="metrics-refresh")  # noqa: E501
     _t.start()
     refresh_live_metrics()  # refresh imediato na startup
+
+    # Universal Platform (Business OS 6.0 Phase 2) — advisory-only registration.
+    # Never allowed to block or fail API boot: any error is caught and logged.
+    if _get_universal_platform is not None:
+        try:
+            _get_universal_platform()
+        except Exception:  # noqa: BLE001 — advisory-only, must never block boot
+            logger.exception("universal_platform: startup registration failed")
 
     try:
         yield
@@ -293,5 +313,8 @@ def create_app() -> FastAPI:
     app.include_router(incident_bus_router)
     # Incident History — /api/v1/incidents/history/* (memória operacional + patterns).
     app.include_router(incident_history_router)
+    # Universal Platform — /universal-platform/status (public, advisory-only, read-only).
+    if universal_platform_router is not None:
+        app.include_router(universal_platform_router)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app
