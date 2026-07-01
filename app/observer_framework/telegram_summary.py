@@ -29,7 +29,8 @@ def format_executive_summary(
     lines.append("Business OS — Observer Framework")
     lines.append(f"Operational Score: {operational_score:.0f}/100")
     lines.append(f"Classification: {certification.classification}")
-    lines.append(f"Overall Health: {diagnosis.overall_health} | Severity: {diagnosis.overall_severity}")
+    lines.append(f"Overall Health: {diagnosis.overall_health}")
+    lines.append(f"Severity: {diagnosis.overall_severity}")
 
     if validation.new_incidents:
         lines.append(f"New Incidents: {len(validation.new_incidents)}")
