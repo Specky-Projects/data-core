@@ -39,6 +39,35 @@ def latest(db: Session = Depends(get_db)) -> dict:
     return run_summary_dict(row)
 
 
+@router.get("/snapshot")
+def snapshot(db: Session = Depends(get_db)) -> dict:
+    """Full Runtime Snapshot Contract publication endpoint.
+
+    Read-only, advisory-only: returns the persisted snapshot/diagnosis/
+    validation/certification JSON exactly as produced by the last
+    run_observer_cycle() execution — no live collection, no database/Redis/
+    Docker/exchange access, no recovery action. This is the sole channel
+    external consumers (e.g. a Claude Code checklist) should use instead of
+    connecting directly to any production dependency.
+    """
+    row = (
+        db.query(ObserverSnapshotRun)
+        .order_by(desc(ObserverSnapshotRun.captured_at))
+        .first()
+    )
+    if row is None:
+        return {"status": "SNAPSHOT_UNAVAILABLE", "reason": "no_runs_yet"}
+    return {
+        "status": "OK",
+        "id": row.id,
+        "captured_at": row.captured_at.isoformat() if row.captured_at else None,
+        "snapshot": row.snapshot_json,
+        "diagnosis": row.diagnosis_json,
+        "validation": row.validation_json,
+        "certification": row.certification_json,
+    }
+
+
 @router.get("/history")
 def history(limit: int = 20, db: Session = Depends(get_db)) -> dict:
     limit = max(1, min(limit, 200))

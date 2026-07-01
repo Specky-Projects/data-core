@@ -55,3 +55,25 @@ def test_run_now_persists_and_is_visible_in_latest(db_session) -> None:
 
     latest_resp = client.get("/observer/latest")
     assert latest_resp.json()["snapshot_id"] == body["snapshot_id"]
+
+
+def test_snapshot_with_no_runs_yet(db_session) -> None:
+    resp = _client(db_session).get("/observer/snapshot")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "SNAPSHOT_UNAVAILABLE", "reason": "no_runs_yet"}
+
+
+def test_snapshot_returns_full_contract_after_run(db_session) -> None:
+    client = _client(db_session)
+
+    run_resp = client.post("/observer/run", params={"send_telegram": False})
+    snapshot_id = run_resp.json()["snapshot_id"]
+
+    resp = client.get("/observer/snapshot")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "OK"
+    assert body["snapshot"]["snapshot_id"] == snapshot_id
+    assert "diagnosis" in body and "overall_health" in body["diagnosis"]
+    assert "validation" in body
+    assert "certification" in body
