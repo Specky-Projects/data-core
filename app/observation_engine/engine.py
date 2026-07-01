@@ -18,9 +18,15 @@ from app.observation_engine.adapters.infra import InfraAdapter
 from app.observation_engine.adapters.mirror import MirrorAdapter
 from app.observation_engine.adapters.postgres import PostgresAdapter
 from app.observation_engine.adapters.redis_adapter import RedisAdapter
+from app.observation_engine.adapters.research import ResearchAdapter
 from app.observation_engine.adapters.scheduler import SchedulerAdapter
 from app.observation_engine.adapters.telegram import TelegramAdapter
-from app.observation_engine.contracts import ObservationRecord
+from app.observation_engine.adapters.universal_platform import UniversalPlatformAdapter
+from app.observation_engine.contracts import (
+    ObservationHealth,
+    ObservationRecord,
+    ObservationSeverity,
+)
 from app.scientific_identity.contract import stable_hash
 
 
@@ -34,7 +40,9 @@ class ObservationEngine:
     def __init__(self) -> None:
         self._adapters = [
             CryptoAdapter(),
-            MirrorAdapter(),
+            MirrorAdapter(account="mirror"),
+            MirrorAdapter(account="specky"),
+            MirrorAdapter(account="cav"),
             BusinessOSAdapter(),
             DockerAdapter(),
             PostgresAdapter(),
@@ -42,6 +50,8 @@ class ObservationEngine:
             TelegramAdapter(),
             SchedulerAdapter(),
             InfraAdapter(),
+            UniversalPlatformAdapter(),
+            ResearchAdapter(),
         ]
 
     def register(self, orchestrator: CapabilityOrchestrator) -> None:
@@ -117,12 +127,31 @@ class ObservationEngine:
         return handler
 
     def collect_all(self) -> list[ObservationRecord]:
+        """Collect from every adapter. A single adapter's failure is recorded
+        as a degraded ObservationRecord — it never silently vanishes and it
+        never cancels the rest of the snapshot (WS6: registrar erro,
+        continuar snapshot)."""
         records: list[ObservationRecord] = []
         for adapter in self._adapters:
             try:
                 records.extend(adapter.collect())
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — one adapter's failure must not cancel the snapshot
+                ts = datetime.utcnow()
+                records.append(
+                    ObservationRecord(
+                        observation_id=stable_hash({"source": f"{adapter.adapter_name}-error", "ts": ts.isoformat()}),
+                        scientific_id=stable_hash({"producer": adapter.adapter_name, "ts": ts.isoformat()}),
+                        lineage_id=str(uuid.uuid4()),
+                        project=getattr(adapter, "project", "unknown"),
+                        domain=getattr(adapter, "domain", "GENERIC"),
+                        source=f"{adapter.adapter_name}-collection-error",
+                        severity=ObservationSeverity.ERROR,
+                        health=ObservationHealth.UNKNOWN,
+                        evidence=[f"error:{type(exc).__name__}:{exc}"],
+                        metrics={"collection_failed": 1.0},
+                        timestamp=ts,
+                    )
+                )
         return records
 
     def health(self) -> list[dict]:
