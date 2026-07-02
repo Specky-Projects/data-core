@@ -78,6 +78,11 @@ except Exception:  # noqa: BLE001
     universal_platform_router = None  # type: ignore[assignment]
     _get_universal_platform = None  # type: ignore[assignment]
 
+try:
+    from app.business_os.poupi_baby_bridge.api import router as poupi_baby_opportunity_router
+except Exception:  # noqa: BLE001
+    poupi_baby_opportunity_router = None  # type: ignore[assignment]
+
 # Observer Framework (Business OS 6.0 Phase 2, WS1+WS2) — read-only history +
 # manual-trigger endpoints. Import is guarded the same way as Universal Platform.
 try:
@@ -329,5 +334,7 @@ def create_app() -> FastAPI:
     # Universal Platform — /universal-platform/status (public, advisory-only, read-only).
     if universal_platform_router is not None:
         app.include_router(universal_platform_router)
+    if poupi_baby_opportunity_router is not None:
+        app.include_router(poupi_baby_opportunity_router, dependencies=auth_dep)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app
