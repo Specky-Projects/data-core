@@ -62,17 +62,19 @@ class PipelineRun(Base):
 
     __tablename__ = "pipeline_runs"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # ── Identity ──────────────────────────────────────────────────────────────
     domain: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True,
+        String(64),
+        nullable=False,
+        index=True,
         comment="Pipeline domain: crypto | ecommerce | real_estate | sports_betting | trading",
     )
     stage: Mapped[str] = mapped_column(
-        String(32), nullable=False, index=True,
+        String(32),
+        nullable=False,
+        index=True,
         comment="Pipeline stage: collection | normalization | analytics",
     )
     # Optional sub-identifier (e.g. collector name, normalizer class)
@@ -82,14 +84,15 @@ class PipelineRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now, index=True
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # ── Status ────────────────────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="running", index=True,
+        String(16),
+        nullable=False,
+        default="running",
+        index=True,
         comment="running | success | partial | error",
     )
 
@@ -101,7 +104,8 @@ class PipelineRun(Base):
 
     # ── Optional context ──────────────────────────────────────────────────────
     trigger: Mapped[str | None] = mapped_column(
-        String(32), nullable=True,
+        String(32),
+        nullable=True,
         comment="scheduler | api | manual",
     )
     extra_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -132,9 +136,7 @@ class PipelineFailure(Base):
 
     __tablename__ = "pipeline_failures"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # ── Link to parent run ────────────────────────────────────────────────────
     run_id: Mapped[uuid.UUID] = mapped_column(
@@ -150,8 +152,11 @@ class PipelineFailure(Base):
     stage: Mapped[str] = mapped_column(String(32), nullable=False)
 
     # ── Error detail ──────────────────────────────────────────────────────────
+    # Indexed via the composite "ix_pipeline_failures_error_type" below
+    # (error_type is its leading column) — no separate single-column index.
     error_type: Mapped[str] = mapped_column(
-        String(128), nullable=False, index=True,
+        String(128),
+        nullable=False,
         comment="Exception class name, e.g. 'UniqueViolation', 'TimeoutError'",
     )
     error_message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -159,7 +164,8 @@ class PipelineFailure(Base):
 
     # ── Item context (when failure is per-item) ───────────────────────────────
     item_id: Mapped[str | None] = mapped_column(
-        String(256), nullable=True,
+        String(256),
+        nullable=True,
         comment="ID of the item that caused the failure (e.g. raw_collection.id)",
     )
     item_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -167,7 +173,9 @@ class PipelineFailure(Base):
     # ── Retry ─────────────────────────────────────────────────────────────────
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_terminal: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False,
+        Boolean,
+        nullable=False,
+        default=False,
         comment="True when max retries exhausted (dead-letter equivalent for pipeline)",
     )
 
