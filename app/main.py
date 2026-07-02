@@ -83,6 +83,14 @@ try:
 except Exception:  # noqa: BLE001
     poupi_baby_opportunity_router = None  # type: ignore[assignment]
 
+# Capability Registry — read-only HTTP projection of the EXISTING registry
+# (BusinessOSPlatform + Phase2Platform bootstraps). No new registry/schema/cache.
+# Guarded like the other advisory-only projections.
+try:
+    from app.capability_orchestrator.api import router as capability_registry_router
+except Exception:  # noqa: BLE001
+    capability_registry_router = None  # type: ignore[assignment]
+
 # Observer Framework (Business OS 6.0 Phase 2, WS1+WS2) — read-only history +
 # manual-trigger endpoints. Import is guarded the same way as Universal Platform.
 try:
@@ -336,5 +344,9 @@ def create_app() -> FastAPI:
         app.include_router(universal_platform_router)
     if poupi_baby_opportunity_router is not None:
         app.include_router(poupi_baby_opportunity_router, dependencies=auth_dep)
+    # Capability Registry — /capabilities/* (public, read-only, advisory-only
+    # projection of the existing registry). Consumed by Mission Control.
+    if capability_registry_router is not None:
+        app.include_router(capability_registry_router)
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
     return app
