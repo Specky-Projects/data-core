@@ -292,37 +292,59 @@ def upgrade() -> None:
         nullable=False,
         postgresql_using="computed_at AT TIME ZONE 'UTC'",
     )
-    op.create_index(
-        op.f("ix_trading_edge_outcomes_analytics_id"),
-        "trading_edge_outcomes",
-        ["analytics_id"],
-        unique=False,
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_trading_edge_outcomes_analytics_id "
+        "ON trading_edge_outcomes (analytics_id)"
     )
-    op.create_index(
-        op.f("ix_trading_edge_outcomes_outcome_correct"),
-        "trading_edge_outcomes",
-        ["outcome_correct"],
-        unique=False,
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_trading_edge_outcomes_outcome_correct "
+        "ON trading_edge_outcomes (outcome_correct)"
     )
-    op.create_index(
-        op.f("ix_trading_edge_outcomes_signal"), "trading_edge_outcomes", ["signal"], unique=False
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_trading_edge_outcomes_signal "
+        "ON trading_edge_outcomes (signal)"
     )
-    op.create_index(
-        op.f("ix_trading_edge_outcomes_signal_at"),
-        "trading_edge_outcomes",
-        ["signal_at"],
-        unique=False,
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_trading_edge_outcomes_signal_at "
+        "ON trading_edge_outcomes (signal_at)"
     )
-    op.create_index(
-        op.f("ix_trading_edge_outcomes_symbol"), "trading_edge_outcomes", ["symbol"], unique=False
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_trading_edge_outcomes_symbol "
+        "ON trading_edge_outcomes (symbol)"
     )
-    op.create_foreign_key(
-        "fk_trading_edge_outcomes_analytics_id_trading_analytics",
-        "trading_edge_outcomes",
-        "trading_analytics",
-        ["analytics_id"],
-        ["id"],
-        ondelete="SET NULL",
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = 'trading_edge_outcomes'::regclass
+                  AND conname = 'trading_edge_outcomes_analytics_id_fkey'
+            )
+            AND NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = 'trading_edge_outcomes'::regclass
+                  AND conname = 'fk_trading_edge_outcomes_analytics_id_trading_analytics'
+            ) THEN
+                ALTER TABLE trading_edge_outcomes
+                RENAME CONSTRAINT trading_edge_outcomes_analytics_id_fkey
+                TO fk_trading_edge_outcomes_analytics_id_trading_analytics;
+            ELSIF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conrelid = 'trading_edge_outcomes'::regclass
+                  AND conname = 'fk_trading_edge_outcomes_analytics_id_trading_analytics'
+            ) THEN
+                ALTER TABLE trading_edge_outcomes
+                ADD CONSTRAINT fk_trading_edge_outcomes_analytics_id_trading_analytics
+                FOREIGN KEY (analytics_id)
+                REFERENCES trading_analytics (id)
+                ON DELETE SET NULL;
+            END IF;
+        END $$;
+        """
     )
     op.alter_column(
         "trading_signal_outcomes",
