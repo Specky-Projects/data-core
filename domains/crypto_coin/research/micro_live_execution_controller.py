@@ -26,13 +26,12 @@ CLI:
 
 from __future__ import annotations
 
+import argparse
 import json
 import uuid
-import argparse
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 LIVE_STATE_FILE = Path("data/live_execution_state.json")
 LIVE_CTRL_LOG   = Path("data/live_execution_controller_log.jsonl")
@@ -40,8 +39,10 @@ LIVE_CTRL_LOG   = Path("data/live_execution_controller_log.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
+        autonomous_freeze_state as _prom_freeze,
+    )
+    from api.live_metrics import (
         live_capital_exposure_pct as _prom_exposure,
-        autonomous_freeze_state   as _prom_freeze,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -382,7 +383,7 @@ def main() -> None:
         return
 
     # Status
-    print(f"\nMicro-Live Execution Controller")
+    print("\nMicro-Live Execution Controller")
     print(f"  live_state:          {ctrl.live_state}")
     print(f"  capital_ceiling_usd: ${ctrl.capital_ceiling_usd:.0f}")
     print(f"  max_capital_live:    {MAX_CAPITAL_LIVE_PCT:.1%}")

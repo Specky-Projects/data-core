@@ -26,15 +26,14 @@ import argparse
 import json
 import statistics
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from domains.crypto_coin.research.adaptive_exposure_intelligence import AdaptiveExposureIntelligence
 from domains.crypto_coin.research.market_drift_intelligence import MarketDriftIntelligence
-from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
 from domains.crypto_coin.research.strategy_activation_engine import StrategyActivationEngine
+from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
 
 EXPERIMENTS_DIR       = Path("data/experiments")
 EXPOSURE_CONTROL_LOG  = Path("data/exposure_control_log.jsonl")
@@ -42,8 +41,10 @@ EXPOSURE_CONTROL_LOG  = Path("data/exposure_control_log.jsonl")
 # Prometheus (optional)
 try:
     from api.metrics import (
-        market_survival_score as _prom_survival,
         adaptive_exposure_score as _prom_exposure,
+    )
+    from api.metrics import (
+        market_survival_score as _prom_survival,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -310,7 +311,7 @@ class AutonomousExposureControl:
         elif control_mode == "emergency":
             parts.append(f"EMERGENCY: drift={drift:.0f}")
         elif control_mode == "throttled":
-            parts.append(f"throttled: sinais de risco moderado")
+            parts.append("throttled: sinais de risco moderado")
         if act_state in ("frozen", "retired"):
             parts.append(f"activation_state={act_state}")
         return "; ".join(parts)
@@ -327,7 +328,7 @@ class AutonomousExposureControl:
                 "Exposure reduzida a 35%. Investigar causa antes do próximo ciclo."
             )
         if mode == "throttled":
-            return f"Modo throttled ativo. Exposure reduzida a 60% como precaução."
+            return "Modo throttled ativo. Exposure reduzida a 60% como precaução."
         return "Condições normais. Controle de exposure padrão ativo."
 
     def _persist_decision(self, decision: ExposureControlDecision) -> None:

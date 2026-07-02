@@ -32,7 +32,7 @@ import argparse
 import json
 import statistics
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,9 +42,13 @@ EXEC_AUDIT_SUMMARY = Path("data/live_execution_audit_summary.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
+        execution_latency_ms as _prom_latency,
+    )
+    from api.live_metrics import (
         execution_quality_score as _prom_quality,
-        live_slippage_bps       as _prom_slippage,
-        execution_latency_ms    as _prom_latency,
+    )
+    from api.live_metrics import (
+        live_slippage_bps as _prom_slippage,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -89,7 +93,7 @@ class ExecutionRecord:
         expected_price: float, executed_price: float,
         requested_size: float, filled_size: float,
         latency_ms: float, fee_usd: float,
-    ) -> "ExecutionRecord":
+    ) -> ExecutionRecord:
         slippage_bps = abs(executed_price - expected_price) / expected_price * 10000
         fill_rate    = filled_size / max(requested_size, 1e-9)
         return ExecutionRecord(
@@ -382,16 +386,16 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nLive Execution Auditor")
+    print("\nLive Execution Auditor")
     print(f"  execution_quality_score: {report.execution_quality_score:.0f}/100")
     print(f"  avg_slippage_bps:        {report.avg_slippage_bps:.2f}")
     print(f"  avg_fill_quality:        {report.avg_fill_quality:.0%}")
     print(f"  avg_latency_ms:          {report.avg_latency_ms:.0f}")
     print(f"  execution_drift:         {report.execution_drift:.2f}bps vs paper")
     print(f"  live_executions:         {report.live_executions}")
-    print(f"\n  Tendencias:")
+    print("\n  Tendencias:")
     print(f"    slippage: {report.slippage_trend}  fill: {report.fill_trend}  latency: {report.latency_trend}")
-    print(f"\n  Anomalias:")
+    print("\n  Anomalias:")
     a = report.anomalies
     print(f"    slippage_deterioration: {'SIM' if a.slippage_deterioration else 'nao'}")
     print(f"    fill_inconsistency:     {'SIM' if a.fill_inconsistency else 'nao'}")

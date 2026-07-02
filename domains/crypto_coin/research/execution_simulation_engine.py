@@ -28,7 +28,7 @@ import argparse
 import json
 import random
 import statistics
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -364,7 +364,7 @@ def main() -> None:
     print(f"  avg_lat:    {report.avg_latency_ms:.0f}ms")
     print(f"  p95_cost:   {report.worst_case_cost_bps:.1f}bps")
     print(f"  worst_regime: {report.worst_vol_regime}")
-    print(f"\n  Por regime:")
+    print("\n  Por regime:")
     print(f"  {'Regime':<18} {'AvgCost':>8} {'Fill':>6} {'Lat':>6} {'P95Cost':>8}")
     print("  " + "-" * 52)
     for regime, stats in report.results_by_regime.items():

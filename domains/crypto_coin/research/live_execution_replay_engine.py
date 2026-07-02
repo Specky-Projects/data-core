@@ -33,7 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -416,7 +416,8 @@ def main() -> None:
         # Injetar registro de teste via LiveExecutionAuditor
         try:
             from domains.crypto_coin.research.live_execution_auditor import (
-                LiveExecutionAuditor, ExecutionRecord
+                ExecutionRecord,
+                LiveExecutionAuditor,
             )
             auditor = LiveExecutionAuditor()
             rec = ExecutionRecord.build(
@@ -441,12 +442,12 @@ def main() -> None:
         print(json.dumps(d, indent=2))
         return
 
-    print(f"\nLive Execution Replay Engine")
+    print("\nLive Execution Replay Engine")
     print(f"  replays_generated:     {report.replays_generated}")
     print(f"  avg_fidelity_score:    {report.avg_fidelity_score:.1f}/100")
     print(f"  pct_correct_execution: {report.pct_correct_execution:.0%}")
     print(f"  pct_anomalous:         {report.pct_anomalous:.0%}")
-    print(f"\n  Deviation breakdown:")
+    print("\n  Deviation breakdown:")
     for cls, cnt in report.deviation_breakdown.items():
         print(f"    {cls}: {cnt}")
     print(f"\n  -> {report.recommendation}")

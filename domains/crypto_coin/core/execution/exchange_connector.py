@@ -2,9 +2,6 @@
 Conector de exchange — abstrai ccxt para operações reais e simula para paper trading
 """
 
-import asyncio
-from datetime import datetime
-from typing import Optional
 
 import ccxt.async_support as ccxt
 import pandas as pd
@@ -14,7 +11,7 @@ class ExchangeConnector:
     def __init__(self, cfg, logger):
         self.cfg = cfg
         self.logger = logger
-        self.exchange: Optional[ccxt.Exchange] = None
+        self.exchange: ccxt.Exchange | None = None
 
         # Estado do paper trading
         self._paper_balance: float = cfg.paper_initial_balance
@@ -66,7 +63,7 @@ class ExchangeConnector:
 
     # ── Dados de mercado ──────────────────────────────────────
 
-    async def fetch_ohlcv(self, limit: int = 100) -> Optional[pd.DataFrame]:
+    async def fetch_ohlcv(self, limit: int = 100) -> pd.DataFrame | None:
         try:
             if self.cfg.paper_trading:
                 raw = await self._fetch_public_ohlcv(limit)
@@ -99,7 +96,7 @@ class ExchangeConnector:
             await tmp.close()
         return data
 
-    async def get_ticker_price(self) -> Optional[float]:
+    async def get_ticker_price(self) -> float | None:
         try:
             if self.cfg.paper_trading:
                 df = await self.fetch_ohlcv(limit=1)
@@ -112,7 +109,7 @@ class ExchangeConnector:
 
     # ── Ordens ───────────────────────────────────────────────
 
-    async def buy(self, quote_amount: float) -> Optional[dict]:
+    async def buy(self, quote_amount: float) -> dict | None:
         """Gasta até `quote_amount` na moeda cota do par (ex.: USDT em BTC/USDT)."""
         price = await self.get_ticker_price()
         if price is None:
@@ -139,7 +136,7 @@ class ExchangeConnector:
             self.logger.error(f"Erro ao executar compra: {e}")
             return None
 
-    async def sell(self, asset_amount: float) -> Optional[dict]:
+    async def sell(self, asset_amount: float) -> dict | None:
         price = await self.get_ticker_price()
         if price is None:
             return None
