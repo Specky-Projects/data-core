@@ -16,3 +16,10 @@ runtime-logs/*
 !runtime-logs/.gitkeep
 runtime-data/*
 !runtime-data/.gitkeep
+
+# Local scratch artifacts (ad-hoc audit/probe scripts, local reports, evidence dumps)
+_audit*.py
+_probe*.py
+observation_reports/
+*_EVIDENCE.json
+scripts/install-runtime-snapshot-scheduled-task.ps1
