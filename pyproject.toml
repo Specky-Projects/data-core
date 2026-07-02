@@ -32,6 +32,9 @@ dev = [
     "ruff==0.6.8",
 ]
 
+[tool.setuptools.packages.find]
+include = ["api*", "app*", "cache*", "collectors*", "core*", "database*", "domains*", "logs*", "notifications*", "scheduler*", "utils*", "workers*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
