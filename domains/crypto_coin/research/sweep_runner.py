@@ -40,11 +40,11 @@ import json
 import logging
 import os
 import time
-from pathlib import Path
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from domains.crypto_coin.research.experiment_tracker import get_tracker
-from domains.crypto_coin.research.strategy_registry  import get_registry
+from domains.crypto_coin.research.strategy_registry import get_registry
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def build_parameter_grid(base_params: dict, sweep: dict[str, list]) -> Iterator[
 
     for combo in itertools.product(*values):
         params = base_params.copy()
-        for key, val in zip(keys, combo):
+        for key, val in zip(keys, combo, strict=False):
             params[key] = val
         yield params
 

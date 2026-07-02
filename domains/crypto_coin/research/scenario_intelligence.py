@@ -24,9 +24,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +111,7 @@ class ScenarioIntelligence:
         """
         Executa todos os cenários e calcula o stress score por cenário.
         """
-        from .scenario_runner import ScenarioRunner, SCENARIOS
+        from .scenario_runner import SCENARIOS, ScenarioRunner
 
         available = list(SCENARIOS.keys())
         target_scenarios = scenarios or available
@@ -364,7 +363,7 @@ def main() -> None:
             print(f"   Avg Stress:       {report.avg_stress:.1f}")
             print(f"   Worst Scenario:   {report.worst_scenario}")
             print(f"   Best Scenario:    {report.best_scenario}")
-            print(f"\n   Scores por cenário:")
+            print("\n   Scores por cenário:")
             for s in sorted(report.scores, key=lambda x: x.stress_score, reverse=True):
                 icon = "🔴" if s.stress_class == "critical" else "🟡" if s.stress_class == "stressed" else "✅"
                 print(f"   {icon} {s.scenario}: stress={s.stress_score:.1f} sharpe={s.sharpe:.2f} dd={s.max_drawdown:.1%}")

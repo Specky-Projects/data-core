@@ -18,19 +18,18 @@ Uso programático:
 from __future__ import annotations
 
 import argparse
-import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from app.normalization.models import NormalizedMarketCandle
 
+
 # Prometheus metrics — wire G-H-04 (Phase H Fase 11)
 def _get_integrity_metrics():
     try:
-        from api.metrics import ohlcv_integrity_checks_total, ohlcv_gaps_detected_total
+        from api.metrics import ohlcv_gaps_detected_total, ohlcv_integrity_checks_total
         return ohlcv_integrity_checks_total, ohlcv_gaps_detected_total
     except Exception:
         return None, None
@@ -214,7 +213,7 @@ def check_integrity(
     anomalies: list[AnomalyRecord] = []
     seen_ts:   set[datetime]       = set()
 
-    prev_close:   Optional[float] = None
+    prev_close:   float | None = None
     drift_count:  int             = 0
     flat_count:   int             = 0
 
@@ -348,7 +347,7 @@ def check_all_symbols(
     source: str = "binance",
 ) -> list[OHLCVIntegrityReport]:
     """Verifica todos os símbolos/timeframes existentes no banco."""
-    from sqlalchemy import func, distinct
+    from sqlalchemy import distinct
 
     pairs = (
         db.query(

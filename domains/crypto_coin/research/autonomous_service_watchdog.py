@@ -41,7 +41,7 @@ import json
 import os
 import time
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -65,9 +65,13 @@ QUEUE_LATENCY_THRESHOLD = 500.0
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        watchdog_health_score  as _prom_health,
-        loop_integrity_score   as _prom_loop,
-        runtime_anomaly_score  as _prom_anomaly,
+        loop_integrity_score as _prom_loop,
+    )
+    from api.runtime_metrics import (
+        runtime_anomaly_score as _prom_anomaly,
+    )
+    from api.runtime_metrics import (
+        watchdog_health_score as _prom_health,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -519,7 +523,7 @@ def main() -> None:
         "error":    "[EE]",
     }
 
-    print(f"\nAutonomous Service Watchdog — Phase R R-3")
+    print("\nAutonomous Service Watchdog — Phase R R-3")
     print(f"  report_id:             {report.report_id}")
     print(f"  watchdog_health_score: {report.watchdog_health_score:.1f}/100")
     print(f"  loop_integrity_score:  {report.loop_integrity_score:.1f}/100")
@@ -542,7 +546,7 @@ def main() -> None:
         for a in report.anomalies_detected:
             print(f"    [!] {a}")
     else:
-        print(f"\n  Sem anomalias detectadas.")
+        print("\n  Sem anomalias detectadas.")
 
     print(f"\n  Avaliado em: {report.evaluated_at}")
 

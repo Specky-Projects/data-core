@@ -24,8 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import statistics
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -134,7 +133,7 @@ class GovernanceDriftIntelligence:
         # ── 2. Underreaction Detection ────────────────────────────────────────
         underreaction_detected = False
         high_risk_normal = [
-            (d, m, sr) for d, m, sr in zip(drifts, modes, sys_risks)
+            (d, m, sr) for d, m, sr in zip(drifts, modes, sys_risks, strict=False)
             if sr >= UNDERREACTION_RISK_THRESH * 100 and m == "normal"
         ]
         if len(high_risk_normal) >= 2:
@@ -164,7 +163,7 @@ class GovernanceDriftIntelligence:
         delayed_adaptation = False
         consecutive_high_risk = 0
         max_consecutive = 0
-        for sr, mode in zip(sys_risks, modes):
+        for sr, mode in zip(sys_risks, modes, strict=False):
             if sr >= 65.0 and mode == "normal":
                 consecutive_high_risk += 1
                 max_consecutive = max(max_consecutive, consecutive_high_risk)
@@ -322,19 +321,19 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nGovernance Drift Intelligence")
+    print("\nGovernance Drift Intelligence")
     print(f"  governance_drift_score:   {report.governance_drift_score:.0f}/100")
     print(f"  adaptation_quality_score: {report.adaptation_quality_score:.0f}/100")
     print(f"  autonomous_balance_score: {report.autonomous_balance_score:.0f}/100")
     print(f"  cycles_analyzed:          {report.cycles_analyzed}")
-    print(f"\n  Checks:")
+    print("\n  Checks:")
     print(f"    overreaction:          {'DETECTADA' if report.overreaction_detected else 'OK'}")
     print(f"    underreaction:         {'DETECTADA' if report.underreaction_detected else 'OK'}")
     print(f"    excessive_adaptation:  {'DETECTADA' if report.excessive_adaptation else 'OK'}")
     print(f"    delayed_adaptation:    {'DETECTADA' if report.delayed_adaptation else 'OK'}")
     print(f"    governance_oscillating:{'DETECTADA' if report.governance_oscillating else 'OK'}")
     if report.signals:
-        print(f"\n  Sinais:")
+        print("\n  Sinais:")
         for s in report.signals:
             print(f"    [{s.severity.upper()}] {s.signal_type}: {s.description}")
     print(f"\n  -> {report.drift_recommendation}")

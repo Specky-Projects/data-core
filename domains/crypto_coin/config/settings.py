@@ -3,8 +3,8 @@ Carregamento e validação de configurações do .env
 """
 
 import os
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+
 from dotenv import load_dotenv
 
 
@@ -14,7 +14,7 @@ class Config:
     exchange: str = "binance"
     api_key: str = ""
     api_secret: str = ""
-    api_passphrase: Optional[str] = None
+    api_passphrase: str | None = None
 
     # Par / Timeframe
     symbol: str = "BTC/USDT"

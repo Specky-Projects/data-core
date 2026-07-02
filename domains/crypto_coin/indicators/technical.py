@@ -15,7 +15,6 @@ Novos em v3:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum
 
 import numpy as np
@@ -34,46 +33,46 @@ class Indicators:
     close: float
 
     # Médias móveis
-    ma_fast: Optional[float] = None
-    ma_slow: Optional[float] = None
+    ma_fast: float | None = None
+    ma_slow: float | None = None
 
     # RSI
-    rsi: Optional[float] = None
+    rsi: float | None = None
 
     # Bollinger Bands
-    bb_upper: Optional[float] = None
-    bb_mid:   Optional[float] = None
-    bb_lower: Optional[float] = None
-    bb_width: Optional[float] = None   # (upper-lower)/mid * 100 — compressão/expansão
+    bb_upper: float | None = None
+    bb_mid:   float | None = None
+    bb_lower: float | None = None
+    bb_width: float | None = None   # (upper-lower)/mid * 100 — compressão/expansão
 
     # Volume
-    volume_ratio:   Optional[float] = None
+    volume_ratio:   float | None = None
     volume_confirm: bool = False
     volume_trend:   str  = "neutral"   # "rising" | "falling" | "neutral"
 
     # ADX
-    adx: Optional[float] = None
+    adx: float | None = None
 
     # ATR — novos em v3
-    atr:     Optional[float] = None    # valor absoluto
-    atr_pct: Optional[float] = None    # ATR / close * 100
+    atr:     float | None = None    # valor absoluto
+    atr_pct: float | None = None    # ATR / close * 100
 
     # ATR Momentum: ATR(fast) / ATR(slow) — >1.1 = expandindo, <0.9 = comprimindo
-    atr_momentum: Optional[float] = None
+    atr_momentum: float | None = None
 
     # VWAP — novos em v3
-    vwap:         Optional[float] = None
+    vwap:         float | None = None
     price_above_vwap: bool = False
 
     # Volatilidade histórica anualizada — novos em v3
-    hv: Optional[float] = None         # % anualizado
+    hv: float | None = None         # % anualizado
 
     # Breakout quality score (0-100) — novos em v3
     breakout_score: float = 0.0
 
     # Regime e B&H
     regime:          MarketRegime    = MarketRegime.UNKNOWN
-    buy_and_hold_pct: Optional[float] = None
+    buy_and_hold_pct: float | None = None
 
     # Score de confiança (0-100)
     confidence: int = 0
@@ -159,7 +158,7 @@ def calc_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.ewm(span=period, adjust=False).mean()
 
 
-def calc_vwap(df: pd.DataFrame) -> Optional[float]:
+def calc_vwap(df: pd.DataFrame) -> float | None:
     """
     VWAP simplificado sobre a janela disponível.
     Em produção normalmente reseta a cada sessão/dia;
@@ -337,7 +336,7 @@ def detect_regime(adx: float, ma_fast: float, ma_slow: float) -> MarketRegime:
 
 # ── Função principal ──────────────────────────────────────────
 
-def compute_indicators(df: pd.DataFrame, cfg) -> Optional[Indicators]:
+def compute_indicators(df: pd.DataFrame, cfg) -> Indicators | None:
     """
     Recebe DataFrame com colunas open/high/low/close/volume e retorna
     Indicators com todos os valores calculados no último candle.

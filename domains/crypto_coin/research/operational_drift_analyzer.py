@@ -27,7 +27,7 @@ import argparse
 import json
 import math
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -53,9 +53,9 @@ DRIFT_DIMENSIONS: list[tuple[str, str, str]] = [
 ]
 
 try:
-    from api.burnin_metrics import operational_drift_score    as _prom_drift
-    from api.burnin_metrics import runtime_consistency_trend  as _prom_consistency
-    from api.burnin_metrics import stability_trend_score      as _prom_stability
+    from api.burnin_metrics import operational_drift_score as _prom_drift
+    from api.burnin_metrics import runtime_consistency_trend as _prom_consistency
+    from api.burnin_metrics import stability_trend_score as _prom_stability
     _METRICS = True
 except ImportError:
     _METRICS = False
@@ -314,7 +314,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nOperational Drift Analyzer — Phase S S-8")
+    print("\nOperational Drift Analyzer — Phase S S-8")
     print(f"  operational_drift_score:    {r.operational_drift_score:.1f}/100")
     print(f"  runtime_consistency_trend:  {r.runtime_consistency_trend:.1f}/100")
     print(f"  stability_trend_score:      {r.stability_trend_score:.1f}/100")
@@ -328,7 +328,7 @@ def main() -> None:
         for iss in d.issues:
             print(f"           ! {iss}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

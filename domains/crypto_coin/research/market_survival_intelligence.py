@@ -27,15 +27,14 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from domains.crypto_coin.research.market_drift_intelligence import MarketDriftIntelligence
-from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
-from domains.crypto_coin.research.regime_aware_intelligence import RegimeAwareIntelligence
 from domains.crypto_coin.research.meta_strategy_intelligence import MetaStrategyIntelligence
+from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
 
 EXPERIMENTS_DIR = Path("data/experiments")
 SURVIVAL_LOG    = Path("data/survival_history.jsonl")
@@ -44,6 +43,8 @@ SURVIVAL_LOG    = Path("data/survival_history.jsonl")
 try:
     from api.metrics import (
         market_survival_score as _prom_survival,
+    )
+    from api.metrics import (
         systemic_risk_score as _prom_systemic,
     )
     _METRICS_AVAILABLE = True
@@ -182,7 +183,7 @@ class MarketSurvivalIntelligence:
         if contagion_score >= 60:
             signals.append(SurvivalSignal(
                 "strategy_contagion", "high", contagion_score,
-                f"Contagion detectado: estratégias correlacionadas degradando simultaneamente",
+                "Contagion detectado: estratégias correlacionadas degradando simultaneamente",
             ))
 
         # ── Composite scores ──────────────────────────────────────────────────
@@ -327,7 +328,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nMarket Survival Intelligence")
+    print("\nMarket Survival Intelligence")
     print(f"  market_survival_score:  {report.market_survival_score:.0f}/100")
     print(f"  instability_risk_score: {report.instability_risk_score:.0f}/100")
     print(f"  systemic_risk_score:    {report.systemic_risk_score:.0f}/100")

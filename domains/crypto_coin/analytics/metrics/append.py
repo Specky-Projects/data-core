@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 
 def metrics_enabled() -> bool:
@@ -14,7 +14,7 @@ def metrics_enabled() -> bool:
     return v in ("1", "true", "yes", "sim")
 
 
-def append_metric(logger, payload: Dict[str, Any]) -> None:
+def append_metric(logger, payload: dict[str, Any]) -> None:
     """
     Anexa uma linha JSON em logs/bot_metrics.jsonl quando BOT_METRICS_JSON está ativo.
     `logger` recebe um eco em nível DEBUG para aparecer correlacionável no bot.log se quiser.

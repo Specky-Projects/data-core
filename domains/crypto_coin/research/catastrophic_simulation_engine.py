@@ -30,7 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -365,7 +365,7 @@ def main() -> None:
         return
 
     print(f"\n{report.warning}")
-    print(f"\nCatastrophic Simulation Engine")
+    print("\nCatastrophic Simulation Engine")
     print(f"  catastrophic_survival_score: {report.catastrophic_survival_score:.0f}/100")
     print(f"  autonomous_reaction_score:   {report.autonomous_reaction_score:.0f}/100")
     print(f"  scenarios: {report.scenarios_passed}/{report.scenarios_tested} passed")

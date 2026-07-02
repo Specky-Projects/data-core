@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any
 
 
 @dataclass
@@ -48,8 +48,8 @@ class Position:
     entry_price: float
     amount:      float
     entry_time:  datetime
-    stop_price:  Optional[float] = None
-    tp_price:    Optional[float] = None
+    stop_price:  float | None = None
+    tp_price:    float | None = None
 
 
 @dataclass
@@ -61,10 +61,10 @@ class Trade:
     price:       float
     amount:      float
     timestamp:   datetime
-    pnl:         Optional[float] = None
-    pnl_pct:     Optional[float] = None
-    signal:      Optional[str]   = None
-    confidence:  Optional[int]   = None
+    pnl:         float | None = None
+    pnl_pct:     float | None = None
+    signal:      str | None   = None
+    confidence:  int | None   = None
     paper:       bool = True
 
 
@@ -90,11 +90,11 @@ class RegimeState:
     timestamp:  datetime
     regime:     str           # "trending_up" | "trending_down" | "ranging" | "unknown"
     confidence: int           # 0-100
-    atr:        Optional[float] = None
-    atr_pct:    Optional[float] = None
-    hv:         Optional[float] = None
-    adx:        Optional[float] = None
-    volume_ratio: Optional[float] = None
+    atr:        float | None = None
+    atr_pct:    float | None = None
+    hv:         float | None = None
+    adx:        float | None = None
+    volume_ratio: float | None = None
     breakout_score: float = 0.0
 
 

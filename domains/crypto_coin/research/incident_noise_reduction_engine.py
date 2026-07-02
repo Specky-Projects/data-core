@@ -20,7 +20,7 @@ import argparse
 import json
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,9 +44,9 @@ COOLDOWN_MINUTES: dict[str, float] = {
 DEFAULT_COOLDOWN = 15.0
 
 try:
+    from api.burnin_metrics import alert_precision_score as _prom_precision
     from api.burnin_metrics import incident_signal_quality_score as _prom_signal
-    from api.burnin_metrics import alert_precision_score         as _prom_precision
-    from api.burnin_metrics import operational_noise_score       as _prom_noise
+    from api.burnin_metrics import operational_noise_score as _prom_noise
     _METRICS = True
 except ImportError:
     _METRICS = False
@@ -415,7 +415,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nIncident Noise Reduction Engine — Phase S S-6")
+    print("\nIncident Noise Reduction Engine — Phase S S-6")
     print(f"  incident_signal_quality_score: {r.incident_signal_quality_score:.1f}/100")
     print(f"  alert_precision_score:         {r.alert_precision_score:.1f}/100")
     print(f"  operational_noise_score:       {r.operational_noise_score:.1f}/100")
@@ -424,7 +424,7 @@ def main() -> None:
           f"cascading={r.cascading_patterns}  cooldown_viols={r.cooldown_violations}")
     print(f"  subsystems: {r.subsystems_analysed} analysed, {r.noisy_subsystems} noisy")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

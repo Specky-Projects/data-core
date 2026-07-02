@@ -34,7 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -396,7 +396,7 @@ def main() -> None:
     status_icons = {"GREEN": "✓", "YELLOW": "~", "ORANGE": "!", "RED": "X"}
     icon = status_icons.get(report.readiness_status, "?")
 
-    print(f"\nLive Readiness Revalidation Engine")
+    print("\nLive Readiness Revalidation Engine")
     print(f"  continuous_live_readiness: {report.continuous_live_readiness_score:.1f}/100")
     print(f"  readiness_status:          [{icon}] {report.readiness_status}")
     print(f"  rollback_recommended:      {'SIM' if report.rollback_recommended else 'nao'}")
@@ -412,7 +412,7 @@ def main() -> None:
     print(f"    divergence_score:   {i.divergence_score:.1f}")
     print(f"    capital_preserved:  {'sim' if i.capital_preserved else 'NAO'}")
     print(f"    validation_health:  {i.validation_health:.1f}")
-    print(f"\n  Penalidades:")
+    print("\n  Penalidades:")
     print(f"    governance: -{report.governance_penalty:.1f}")
     print(f"    quality:    -{report.quality_penalty:.1f}")
     print(f"    guardian:   -{report.guardian_penalty:.1f}")

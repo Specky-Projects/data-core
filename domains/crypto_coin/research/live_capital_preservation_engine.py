@@ -31,8 +31,8 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 CAPITAL_LOG  = Path("data/live_capital_preservation_log.jsonl")
@@ -41,8 +41,10 @@ AUDIT_LOG    = Path("data/live_execution_audit_log.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
-        live_drawdown_pct        as _prom_drawdown,
         live_capital_exposure_pct as _prom_exposure,
+    )
+    from api.live_metrics import (
+        live_drawdown_pct as _prom_drawdown,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -381,14 +383,14 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nLive Capital Preservation Engine")
+    print("\nLive Capital Preservation Engine")
     print(f"  trading_allowed:          {'SIM' if report.trading_allowed else 'NAO'}")
     print(f"  approved_size_multiplier: {report.approved_size_multiplier:.0%}")
     print(f"  consecutive_losses:       {report.consecutive_losses}")
     print(f"  current_exposure:         {report.current_exposure_pct:.3%}")
     print(f"  daily_drawdown:           {report.daily_drawdown_pct:.3%} (max {report.max_daily_drawdown_pct:.1%})")
     print(f"  weekly_drawdown:          {report.weekly_drawdown_pct:.3%} (max {report.max_weekly_drawdown_pct:.1%})")
-    print(f"\n  Acoes:")
+    print("\n  Acoes:")
     print(f"    contracting:   {'SIM' if report.contracting else 'nao'}")
     print(f"    daily_halt:    {'SIM' if report.daily_halt else 'nao'}")
     print(f"    weekly_halt:   {'SIM' if report.weekly_halt else 'nao'}")

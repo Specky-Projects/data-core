@@ -21,10 +21,9 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
 
@@ -187,7 +186,7 @@ def rank_strategies_for_regime(
                 "compatible":  regime_match.compatible if regime_match else False,
                 "confidence":  regime_match.confidence if regime_match else "low",
             })
-        except Exception as e:
+        except Exception:
             ranked.append({"strategy_id": sid, "sharpe": 0.0, "compatible": False, "confidence": "low"})
 
     ranked.sort(key=lambda x: x["sharpe"], reverse=True)

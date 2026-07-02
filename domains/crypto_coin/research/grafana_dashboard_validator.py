@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,8 +34,8 @@ EXPECTED_DASHBOARDS = [
 GAUGE_PANEL_TYPES = {"gauge", "stat", "bargauge"}
 
 try:
-    from api.burnin_metrics import dashboard_integrity_score    as _prom_dash_integrity
-    from api.burnin_metrics import panel_health_score           as _prom_panel
+    from api.burnin_metrics import dashboard_integrity_score as _prom_dash_integrity
+    from api.burnin_metrics import panel_health_score as _prom_panel
     from api.burnin_metrics import visualization_consistency_score as _prom_viz
     _METRICS = True
 except ImportError:
@@ -379,7 +379,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nGrafana Dashboard Validator — Phase S S-3")
+    print("\nGrafana Dashboard Validator — Phase S S-3")
     print(f"  dashboard_integrity_score:       {r.dashboard_integrity_score:.1f}/100")
     print(f"  panel_health_score:              {r.panel_health_score:.1f}/100")
     print(f"  visualization_consistency_score: {r.visualization_consistency_score:.1f}/100")
@@ -396,7 +396,7 @@ def main() -> None:
             if not p.healthy:
                 print(f"          panel#{p.panel_id} '{p.panel_title}': {', '.join(p.issues)}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

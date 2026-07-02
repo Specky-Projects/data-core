@@ -29,10 +29,9 @@ import argparse
 import json
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 # ── Tipos de resultado de cada fase ──────────────────────────────────────────
 
@@ -211,7 +210,7 @@ class ResearchOrchestrator:
         summary: dict = {"total_scenarios_run": 0, "by_strategy": {}}
 
         try:
-            from .scenario_runner import ScenarioRunner, SCENARIOS
+            from .scenario_runner import ScenarioRunner
             for sid in self.strategies:
                 runner = ScenarioRunner(
                     strategy_id     = sid,
@@ -331,7 +330,7 @@ class ResearchOrchestrator:
         print(f"QA:        {'✅' if result.qa_checked else '—'}")
 
         if result.strategies_ranked:
-            print(f"\nTop strategies (composite score):")
+            print("\nTop strategies (composite score):")
             for r in result.strategies_ranked[:3]:
                 if isinstance(r, dict):
                     sid   = r.get("strategy_id", "?")

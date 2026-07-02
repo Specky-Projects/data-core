@@ -29,10 +29,9 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 CONSTRAINTS_LOG = Path("data/safe_constraints_log.jsonl")
 
@@ -390,7 +389,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nSafe Autonomous Constraints")
+    print("\nSafe Autonomous Constraints")
     print(f"  {report.warning}")
     status = "TODOS OK" if report.all_constraints_passed else f"{report.violations_count} VIOLACOES"
     print(f"\n  Status: {status}")
@@ -398,7 +397,7 @@ def main() -> None:
     print(f"  max_allowed_total_exposure: {report.max_allowed_total_exposure:.0%}")
     print(f"  max_allowed_per_strategy:   {report.max_allowed_per_strategy:.0%}")
     if report.violations:
-        print(f"\n  Violacoes:")
+        print("\n  Violacoes:")
         for v in report.violations:
             print(f"    [{v.severity.upper()}] {v.constraint_name}: {v.justification}")
             print(f"           Acao: {v.action_taken}")

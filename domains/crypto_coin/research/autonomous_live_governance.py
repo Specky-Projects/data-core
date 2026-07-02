@@ -36,10 +36,9 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 LIVE_GOV_LOG     = Path("data/live_governance_history.jsonl")
 LIVE_GOV_SUMMARY = Path("data/live_governance_summary.jsonl")
@@ -47,9 +46,13 @@ LIVE_GOV_SUMMARY = Path("data/live_governance_summary.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
-        live_governance_score     as _prom_gov_score,
-        execution_quality_score   as _prom_exec_quality,
-        autonomous_freeze_state   as _prom_freeze,
+        autonomous_freeze_state as _prom_freeze,
+    )
+    from api.live_metrics import (
+        execution_quality_score as _prom_exec_quality,
+    )
+    from api.live_metrics import (
+        live_governance_score as _prom_gov_score,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -265,7 +268,7 @@ class AutonomousLiveGovernance:
         elif rollback_executed:
             blocking_reason = "rollback_executed=True neste ciclo"
         elif readiness_status == "RED":
-            blocking_reason = f"readiness_status=RED"
+            blocking_reason = "readiness_status=RED"
 
         autonomous_live_approval = blocking_reason is None
 
@@ -357,7 +360,9 @@ class AutonomousLiveGovernance:
         }
 
     def _run_divergence(self) -> dict:
-        from domains.crypto_coin.research.paper_vs_live_divergence_engine import PaperVsLiveDivergenceEngine
+        from domains.crypto_coin.research.paper_vs_live_divergence_engine import (
+            PaperVsLiveDivergenceEngine,
+        )
         report = PaperVsLiveDivergenceEngine().evaluate()
         return {
             "divergence_score":      report.divergence_score,
@@ -365,7 +370,9 @@ class AutonomousLiveGovernance:
         }
 
     def _run_capital_preservation(self) -> dict:
-        from domains.crypto_coin.research.live_capital_preservation_engine import LiveCapitalPreservationEngine
+        from domains.crypto_coin.research.live_capital_preservation_engine import (
+            LiveCapitalPreservationEngine,
+        )
         report = LiveCapitalPreservationEngine().evaluate()
         checks_pct = report.checks.checks_passed / max(report.checks.checks_total, 1)
         capital_safety = checks_pct * 100.0
@@ -382,7 +389,9 @@ class AutonomousLiveGovernance:
         }
 
     def _run_revalidation(self) -> dict:
-        from domains.crypto_coin.research.live_readiness_revalidation_engine import LiveReadinessRevalidationEngine
+        from domains.crypto_coin.research.live_readiness_revalidation_engine import (
+            LiveReadinessRevalidationEngine,
+        )
         report = LiveReadinessRevalidationEngine().evaluate()
         return {
             "continuous_live_readiness_score": report.continuous_live_readiness_score,
@@ -399,7 +408,9 @@ class AutonomousLiveGovernance:
         }
 
     def _run_replay(self) -> dict:
-        from domains.crypto_coin.research.live_execution_replay_engine import LiveExecutionReplayEngine
+        from domains.crypto_coin.research.live_execution_replay_engine import (
+            LiveExecutionReplayEngine,
+        )
         report = LiveExecutionReplayEngine().replay_all()
         return {
             "avg_fidelity_score":    report.avg_fidelity_score,
@@ -433,7 +444,7 @@ class AutonomousLiveGovernance:
     ) -> str:
         if rollback:
             return (
-                f"ROLLBACK EXECUTADO neste ciclo. "
+                "ROLLBACK EXECUTADO neste ciclo. "
                 "Sistema retornou para paper. Investigar incident log."
             )
         if not approved:
@@ -585,7 +596,7 @@ def main() -> None:
         return
 
     approved = "APROVADO" if last_entry.get("autonomous_live_approval") else "BLOQUEADO"
-    print(f"\nAutonomous Live Governance — Status")
+    print("\nAutonomous Live Governance — Status")
     print(f"  ultimo ciclo:            {last_entry.get('evaluated_at', 'N/A')}")
     print(f"  live_governance_score:   {last_entry.get('live_governance_score', 0):.1f}/100")
     print(f"  autonomous_live_approval:{approved}")

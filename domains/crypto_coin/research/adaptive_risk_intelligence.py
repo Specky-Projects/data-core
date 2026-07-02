@@ -24,18 +24,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
+from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
+from domains.crypto_coin.research.market_drift_intelligence import MarketDriftIntelligence
 from domains.crypto_coin.research.meta_strategy_intelligence import MetaStrategyIntelligence
 from domains.crypto_coin.research.parameter_intelligence import ParameterIntelligenceFleet
-from domains.crypto_coin.research.market_drift_intelligence import MarketDriftIntelligence
-from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
+from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
 
 EXPERIMENTS_DIR = Path("data/experiments")
 RISK_LOG        = Path("data/adaptive_risk_log.jsonl")
@@ -454,7 +452,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nAdaptive Risk Intelligence")
+    print("\nAdaptive Risk Intelligence")
     print(f"  adaptive_risk_score:    {report.adaptive_risk_score:.0f}/100")
     print(f"  contagion_risk_score:   {report.contagion_risk_score:.0f}/100")
     print(f"  hidden_fragility_score: {report.hidden_fragility_score:.0f}/100")

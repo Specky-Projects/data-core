@@ -31,9 +31,8 @@ from __future__ import annotations
 import argparse
 import json
 import time
-import traceback
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,10 +41,16 @@ STABILITY_SUMMARY = Path("data/runtime_stability_summary.jsonl")
 
 try:
     from api.burnin_metrics import (
-        runtime_stability_score            as _prom_stability,
-        observability_readiness_score      as _prom_obs,
-        burnin_readiness_score             as _prom_burnin,
-        burnin_operational_maturity_score  as _prom_maturity,
+        burnin_operational_maturity_score as _prom_maturity,
+    )
+    from api.burnin_metrics import (
+        burnin_readiness_score as _prom_burnin,
+    )
+    from api.burnin_metrics import (
+        observability_readiness_score as _prom_obs,
+    )
+    from api.burnin_metrics import (
+        runtime_stability_score as _prom_stability,
     )
     _METRICS = True
 except ImportError:
@@ -200,7 +205,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s2(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.metrics_integrity_validator import MetricsIntegrityValidator
+            from domains.crypto_coin.research.metrics_integrity_validator import (
+                MetricsIntegrityValidator,
+            )
             r = MetricsIntegrityValidator().validate()
             return PhaseResult(
                 "S-2", "metrics_integrity_validator", True,
@@ -217,7 +224,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s3(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.grafana_dashboard_validator import GrafanaDashboardValidator
+            from domains.crypto_coin.research.grafana_dashboard_validator import (
+                GrafanaDashboardValidator,
+            )
             r = GrafanaDashboardValidator().validate()
             return PhaseResult(
                 "S-3", "grafana_dashboard_validator", True,
@@ -234,7 +243,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s4(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.collector_reliability_engine import CollectorReliabilityEngine
+            from domains.crypto_coin.research.collector_reliability_engine import (
+                CollectorReliabilityEngine,
+            )
             r = CollectorReliabilityEngine().validate()
             return PhaseResult(
                 "S-4", "collector_reliability_engine", True,
@@ -251,7 +262,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s5(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.replay_integrity_burnin_validator import ReplayIntegrityBurninValidator
+            from domains.crypto_coin.research.replay_integrity_burnin_validator import (
+                ReplayIntegrityBurninValidator,
+            )
             r = ReplayIntegrityBurninValidator().validate()
             return PhaseResult(
                 "S-5", "replay_integrity_burnin_validator", True,
@@ -268,7 +281,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s6(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.incident_noise_reduction_engine import IncidentNoiseReductionEngine
+            from domains.crypto_coin.research.incident_noise_reduction_engine import (
+                IncidentNoiseReductionEngine,
+            )
             r = IncidentNoiseReductionEngine().validate()
             return PhaseResult(
                 "S-6", "incident_noise_reduction_engine", True,
@@ -285,7 +300,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s7(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.cold_start_resilience_validator import ColdStartResilienceValidator
+            from domains.crypto_coin.research.cold_start_resilience_validator import (
+                ColdStartResilienceValidator,
+            )
             r = ColdStartResilienceValidator().validate()
             return PhaseResult(
                 "S-7", "cold_start_resilience_validator", True,
@@ -299,7 +316,9 @@ class AutonomousRuntimeStabilityOrchestrator:
     def _run_s8(self) -> PhaseResult:
         t = time.monotonic()
         try:
-            from domains.crypto_coin.research.operational_drift_analyzer import OperationalDriftAnalyzer
+            from domains.crypto_coin.research.operational_drift_analyzer import (
+                OperationalDriftAnalyzer,
+            )
             r = OperationalDriftAnalyzer().validate()
             return PhaseResult(
                 "S-8", "operational_drift_analyzer", True,
@@ -399,14 +418,14 @@ def main() -> None:
         print(f"  -> {r.recommendation}")
         return
 
-    print(f"\nAutonomous Runtime Stability Orchestrator — Phase S S-9")
+    print("\nAutonomous Runtime Stability Orchestrator — Phase S S-9")
     print(f"  report_id: {r.report_id}  elapsed={r.total_elapsed_seconds:.1f}s")
-    print(f"\n  -- Scores --")
+    print("\n  -- Scores --")
     print(f"  runtime_stability_score:           {r.runtime_stability_score:.1f}/100")
     print(f"  observability_readiness_score:     {r.observability_readiness_score:.1f}/100")
     print(f"  burnin_readiness_score:            {r.burnin_readiness_score:.1f}/100")
     print(f"  burnin_operational_maturity_score: {r.burnin_operational_maturity_score:.1f}/100")
-    print(f"\n  -- Phase Results --")
+    print("\n  -- Phase Results --")
     for p in r.phase_results:
         status = "OK" if p.success else "FAIL"
         score_str = f"{p.primary_score:.1f}" if p.primary_score is not None else "n/a"
@@ -414,7 +433,7 @@ def main() -> None:
         if p.error:
             print(f"        ERROR: {p.error}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

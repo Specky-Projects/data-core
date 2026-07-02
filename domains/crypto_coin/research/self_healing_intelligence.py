@@ -33,10 +33,9 @@ import argparse
 import json
 import statistics
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
 
@@ -342,7 +341,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nSelf-Healing Intelligence")
+    print("\nSelf-Healing Intelligence")
     print(f"  infrastructure_health_score: {report.infrastructure_health_score:.0f}/100")
     print(f"  recovery_confidence_score:   {report.recovery_confidence_score:.0f}/100")
     print(f"  self_healing_score:          {report.self_healing_score:.0f}/100")

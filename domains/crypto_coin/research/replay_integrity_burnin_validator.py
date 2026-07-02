@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,9 +41,9 @@ REPLAY_TARGETS: list[tuple[str, str]] = [
 GAP_THRESHOLD_MINUTES = 30.0
 
 try:
-    from api.burnin_metrics import replay_burnin_score       as _prom_burnin
-    from api.burnin_metrics import replay_continuity_score   as _prom_continuity
-    from api.burnin_metrics import replay_consistency_score  as _prom_consistency
+    from api.burnin_metrics import replay_burnin_score as _prom_burnin
+    from api.burnin_metrics import replay_consistency_score as _prom_consistency
+    from api.burnin_metrics import replay_continuity_score as _prom_continuity
     _METRICS = True
 except ImportError:
     _METRICS = False
@@ -351,7 +351,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nReplay Integrity Burn-In Validator — Phase S S-5")
+    print("\nReplay Integrity Burn-In Validator — Phase S S-5")
     print(f"  replay_burnin_score:      {r.replay_burnin_score:.1f}/100")
     print(f"  replay_continuity_score:  {r.replay_continuity_score:.1f}/100")
     print(f"  replay_consistency_score: {r.replay_consistency_score:.1f}/100")
@@ -366,7 +366,7 @@ def main() -> None:
         for iss in c.issues:
             print(f"          ! {iss}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

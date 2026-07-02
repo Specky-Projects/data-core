@@ -29,7 +29,7 @@ import argparse
 import importlib
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -335,7 +335,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nCold Start Resilience Validator — Phase S S-7")
+    print("\nCold Start Resilience Validator — Phase S S-7")
     print(f"  cold_start_resilience_score: {r.cold_start_resilience_score:.1f}/100  [Grade {r.grade}]")
     print(f"  checks: {r.checks_passed}/{r.total_checks} passed")
     for c in r.checks:
@@ -344,7 +344,7 @@ def main() -> None:
     if r.critical_failures:
         print(f"\n  Critical failures: {', '.join(r.critical_failures)}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

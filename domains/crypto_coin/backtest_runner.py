@@ -17,18 +17,17 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 
 import ccxt.async_support as ccxt
-import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
-from domains.crypto_coin.config.settings import load_config, Config
 from domains.crypto_coin.analytics.metrics.calc import compute_all as compute_metrics
 from domains.crypto_coin.backtesting.simulation import (
-    PaperState,
     DEFAULT_INITIAL_BALANCE,
+    PaperState,
     paper_finalize_open_position,
     paper_process_candle,
 )
+from domains.crypto_coin.config.settings import Config, load_config
 
 DIVIDER = "─" * 60
 
@@ -207,7 +206,7 @@ def print_result(result: dict, label: str = "", period: str = ""):
     if r.get('avg_win') and r.get('avg_loss'):
         print(f"  Avg win/loss       : +${r['avg_win']:.2f} / ${r['avg_loss']:.2f}")
     if r['realistic_mode']:
-        print(f"  Modo               : realista (intracandle SL/TP + bar+1)")
+        print("  Modo               : realista (intracandle SL/TP + bar+1)")
 
 
 def print_comparison(results: list[tuple[str, dict]], df: pd.DataFrame):

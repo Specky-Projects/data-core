@@ -27,10 +27,9 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 EXPERIMENTS_DIR   = Path("data/experiments")
 GOVERNANCE_LOG    = Path("data/governance_history.jsonl")
@@ -398,16 +397,16 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nAutonomous Behavior Audit")
+    print("\nAutonomous Behavior Audit")
     print(f"  system_autonomy_score:       {report.system_autonomy_score:.0f}/100")
     print(f"  runaway_risk_score:          {report.runaway_risk_score:.0f}/100")
     print(f"  operational_stability_score: {report.operational_stability_score:.0f}/100")
-    print(f"\n  Historico analisado:")
+    print("\n  Historico analisado:")
     print(f"    governance_cycles:    {report.governance_cycles_analyzed}")
     print(f"    activation_events:    {report.activation_events_analyzed}")
     print(f"    execution_decisions:  {report.execution_decisions_analyzed}")
     print(f"    healing_cycles:       {report.healing_cycles_analyzed}")
-    print(f"\n  Checks:")
+    print("\n  Checks:")
     print(f"    runaway_detected:     {'SIM' if report.runaway_detected else 'nao'}")
     print(f"    allocation_unstable:  {'SIM' if report.allocation_unstable else 'nao'}")
     print(f"    governance_looping:   {'SIM' if report.governance_looping else 'nao'}")

@@ -30,7 +30,7 @@ import argparse
 import json
 import statistics
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,7 +40,9 @@ AUDIT_LOG       = Path("data/live_execution_audit_log.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
-        divergence_score       as _prom_divergence,
+        divergence_score as _prom_divergence,
+    )
+    from api.live_metrics import (
         live_consistency_score as _prom_consistency,
     )
     _METRICS_AVAILABLE = True
@@ -383,7 +385,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nPaper vs Live Divergence Engine")
+    print("\nPaper vs Live Divergence Engine")
     print(f"  divergence_score:          {report.divergence_score:.1f}/100")
     print(f"  live_consistency_score:    {report.live_consistency_score:.1f}/100")
     print(f"  execution_alignment_score: {report.execution_alignment_score:.1f}/100")
@@ -391,7 +393,7 @@ def main() -> None:
     print(f"  divergence_trend:          {report.divergence_trend}")
     print(f"\n  Paper  (n={report.paper_executions}): slip={report.paper_avg_slippage_bps:.2f}bps fill={report.paper_avg_fill_rate:.0%} lat={report.paper_avg_latency_ms:.0f}ms")
     print(f"  Live   (n={report.live_executions}): slip={report.live_avg_slippage_bps:.2f}bps fill={report.live_avg_fill_rate:.0%} lat={report.live_avg_latency_ms:.0f}ms")
-    print(f"\n  Gaps:")
+    print("\n  Gaps:")
     print(f"    slippage_gap:  {report.slippage_gap_bps:+.2f}bps")
     print(f"    fill_gap:      {report.fill_rate_gap:+.2%}")
     print(f"    latency_gap:   {report.latency_gap_ms:+.0f}ms")

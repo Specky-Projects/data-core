@@ -38,21 +38,20 @@ import argparse
 import json
 import time
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from domains.crypto_coin.research.market_drift_intelligence   import MarketDriftIntelligence
-from domains.crypto_coin.research.strategy_lifecycle          import StrategyLifecycleEngine
-from domains.crypto_coin.research.research_prioritizer        import ResearchPrioritizer
-from domains.crypto_coin.research.parameter_intelligence      import ParameterIntelligenceFleet
 from domains.crypto_coin.research.adaptive_exposure_intelligence import AdaptiveExposureIntelligence
-from domains.crypto_coin.research.meta_strategy_intelligence  import MetaStrategyIntelligence
 from domains.crypto_coin.research.adaptive_quant_intelligence import (
     AdaptivePortfolioEvolution,
     QuantRecommendationEngineV2,
 )
+from domains.crypto_coin.research.market_drift_intelligence import MarketDriftIntelligence
+from domains.crypto_coin.research.meta_strategy_intelligence import MetaStrategyIntelligence
+from domains.crypto_coin.research.parameter_intelligence import ParameterIntelligenceFleet
+from domains.crypto_coin.research.research_prioritizer import ResearchPrioritizer
+from domains.crypto_coin.research.strategy_lifecycle import StrategyLifecycleEngine
 
 EXPERIMENTS_DIR  = Path("data/experiments")
 LOOP_HISTORY_FILE = Path("data/autonomous_loop_history.jsonl")
@@ -60,9 +59,13 @@ LOOP_HISTORY_FILE = Path("data/autonomous_loop_history.jsonl")
 # Prometheus (optional)
 try:
     from api.metrics import (
-        research_loop_runs_total         as _prom_loop_runs,
         autonomous_recommendations_total as _prom_recs,
-        portfolio_resilience_score       as _prom_resilience,
+    )
+    from api.metrics import (
+        portfolio_resilience_score as _prom_resilience,
+    )
+    from api.metrics import (
+        research_loop_runs_total as _prom_loop_runs,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -579,18 +582,18 @@ def main() -> None:
     print(f"{'='*60}")
     print(f"\nAutonomous Research Loop — ID: {report.loop_id}")
     print(f"  Estratégias: {len(report.strategy_ids)} | Duração: {report.total_duration_ms:.0f}ms")
-    print(f"\nSinais principais:")
+    print("\nSinais principais:")
     print(f"  market_drift_score:   {report.market_drift_score:.0f}/100")
     print(f"  fleet_health_score:   {report.fleet_health_score:.0f}/100")
     print(f"  portfolio_resilience: {report.portfolio_resilience:.0f}/100")
     print(f"  portfolio_drift:      {report.portfolio_drift:.0f}/100")
     print(f"  rebalance_urgency:    {report.rebalance_urgency}")
 
-    print(f"\nLifecycle:")
+    print("\nLifecycle:")
     print(f"  retired:   {report.strategies_retired or 'nenhuma'}")
     print(f"  degraded:  {report.strategies_degraded or 'nenhuma'}")
 
-    print(f"\nResearch:")
+    print("\nResearch:")
     print(f"  critical_tasks:  {report.critical_tasks}")
     print(f"  high_tasks:      {report.high_tasks}")
     if report.top_priority_task:
@@ -693,7 +696,9 @@ class AutonomousResearchEvolution:
                     })
 
         # ── Scenario priorities (degradadas têm prioridade em cenários adversos) ─
-        from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
+        from domains.crypto_coin.research.strategy_degradation_intelligence import (
+            DegradationFleetAnalyzer,
+        )
         fleet_reports = DegradationFleetAnalyzer(self.experiments_dir).rank_all()
         degraded_ids  = [r.strategy_id for r in fleet_reports if r.composite_risk_score >= 50]
 

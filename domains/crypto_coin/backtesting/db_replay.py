@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -37,14 +36,15 @@ from domains.crypto_coin.backtesting.simulation import (
 )
 from domains.crypto_coin.config.settings import Config
 
+
 # Prometheus metrics — wire G-H-05 (Phase H Fase 11)
 # Import lazy para não falhar se a API não estiver disponível no contexto CLI
 def _get_metrics():
     try:
         from api.metrics import (
-            backtest_runs_total,
-            backtest_duration_seconds,
             backtest_candles_processed_total,
+            backtest_duration_seconds,
+            backtest_runs_total,
         )
         return backtest_runs_total, backtest_duration_seconds, backtest_candles_processed_total
     except Exception:
@@ -108,7 +108,7 @@ def replay_from_db(
     days: int = 90,
     source: str = "binance",
     realistic: bool = True,
-    cfg: Optional[Config] = None,
+    cfg: Config | None = None,
     strategy_params: dict | None = None,
 ) -> dict:
     """

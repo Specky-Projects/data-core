@@ -50,10 +50,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 RUNTIME_GOV_LOG     = Path("data/runtime_governance_log.jsonl")
@@ -75,9 +74,13 @@ DEFAULT_SCORE = 75.0
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        runtime_governance_score      as _prom_gov_score,
-        operational_resilience_score  as _prom_resilience,
-        production_readiness_score    as _prom_readiness,
+        operational_resilience_score as _prom_resilience,
+    )
+    from api.runtime_metrics import (
+        production_readiness_score as _prom_readiness,
+    )
+    from api.runtime_metrics import (
+        runtime_governance_score as _prom_gov_score,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -405,7 +408,7 @@ class AutonomousRuntimeGovernance:
     ) -> str:
         if state == "FROZEN":
             return (
-                f"SYSTEM FROZEN: critical/emergency incident active. "
+                "SYSTEM FROZEN: critical/emergency incident active. "
                 "All execution blocked. Resolve incidents before proceeding."
             )
         if state == "CRITICAL":
@@ -506,7 +509,7 @@ def main() -> None:
 
         approved_str = "APPROVED" if report.operational_approval else "NOT APPROVED"
         paper_str    = "ALLOWED" if report.paper_execution_allowed else "BLOCKED"
-        print(f"\nAutonomous Runtime Governance — Phase R R-8")
+        print("\nAutonomous Runtime Governance — Phase R R-8")
         print(f"  report_id:                   {report.report_id}")
         print(f"  autonomous_runtime_state:    {report.autonomous_runtime_state}")
         print(f"  runtime_governance_score:    {report.runtime_governance_score:.1f}/100")
@@ -514,8 +517,8 @@ def main() -> None:
         print(f"  production_readiness_score:  {report.production_readiness_score:.1f}/100")
         print(f"\n  Operational approval:        [{approved_str}]")
         print(f"  Paper execution:             [{paper_str}]")
-        print(f"  Live execution:              [BLOCKED — Phase R]")
-        print(f"\n  Sub-scores:")
+        print("  Live execution:              [BLOCKED — Phase R]")
+        print("\n  Sub-scores:")
         print(f"    startup_health:        {report.startup_health_score:.1f}")
         print(f"    restoration_integrity: {report.restoration_integrity_score:.1f}")
         print(f"    watchdog_health:       {report.watchdog_health_score:.1f}")
@@ -552,7 +555,7 @@ def main() -> None:
         return
 
     approved_str = "APPROVED" if last_entry.get("operational_approval") else "NOT APPROVED"
-    print(f"\nAutonomous Runtime Governance — Status")
+    print("\nAutonomous Runtime Governance — Status")
     print(f"  last_evaluated:              {last_entry.get('evaluated_at', 'N/A')}")
     print(f"  autonomous_runtime_state:    {last_entry.get('autonomous_runtime_state', 'N/A')}")
     print(f"  runtime_governance_score:    {last_entry.get('runtime_governance_score', 0):.1f}/100")

@@ -42,7 +42,7 @@ import argparse
 import json
 import statistics
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -53,9 +53,13 @@ CTRL_LOG         = Path("data/live_execution_controller_log.jsonl")
 # Prometheus (optional)
 try:
     from api.live_metrics import (
-        guardian_emergency_level  as _prom_emergency,
-        contraction_multiplier    as _prom_contraction,
+        contraction_multiplier as _prom_contraction,
+    )
+    from api.live_metrics import (
         exchange_instability_score as _prom_instability,
+    )
+    from api.live_metrics import (
+        guardian_emergency_level as _prom_emergency,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -475,13 +479,13 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nAutonomous Live Guardian")
+    print("\nAutonomous Live Guardian")
     print(f"  guardian_state:           {report.guardian_state}")
     print(f"  emergency_level:          {report.emergency_level}/5")
     print(f"  contraction_multiplier:   {report.contraction_multiplier:.0%}")
     print(f"  rollback_triggered:       {'SIM' if report.rollback_triggered else 'nao'}")
     print(f"  freeze_triggered:         {'SIM' if report.freeze_triggered else 'nao'}")
-    print(f"\n  Metricas:")
+    print("\n  Metricas:")
     print(f"    consecutive_losses:     {report.consecutive_losses}")
     print(f"    recent_hit_rate:        {report.recent_hit_rate:.0%}")
     print(f"    drawdown_pct:           {report.drawdown_pct:.3%}")

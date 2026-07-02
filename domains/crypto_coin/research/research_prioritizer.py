@@ -28,17 +28,14 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
+from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 from domains.crypto_coin.research.strategy_degradation_intelligence import (
-    StrategyDegradationIntelligence,
     DegradationFleetAnalyzer,
 )
-from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 
 EXPERIMENTS_DIR = Path("data/experiments")
 
@@ -164,7 +161,7 @@ class ResearchPrioritizer:
                     priority         = self._score_to_priority(validation_score),
                     priority_score   = round(validation_score, 1),
                     reason           = f"Suspeita de overfitting (score={overfitting_score:.0f})",
-                    suggested_action = f"Executar replay em período OOS não usado nos sweeps anteriores",
+                    suggested_action = "Executar replay em período OOS não usado nos sweeps anteriores",
                     estimated_effort = "high",
                 ))
 

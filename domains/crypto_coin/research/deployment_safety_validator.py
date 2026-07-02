@@ -33,10 +33,9 @@ import argparse
 import json
 import os
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 VALIDATION_LOG = Path("data/deployment_validation_log.jsonl")
 
@@ -57,10 +56,16 @@ CRITICAL_JSONLS = [
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        deployment_safety_score   as _prom_deploy_safety,
+        compatibility_score as _prom_compat,
+    )
+    from api.runtime_metrics import (
+        deployment_safety_score as _prom_deploy_safety,
+    )
+    from api.runtime_metrics import (
         migration_integrity_score as _prom_migration,
-        rollback_risk_score       as _prom_rollback_risk,
-        compatibility_score       as _prom_compat,
+    )
+    from api.runtime_metrics import (
+        rollback_risk_score as _prom_rollback_risk,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -221,7 +226,9 @@ class DeploymentSafetyValidator:
 
     def _check_core_imports(self) -> ValidationCheck:
         try:
-            import json, pathlib, dataclasses  # noqa: F401
+            import dataclasses  # noqa: F401
+            import json
+            import pathlib
             return ValidationCheck(
                 name="core_imports", category="imports",
                 passed=True, detail="json, pathlib, dataclasses OK",
@@ -254,7 +261,7 @@ class DeploymentSafetyValidator:
             import sqlalchemy  # noqa: F401
             return ValidationCheck(
                 name="sqlalchemy_imports", category="imports",
-                passed=True, detail=f"sqlalchemy disponivel",
+                passed=True, detail="sqlalchemy disponivel",
                 risk_level="low",
             )
         except ImportError:
@@ -725,7 +732,7 @@ def main() -> None:
         return
 
     verdict_icon = "[GO]" if report.deploy_recommended else "[NO]"
-    print(f"\nPre-Deploy Safety Validator — Phase R R-5")
+    print("\nPre-Deploy Safety Validator — Phase R R-5")
     print(f"  report_id:                {report.report_id}")
     print(f"  deployment_safety_score:  {report.deployment_safety_score:.1f}/100")
     print(f"  migration_integrity:      {report.migration_integrity_score:.1f}/100")
@@ -745,7 +752,7 @@ def main() -> None:
     for c in report.checks:
         categories.setdefault(c.category, []).append(c)
 
-    print(f"\n  Checks por categoria:")
+    print("\n  Checks por categoria:")
     for cat, cat_checks in categories.items():
         for c in cat_checks:
             status = "OK " if c.passed else "NOK"

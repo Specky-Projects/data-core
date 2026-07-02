@@ -13,12 +13,21 @@ import json
 import traceback
 import uuid
 from dataclasses import asdict
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
+from domains.crypto_coin.analytics.decision_support import regime_entry_decision
+from domains.crypto_coin.analytics.loss_classification import classify_loss
+from domains.crypto_coin.analytics.metrics.append import append_metric
+from domains.crypto_coin.analytics.overtrading import overtrading_decision
+from domains.crypto_coin.analytics.reports.weekly import send_weekly_report
+from domains.crypto_coin.analytics.setup_quality import compute_setup_score
+from domains.crypto_coin.autotune.scheduler import WeeklyScheduler
 from domains.crypto_coin.config.settings import Config
+from domains.crypto_coin.core.engine.reconnect import ReconnectionManager
 from domains.crypto_coin.core.execution.exchange_connector import ExchangeConnector
+from domains.crypto_coin.core.risk.position_sizing import PositionSizer
+from domains.crypto_coin.core.risk.trailing_stop import TrailingStop
 from domains.crypto_coin.data.storage import (
     BotError,
     BotRun,
@@ -32,20 +41,15 @@ from domains.crypto_coin.data.storage import (
     TradeResult,
     create_storage,
 )
-from domains.crypto_coin.analytics.decision_support import regime_entry_decision
-from domains.crypto_coin.analytics.loss_classification import classify_loss
-from domains.crypto_coin.analytics.overtrading import overtrading_decision
-from domains.crypto_coin.analytics.setup_quality import compute_setup_score
+from domains.crypto_coin.indicators.mtf import MTFBias, MultiTimeframeAnalyzer
 from domains.crypto_coin.indicators.technical import compute_indicators
-from domains.crypto_coin.strategies.trend_following.strategy import MIN_CONFIDENCE, Signal, get_signal, signal_description
 from domains.crypto_coin.infra.notifier import Notifier
-from domains.crypto_coin.core.risk.trailing_stop import TrailingStop
-from domains.crypto_coin.core.engine.reconnect import ReconnectionManager
-from domains.crypto_coin.indicators.mtf import MultiTimeframeAnalyzer, MTFBias
-from domains.crypto_coin.core.risk.position_sizing import PositionSizer
-from domains.crypto_coin.analytics.reports.weekly import send_weekly_report
-from domains.crypto_coin.analytics.metrics.append import append_metric
-from domains.crypto_coin.autotune.scheduler import WeeklyScheduler
+from domains.crypto_coin.strategies.trend_following.strategy import (
+    MIN_CONFIDENCE,
+    Signal,
+    get_signal,
+    signal_description,
+)
 
 TIMEFRAME_SECONDS = {
     "1m": 60, "3m": 180, "5m": 300, "15m": 900,
@@ -54,7 +58,7 @@ TIMEFRAME_SECONDS = {
 
 
 class TradingBot:
-    def __init__(self, cfg: Config, logger, shutdown_event: Optional[asyncio.Event] = None):
+    def __init__(self, cfg: Config, logger, shutdown_event: asyncio.Event | None = None):
         self.cfg       = cfg
         self.logger    = logger
         self.connector = ExchangeConnector(cfg, logger)
@@ -66,12 +70,12 @@ class TradingBot:
 
         # Estado
         self.in_position:      bool  = False
-        self.buy_price:        Optional[float] = None
+        self.buy_price:        float | None = None
         self.position_size:    float = 0.0
         self.entry_confidence: int   = 0
-        self.trailing_stop:    Optional[TrailingStop] = None
-        self.position_low:     Optional[float] = None
-        self.position_high:    Optional[float] = None
+        self.trailing_stop:    TrailingStop | None = None
+        self.position_low:     float | None = None
+        self.position_high:    float | None = None
 
         # Métricas
         self.trades_today:      int   = 0
@@ -81,7 +85,7 @@ class TradingBot:
         self.total_pnl:         float = 0.0
         self.day_start_balance: float = 0.0
         self.current_day:       date  = date.today()
-        self._last_report:      Optional[date] = None
+        self._last_report:      date | None = None
 
         # Módulos
         self.reconnect = ReconnectionManager(logger)
@@ -787,7 +791,7 @@ class TradingBot:
         self.position_low = price if self.position_low is None else min(self.position_low, price)
         self.position_high = price if self.position_high is None else max(self.position_high, price)
 
-    def _mae_mfe(self) -> tuple[Optional[float], Optional[float]]:
+    def _mae_mfe(self) -> tuple[float | None, float | None]:
         if not self.buy_price:
             return None, None
         mae = None if self.position_low is None else ((self.position_low - self.buy_price) / self.buy_price) * 100

@@ -37,10 +37,9 @@ import json
 import os
 import time
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 STARTUP_LOG    = Path("data/startup_log.jsonl")
 RUNTIME_STATE  = Path("data/runtime_state.json")
@@ -53,8 +52,10 @@ AUDIT_LOG         = Path("data/live_execution_audit_log.jsonl")
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        startup_health_score     as _prom_health,
-        startup_integrity_score  as _prom_integrity,
+        startup_health_score as _prom_health,
+    )
+    from api.runtime_metrics import (
+        startup_integrity_score as _prom_integrity,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -271,7 +272,7 @@ class AutonomousStartupManager:
         url = os.environ.get("GRAFANA_URL", "")
         if not url:
             return False, "GRAFANA_URL nao definido (dashboards indisponiveis)"
-        return True, f"GRAFANA_URL presente"
+        return True, "GRAFANA_URL presente"
 
     def _validate_replay_storage(self) -> tuple[bool, str]:
         """Verifica que data/ existe e e gravavel."""
@@ -498,7 +499,7 @@ def main() -> None:
         "FAILED":         "[FAIL]",
     }.get(report.startup_recovery_state, "[??]")
 
-    print(f"\nAutonomous Startup Manager — Phase R R-1")
+    print("\nAutonomous Startup Manager — Phase R R-1")
     print(f"  report_id:               {report.report_id}")
     print(f"  startup_phase:           {phase_icon} {report.startup_phase}")
     print(f"  recovery_state:          {recovery_icon} {report.startup_recovery_state}")
@@ -515,7 +516,7 @@ def main() -> None:
             if not c.passed:
                 print(f"    [FAIL] {c.name}: {c.detail}")
 
-    print(f"\n  Checks executados:")
+    print("\n  Checks executados:")
     for c in report.checks:
         icon = "[OK]" if c.passed else "[--]"
         print(f"    {icon} {c.name:<30} ({c.latency_ms:.1f}ms)")

@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -266,7 +266,9 @@ class CapitalPreservationValidator:
     def _validate_drawdown_protection(self) -> float:
         """Valida drawdown protection via historico de experimentos."""
         try:
-            from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
+            from domains.crypto_coin.research.strategy_degradation_intelligence import (
+                DegradationFleetAnalyzer,
+            )
             fleet = DegradationFleetAnalyzer(EXPERIMENTS_DIR).rank_all()
             if not fleet:
                 return 70.0  # sem dados = baseline neutro
@@ -343,11 +345,11 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nCapital Preservation Validator")
+    print("\nCapital Preservation Validator")
     print(f"  capital_survival_score:        {report.capital_survival_score:.0f}/100")
     print(f"  preservation_efficiency_score: {report.preservation_efficiency_score:.0f}/100")
     print(f"  drawdown_protection_score:     {report.drawdown_protection_score:.0f}/100")
-    print(f"\n  Evidencias:")
+    print("\n  Evidencias:")
     print(f"    high_drift_episodes:    {report.high_drift_episodes}")
     print(f"    preservation_triggered: {report.preservation_triggered}")
     print(f"    avg_reduction_emerg:    {report.avg_reduction_in_emergencies:.0%}")

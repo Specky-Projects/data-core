@@ -32,7 +32,7 @@ import argparse
 import json
 import time
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -131,7 +131,9 @@ class AutonomousValidationLoop:
         # ── FASE 1: Behavior Audit ─────────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.autonomous_behavior_audit import AutonomousBehaviorAuditor
+            from domains.crypto_coin.research.autonomous_behavior_audit import (
+                AutonomousBehaviorAuditor,
+            )
             audit_report = AutonomousBehaviorAuditor().audit()
             phases.append(ValidationPhaseResult(
                 phase="behavior_audit", status="ok",
@@ -153,7 +155,9 @@ class AutonomousValidationLoop:
         # ── FASE 3: Stability Intelligence ────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.autonomous_stability_intelligence import AutonomousStabilityIntelligence
+            from domains.crypto_coin.research.autonomous_stability_intelligence import (
+                AutonomousStabilityIntelligence,
+            )
             stab_report = AutonomousStabilityIntelligence().analyze()
             autonomy_stability = stab_report.autonomy_stability_score
             phases.append(ValidationPhaseResult(
@@ -176,7 +180,9 @@ class AutonomousValidationLoop:
         # ── FASE 4: Capital Preservation ──────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.capital_preservation_validator import CapitalPreservationValidator
+            from domains.crypto_coin.research.capital_preservation_validator import (
+                CapitalPreservationValidator,
+            )
             pres_report = CapitalPreservationValidator().validate()
             capital_survival = pres_report.capital_survival_score
             phases.append(ValidationPhaseResult(
@@ -199,7 +205,9 @@ class AutonomousValidationLoop:
         # ── FASE 5: Catastrophic Simulation ───────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.catastrophic_simulation_engine import CatastrophicSimulationEngine
+            from domains.crypto_coin.research.catastrophic_simulation_engine import (
+                CatastrophicSimulationEngine,
+            )
             cat_report = CatastrophicSimulationEngine().simulate()
             catastrophic_survival = cat_report.catastrophic_survival_score
             phases.append(ValidationPhaseResult(
@@ -222,7 +230,9 @@ class AutonomousValidationLoop:
         # ── FASE 8: Execution Simulation ──────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.execution_simulation_engine import ExecutionSimulationEngine
+            from domains.crypto_coin.research.execution_simulation_engine import (
+                ExecutionSimulationEngine,
+            )
             exec_report = ExecutionSimulationEngine(n_simulations=100).simulate()
             execution_realism = exec_report.execution_realism_score
             phases.append(ValidationPhaseResult(
@@ -245,7 +255,9 @@ class AutonomousValidationLoop:
         # ── FASE 7: Safe Constraints ───────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.safe_autonomous_constraints import SafeAutonomousConstraints
+            from domains.crypto_coin.research.safe_autonomous_constraints import (
+                SafeAutonomousConstraints,
+            )
             constraint_report = SafeAutonomousConstraints(self.experiments_dir).evaluate(
                 strategy_ids=self.strategy_ids
             )
@@ -268,7 +280,9 @@ class AutonomousValidationLoop:
         # ── FASE 9: Governance Drift ───────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.governance_drift_intelligence import GovernanceDriftIntelligence
+            from domains.crypto_coin.research.governance_drift_intelligence import (
+                GovernanceDriftIntelligence,
+            )
             drift_report = GovernanceDriftIntelligence().analyze()
             governance_drift = drift_report.governance_drift_score
             phases.append(ValidationPhaseResult(
@@ -291,7 +305,9 @@ class AutonomousValidationLoop:
         # ── FASE 6: Live Readiness ─────────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.micro_live_readiness_engine import MicroLiveReadinessEngine
+            from domains.crypto_coin.research.micro_live_readiness_engine import (
+                MicroLiveReadinessEngine,
+            )
             readiness_report = MicroLiveReadinessEngine().evaluate()
             live_readiness    = readiness_report.live_readiness_score
             approved          = readiness_report.approved_for_micro_live
@@ -443,7 +459,7 @@ def main() -> None:
     print(f"  Autonomous Validation Loop  [cycle={last.cycle_id}]")
     print(f"{'='*60}")
     print(f"  {last.warning}")
-    print(f"\n  SCORES DE VALIDACAO")
+    print("\n  SCORES DE VALIDACAO")
     print(f"    validation_health:    {last.validation_health_score:.0f}/100")
     print(f"    live_readiness:       {last.live_readiness_score:.0f}/100")
     print(f"    autonomy_stability:   {last.autonomy_stability:.0f}/100")

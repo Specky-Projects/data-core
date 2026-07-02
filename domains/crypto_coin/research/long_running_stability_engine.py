@@ -37,10 +37,9 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 STABILITY_LOG = Path("data/stability_log.jsonl")
 
@@ -55,10 +54,16 @@ DATA_DIR            = Path("data")
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        runtime_health_score        as _prom_runtime_health,
-        operational_decay_score     as _prom_decay,
         long_running_stability_score as _prom_stability,
-        runtime_consistency_score   as _prom_consistency,
+    )
+    from api.runtime_metrics import (
+        operational_decay_score as _prom_decay,
+    )
+    from api.runtime_metrics import (
+        runtime_consistency_score as _prom_consistency,
+    )
+    from api.runtime_metrics import (
+        runtime_health_score as _prom_runtime_health,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -483,7 +488,7 @@ def main() -> None:
     }
     icon = status_icons.get(report.stability_status, "[??]")
 
-    print(f"\nLong-Running Stability Monitor — Phase R R-4")
+    print("\nLong-Running Stability Monitor — Phase R R-4")
     print(f"  report_id:                   {report.report_id}")
     print(f"  stability_status:            {icon} {report.stability_status}")
     print(f"  long_running_stability_score:{report.long_running_stability_score:.1f}/100")

@@ -18,11 +18,9 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from domains.crypto_coin.autotune.tuner import AutoTuner
 from domains.crypto_coin.config.settings import Config
-
 
 SCHEDULE_FILE = "logs/schedule_state.json"
 
@@ -59,8 +57,8 @@ class WeeklyScheduler:
         self.min_val_return = min_val_return
         self.restart_bot_after = restart_bot_after
 
-        self._last_run: Optional[datetime] = None
-        self._first_seen: Optional[datetime] = None
+        self._last_run: datetime | None = None
+        self._first_seen: datetime | None = None
         self._running_now: bool = False
         self._load_state()
 

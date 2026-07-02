@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -205,7 +205,7 @@ class ParameterIntelligence:
 
         # ── Recommended range ──────────────────────────────────────────────────
         recommended_range: tuple[float, float] | None = None
-        robust_values = [v for v, s in zip(values_tested, avg_sharpes) if s > 0.3]
+        robust_values = [v for v, s in zip(values_tested, avg_sharpes, strict=False) if s > 0.3]
         if len(robust_values) >= 2:
             recommended_range = (min(robust_values), max(robust_values))
 

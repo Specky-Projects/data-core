@@ -34,7 +34,7 @@ class SQLiteStorage:
         self.conn.execute("PRAGMA foreign_keys=ON")
 
     @classmethod
-    def from_url(cls, url: str) -> "SQLiteStorage":
+    def from_url(cls, url: str) -> SQLiteStorage:
         path = url.removeprefix("sqlite:///")
         if path == ":memory:":
             return cls(":memory:")

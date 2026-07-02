@@ -14,8 +14,8 @@ Modo realista (realistic=True):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
 
@@ -46,11 +46,11 @@ def paper_strategy_return_pct(equity: float, initial_balance: float) -> float:
 
 
 def _make_sell_record(exec_price: float, buy_price: float, asset: float,
-                      signal: Signal, bar_time: Any) -> Tuple[Dict, float]:
+                      signal: Signal, bar_time: Any) -> tuple[dict, float]:
     gross = asset * exec_price
     net   = gross * FEE_ROUND
     pnl   = net - (asset * buy_price)
-    rec: Dict[str, Any] = {
+    rec: dict[str, Any] = {
         "side":    signal.value,
         "price":   exec_price,
         "pnl":     pnl,
@@ -70,7 +70,7 @@ def paper_process_candle(
     bar_time: Any = None,
     min_buy_balance: float = 0.0,
     realistic: bool = False,
-) -> Tuple[PaperState, List[Dict[str, Any]]]:
+) -> tuple[PaperState, list[dict[str, Any]]]:
     """
     Um passo por candle: indicadores → get_signal → aplica BUY/SELL simulados.
 
@@ -79,7 +79,7 @@ def paper_process_candle(
       - Intracandle SL/TP: usa high/low do candle para verificar stop e take-profit
         antes de avaliar o sinal do fechamento.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     last_bar = window.iloc[-1]
 
     # ── Bar+1: executa compra pendente no open deste candle ────────────────
@@ -92,7 +92,7 @@ def paper_process_candle(
         state.buy_price = open_px
         state.in_position  = True
         state.pending_buy  = False
-        rec: Dict[str, Any] = {"side": "BUY", "price": open_px}
+        rec: dict[str, Any] = {"side": "BUY", "price": open_px}
         if bar_time is not None:
             rec["time"] = bar_time
         out.append(rec)
@@ -169,9 +169,9 @@ def paper_process_candle(
 
 def paper_finalize_open_position(
     state: PaperState, last_price: float
-) -> Tuple[PaperState, List[Dict[str, Any]]]:
+) -> tuple[PaperState, list[dict[str, Any]]]:
     """Fecha posição aberta no último preço (fim da série histórica)."""
-    records: List[Dict[str, Any]] = []
+    records: list[dict[str, Any]] = []
     if not state.in_position or state.asset <= 0:
         return state, records
     net = state.asset * last_price * FEE_ROUND

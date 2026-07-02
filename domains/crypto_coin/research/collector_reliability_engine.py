@@ -23,7 +23,7 @@ import argparse
 import json
 import os
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -49,9 +49,9 @@ CORE_COLLECTORS = [
 ]
 
 try:
-    from api.burnin_metrics import collector_reliability_score     as _prom_reliability
-    from api.burnin_metrics import normalization_integrity_score   as _prom_normalization
-    from api.burnin_metrics import data_freshness_score            as _prom_freshness
+    from api.burnin_metrics import collector_reliability_score as _prom_reliability
+    from api.burnin_metrics import data_freshness_score as _prom_freshness
+    from api.burnin_metrics import normalization_integrity_score as _prom_normalization
     _METRICS = True
 except ImportError:
     _METRICS = False
@@ -341,7 +341,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nCollector Reliability Engine — Phase S S-4")
+    print("\nCollector Reliability Engine — Phase S S-4")
     print(f"  collector_reliability_score:     {r.collector_reliability_score:.1f}/100")
     print(f"  normalization_integrity_score:   {r.normalization_integrity_score:.1f}/100")
     print(f"  data_freshness_score:            {r.data_freshness_score:.1f}/100")
@@ -350,7 +350,7 @@ def main() -> None:
     print(f"  records={r.total_records}  parse_errors={r.total_parse_errors}  "
           f"missing_core={r.missing_core_count}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     # Show top unhealthy files

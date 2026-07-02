@@ -9,10 +9,9 @@ e os parâmetros atuais do bot.
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
 
 
-def load_trades(path: str = "logs/trades.jsonl") -> List[dict]:
+def load_trades(path: str = "logs/trades.jsonl") -> list[dict]:
     if not Path(path).exists():
         return []
     trades = []
@@ -25,7 +24,7 @@ def load_trades(path: str = "logs/trades.jsonl") -> List[dict]:
     return trades
 
 
-def load_autotune_last(path: str = "logs/autotune_history.jsonl") -> Optional[dict]:
+def load_autotune_last(path: str = "logs/autotune_history.jsonl") -> dict | None:
     if not Path(path).exists():
         return None
     last = None

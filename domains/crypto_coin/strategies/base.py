@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Any
 
 import pandas as pd
 
@@ -32,7 +32,7 @@ class SignalContext:
     df:         pd.DataFrame     # OHLCV com pelo menos 150 candles
     cfg:        Any              # Config do sistema
     in_position: bool = False
-    buy_price:   Optional[float] = None
+    buy_price:   float | None = None
     strategy_return_pct: float = 0.0
     metadata:    dict = field(default_factory=dict)
 

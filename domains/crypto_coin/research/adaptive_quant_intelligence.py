@@ -29,15 +29,15 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from domains.crypto_coin.research.experiment_tracker          import ExperimentTracker
-from domains.crypto_coin.research.strategy_degradation_intelligence import StrategyDegradationIntelligence, DegradationFleetAnalyzer
-from domains.crypto_coin.research.fragility_intelligence      import FragilityIntelligenceAnalyzer
-from domains.crypto_coin.research.regime_aware_intelligence   import RegimeAwareIntelligence
+from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
+from domains.crypto_coin.research.regime_aware_intelligence import RegimeAwareIntelligence
+from domains.crypto_coin.research.strategy_degradation_intelligence import (
+    StrategyDegradationIntelligence,
+)
 
 EXPERIMENTS_DIR = Path("data/experiments")
 
@@ -254,7 +254,7 @@ class QuantRecommendationIntelligence:
                         strategy_id=sid,
                         title=f"Investigar '{sid}' — risco moderado",
                         description=f"Risk={deg_report.composite_risk_score:.0f}, degradation={deg_report.degradation_score:.0f}",
-                        action=f"Executar sweep ampliado e comparar com baseline anterior",
+                        action="Executar sweep ampliado e comparar com baseline anterior",
                         confidence="medium", estimated_impact="Médio — identificar causa da degradação",
                     ))
 
@@ -595,7 +595,7 @@ def main():
         if args.json:
             print(json.dumps(report.to_dict(), indent=2))
         else:
-            print(f"\nAdaptive Portfolio Intelligence")
+            print("\nAdaptive Portfolio Intelligence")
             print(f"  portfolio_health:    {report.portfolio_health_score:.0f}/100")
             print(f"  diversification:     {report.diversification_quality_score:.0f}/100")
             print(f"  adaptive_score:      {report.adaptive_portfolio_score:.0f}/100")
@@ -742,7 +742,7 @@ class AdaptivePortfolioEvolution:
                     health_scores.append(50.0)
 
             total_h = sum(health_scores) or (len(health_scores) * 50.0)
-            for sid, h in zip(strategy_ids, health_scores):
+            for sid, h in zip(strategy_ids, health_scores, strict=False):
                 raw_w = h / total_h
                 drift_factor = max(0.5, 1.0 - market_drift_score / 200.0)  # reduz até 50% em drift=100
                 drift_weights[sid] = round(raw_w * drift_factor, 4)
@@ -806,7 +806,7 @@ class QuantRecommendationEngineV2(QuantRecommendationIntelligence):
         market_drift_score:  float = 0.0,
         lifecycle_states:    dict[str, str] | None = None,  # {strategy_id: state}
         conflicting_pairs:   list[str] | None = None,
-    ) -> "QuantRecommendationReport":
+    ) -> QuantRecommendationReport:
         """
         Gera recomendações consolidadas v2 (Phase M base + Phase N context).
         """
@@ -847,7 +847,7 @@ class QuantRecommendationEngineV2(QuantRecommendationIntelligence):
                         id=f"lifecycle_retired_{sid}", type="retire", priority="critical",
                         strategy_id=sid,
                         title=f"'{sid}' atingiu estado RETIRED",
-                        description=f"Lifecycle state = retired. Exposição deve ser zero.",
+                        description="Lifecycle state = retired. Exposição deve ser zero.",
                         action=f"Remover '{sid}' do portfólio ativo imediatamente.",
                         confidence="high",
                         estimated_impact="Alto — estratégia sem viabilidade atual",
@@ -857,8 +857,8 @@ class QuantRecommendationEngineV2(QuantRecommendationIntelligence):
                         id=f"lifecycle_degraded_{sid}", type="investigate", priority="high",
                         strategy_id=sid,
                         title=f"'{sid}' em estado DEGRADED",
-                        description=f"Lifecycle state = degraded. Exposure cap = 20%.",
-                        action=f"Aplicar cap de 20% e investigar causa da degradação.",
+                        description="Lifecycle state = degraded. Exposure cap = 20%.",
+                        action="Aplicar cap de 20% e investigar causa da degradação.",
                         confidence="high",
                         estimated_impact="Médio — exposição controlada",
                     ))
@@ -871,7 +871,7 @@ class QuantRecommendationEngineV2(QuantRecommendationIntelligence):
                     type="investigate", priority="medium",
                     strategy_id=None,
                     title=f"Par redundante detectado: {pair_str}",
-                    description=f"Correlação de regime > 0.8. Estratégias podem ser redundantes.",
+                    description="Correlação de regime > 0.8. Estratégias podem ser redundantes.",
                     action="Avaliar se uma das estratégias pode ser removida ou substituída.",
                     confidence="medium",
                     estimated_impact="Baixo — eficiência de portfólio",

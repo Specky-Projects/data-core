@@ -19,7 +19,6 @@ Resolve três problemas da v1:
 """
 
 from enum import Enum
-from typing import Optional
 
 from domains.crypto_coin.indicators.technical import Indicators, MarketRegime
 
@@ -44,7 +43,7 @@ class Signal(Enum):
 def get_signal(
     ind: Indicators,
     in_position: bool,
-    buy_price: Optional[float],
+    buy_price: float | None,
     cfg,
     strategy_return_pct: float = 0.0,   # retorno acumulado da estratégia até agora
 ) -> Signal:
@@ -132,8 +131,8 @@ def signal_description(signal: Signal, ind: Indicators) -> str:
         Signal.RANGE_BUY:   f"✅ COMPRAR (range) — {base}",
         Signal.SELL:        f"⬇️  VENDER — {base}",
         Signal.RANGE_SELL:  f"⬇️  VENDER (range) — {base}",
-        Signal.STOP_LOSS:   f"🛑 STOP LOSS acionado",
-        Signal.TAKE_PROFIT: f"💰 TAKE PROFIT atingido",
+        Signal.STOP_LOSS:   "🛑 STOP LOSS acionado",
+        Signal.TAKE_PROFIT: "💰 TAKE PROFIT atingido",
         Signal.PAUSED_BNH:  f"⏸️  PAUSADO — Buy&Hold superando estratégia em {(ind.buy_and_hold_pct or 0):.1f}%",
         Signal.HOLD:        f"⏳ AGUARDAR — {base}",
     }

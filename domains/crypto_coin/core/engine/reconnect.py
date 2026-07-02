@@ -16,8 +16,8 @@ Sequência de espera:
 
 import asyncio
 import logging
-from typing import Callable, Any, Optional
-
+from collections.abc import Callable
+from typing import Any
 
 MAX_RETRIES  = 10
 BASE_WAIT    = 5      # segundos
@@ -55,7 +55,7 @@ class ReconnectionManager:
         label: str = "operação",
         retries: int = MAX_RETRIES,
         **kwargs,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Executa `fn(*args, **kwargs)` com retry automático.
         Retorna o resultado ou None após esgotar as tentativas.

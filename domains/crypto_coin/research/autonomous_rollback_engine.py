@@ -38,7 +38,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -276,7 +276,7 @@ class AutonomousRollbackEngine:
 
     def _build_recommendation(
         self, executed: bool,
-        trigger: "RollbackTrigger | None",
+        trigger: RollbackTrigger | None,
         recovery: RecoveryRequirements,
         gov_health: float,
     ) -> str:
@@ -368,7 +368,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nAutonomous Rollback Engine")
+    print("\nAutonomous Rollback Engine")
     print(f"  incident_id:           {report.incident_id}")
     print(f"  rollback_executed:     {'SIM' if report.rollback_executed else 'nao'}")
     if report.rollback_timestamp:
@@ -377,7 +377,7 @@ def main() -> None:
         print(f"  trigger_type:          {report.trigger_type} (severity={report.trigger_severity})")
     if report.rollback_reason:
         print(f"  rollback_reason:       {report.rollback_reason}")
-    print(f"\n  Pre-rollback state:")
+    print("\n  Pre-rollback state:")
     print(f"    governance:    {report.pre_rollback_governance:.1f}")
     print(f"    exec_quality:  {report.pre_rollback_exec_quality:.1f}")
     print(f"    readiness:     {report.pre_rollback_readiness:.1f}")
@@ -389,7 +389,7 @@ def main() -> None:
         print(f"    [{t['trigger_severity']}] {t['trigger_type']}: {fired_str}")
     if report.rollback_executed:
         r = report.recovery_requirements
-        print(f"\n  Recovery requirements:")
+        print("\n  Recovery requirements:")
         print(f"    governance >= {r['governance_health_min']:.0f}")
         print(f"    exec_quality >= {r['execution_quality_min']:.0f}")
         print(f"    readiness >= {r['readiness_score_min']:.0f}")

@@ -28,11 +28,10 @@ CLI:
 
 from __future__ import annotations
 
-import json
-import time
-import uuid
 import argparse
-from dataclasses import dataclass, asdict
+import json
+import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -51,9 +50,13 @@ STATE_SCHEMA_VERSION = "1.0"
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
+        replay_recovery_score as _prom_replay,
+    )
+    from api.runtime_metrics import (
         restoration_integrity_score as _prom_integrity,
-        state_consistency_score     as _prom_consistency,
-        replay_recovery_score       as _prom_replay,
+    )
+    from api.runtime_metrics import (
+        state_consistency_score as _prom_consistency,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -452,7 +455,7 @@ def main() -> None:
         return
 
     found_icon = "[OK]" if report.state_found else "[--]"
-    print(f"\nOperational State Restoration Engine — Phase R R-2")
+    print("\nOperational State Restoration Engine — Phase R R-2")
     print(f"  report_id:                    {report.report_id}")
     print(f"  state_found:                  {found_icon} {'sim' if report.state_found else 'nao (COLD_START)'}")
     if report.state_found:
@@ -460,7 +463,7 @@ def main() -> None:
     print(f"  restoration_integrity_score:  {report.restoration_integrity_score:.1f}/100")
     print(f"  state_consistency_score:      {report.state_consistency_score:.1f}/100")
     print(f"  replay_recovery_score:        {report.replay_recovery_score:.1f}/100")
-    print(f"\n  Estado restaurado:")
+    print("\n  Estado restaurado:")
     print(f"    governance_state: {report.governance_state_restored}")
     print(f"    guardian_state:   {report.guardian_state_restored}")
     print(f"    readiness_state:  {report.readiness_state_restored}")
@@ -471,7 +474,7 @@ def main() -> None:
         print(f"\n  Inconsistencias ({len(report.inconsistencies_found)}):")
         for inc in report.inconsistencies_found:
             print(f"    [!] {inc}")
-    print(f"\n  Acoes de restauracao:")
+    print("\n  Acoes de restauracao:")
     for act in report.restoration_actions:
         print(f"    - {act}")
     print(f"\n  -> {report.recommendation}")

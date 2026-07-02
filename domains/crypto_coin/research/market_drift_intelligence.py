@@ -30,17 +30,15 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
+from domains.crypto_coin.research.regime_aware_intelligence import RegimeAwareIntelligence
 from domains.crypto_coin.research.strategy_degradation_intelligence import (
-    StrategyDegradationIntelligence,
     DegradationFleetAnalyzer,
 )
-from domains.crypto_coin.research.regime_aware_intelligence import RegimeAwareIntelligence
 
 EXPERIMENTS_DIR = Path("data/experiments")
 DRIFT_HISTORY_FILE = Path("data/drift_history.jsonl")
@@ -48,8 +46,10 @@ DRIFT_HISTORY_FILE = Path("data/drift_history.jsonl")
 # Prometheus metrics (optional)
 try:
     from api.metrics import (
-        market_drift_score as _prom_drift,
         edge_decay_score as _prom_edge_decay,
+    )
+    from api.metrics import (
+        market_drift_score as _prom_drift,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -415,7 +415,7 @@ def main() -> None:
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))
     else:
-        print(f"\nMarket Drift Intelligence")
+        print("\nMarket Drift Intelligence")
         print(f"  market_drift_score:     {report.market_drift_score:.0f}/100")
         print(f"  edge_decay_score:       {report.edge_decay_score:.0f}/100")
         print(f"  regime_shift_score:     {report.regime_shift_score:.0f}/100")

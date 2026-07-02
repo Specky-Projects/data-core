@@ -26,7 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -324,11 +324,11 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nAutonomous Stability Intelligence")
+    print("\nAutonomous Stability Intelligence")
     print(f"  autonomy_stability_score:     {report.autonomy_stability_score:.0f}/100")
     print(f"  allocation_stability_score:   {report.allocation_stability_score:.0f}/100")
     print(f"  governance_consistency_score: {report.governance_consistency_score:.0f}/100")
-    print(f"\n  Checks:")
+    print("\n  Checks:")
     print(f"    allocation_oscillating:  {'SIM' if report.allocation_oscillating else 'nao'}")
     print(f"    exposure_unstable:       {'SIM' if report.exposure_unstable else 'nao'}")
     print(f"    switching_excessive:     {'SIM' if report.switching_excessive else 'nao'} (rate={report.avg_switch_rate:.2f}/ciclo)")

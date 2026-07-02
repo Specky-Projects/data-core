@@ -15,15 +15,12 @@ Fluxo:
   7. Retorna o melhor conjunto de parâmetros encontrado
 """
 
-import random
 import copy
-import asyncio
 import json
 import logging
-from dataclasses import dataclass, asdict, field
-from datetime import datetime
+import random
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -34,7 +31,6 @@ from domains.crypto_coin.backtesting.simulation import (
     paper_finalize_open_position,
     paper_process_candle,
 )
-
 
 # ── Espaço de busca dos parâmetros ───────────────────────────────────────────
 
@@ -117,7 +113,7 @@ def evaluate(ind: Individual, df: pd.DataFrame) -> Individual:
     O fitness combina retorno, win rate e penaliza poucos trades.
     """
     state = PaperState(balance=DEFAULT_INITIAL_BALANCE)
-    pnl_series: List[float] = []
+    pnl_series: list[float] = []
 
     for i in range(len(df)):
         window = df.iloc[: i + 1]
@@ -177,7 +173,7 @@ def evaluate(ind: Individual, df: pd.DataFrame) -> Individual:
 
 # ── Operadores genéticos ──────────────────────────────────────────────────────
 
-def crossover(parent_a: Individual, parent_b: Individual) -> Tuple[Individual, Individual]:
+def crossover(parent_a: Individual, parent_b: Individual) -> tuple[Individual, Individual]:
     """Troca parâmetros aleatoriamente entre dois pais."""
     child_a = copy.deepcopy(parent_a)
     child_b = copy.deepcopy(parent_b)
@@ -225,7 +221,7 @@ def mutate(ind: Individual, mutation_rate: float = 0.2) -> Individual:
     return mutated
 
 
-def tournament_select(population: List[Individual], k: int = 3) -> Individual:
+def tournament_select(population: list[Individual], k: int = 3) -> Individual:
     """Seleciona o melhor de k indivíduos aleatórios (torneio)."""
     contestants = random.sample(population, min(k, len(population)))
     return max(contestants, key=lambda x: x.fitness)
@@ -241,7 +237,7 @@ class GeneticOptimizer:
         generations: int = 20,
         elite_pct: float = 0.2,
         mutation_rate: float = 0.25,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         self.df = df
         self.population_size = population_size
@@ -249,13 +245,13 @@ class GeneticOptimizer:
         self.elite_size = max(2, int(population_size * elite_pct))
         self.mutation_rate = mutation_rate
         self.logger = logger or logging.getLogger("optimizer")
-        self.history: List[dict] = []
+        self.history: list[dict] = []
 
     def _log(self, msg: str):
         self.logger.info(msg)
 
     def run(self) -> Individual:
-        self._log(f"🧬 Iniciando otimização genética")
+        self._log("🧬 Iniciando otimização genética")
         self._log(f"   População: {self.population_size} | Gerações: {self.generations}")
         self._log(f"   Candles disponíveis: {len(self.df)}")
 
@@ -268,7 +264,7 @@ class GeneticOptimizer:
 
         for gen in range(1, self.generations + 1):
             # Elitismo: os melhores passam direto
-            next_gen: List[Individual] = population[: self.elite_size]
+            next_gen: list[Individual] = population[: self.elite_size]
 
             # Preenche o restante com crossover + mutação
             while len(next_gen) < self.population_size:
@@ -309,7 +305,7 @@ class GeneticOptimizer:
                 ),
             })
 
-        self._log(f"\n🏆 Melhor indivíduo encontrado:")
+        self._log("\n🏆 Melhor indivíduo encontrado:")
         self._log(f"   Fitness:   {best_ever.fitness:+.4f}")
         self._log(f"   Retorno:   {best_ever.total_return_pct:+.2f}%")
         self._log(f"   Win rate:  {best_ever.win_rate:.1f}%")

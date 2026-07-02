@@ -316,7 +316,7 @@ def main() -> None:
         if args.json:
             print(json.dumps(report, indent=2))
         else:
-            print(f"\n📊 Dataset Reliability Report")
+            print("\n📊 Dataset Reliability Report")
             print(f"   Fleet avg score: {report['fleet_avg_score']}/100")
             print(f"   Distribution: {report['distribution']}")
             for p in report["pairs"]:

@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Evita dependência em YAML se não disponível — usa json como fallback
 try:
@@ -62,7 +62,7 @@ class StrategyDefinition:
     last_updated:        str
 
     @classmethod
-    def from_dict(cls, data: dict) -> "StrategyDefinition":
+    def from_dict(cls, data: dict) -> StrategyDefinition:
         perf_history = [
             StrategyPerformance(**p)
             for p in data.get("performance_history", [])
@@ -184,7 +184,7 @@ class StrategyRegistry:
 _registry: StrategyRegistry | None = None
 
 
-def get_registry(registry_path: Optional[Path] = None) -> StrategyRegistry:
+def get_registry(registry_path: Path | None = None) -> StrategyRegistry:
     """Retorna instância singleton do registry."""
     global _registry
     if _registry is None:

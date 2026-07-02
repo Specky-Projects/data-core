@@ -17,7 +17,7 @@ import argparse
 import json
 import os
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -52,8 +52,8 @@ METRIC_SOURCES: list[tuple[str, str, int, bool]] = [
 ]
 
 try:
-    from api.burnin_metrics import metrics_integrity_score    as _prom_integrity
-    from api.burnin_metrics import metrics_continuity_score   as _prom_continuity
+    from api.burnin_metrics import metrics_continuity_score as _prom_continuity
+    from api.burnin_metrics import metrics_integrity_score as _prom_integrity
     from api.burnin_metrics import observability_health_score as _prom_obs
     _METRICS = True
 except ImportError:
@@ -240,7 +240,7 @@ def main() -> None:
         print(json.dumps(r.to_dict(), indent=2))
         return
 
-    print(f"\nMetrics Integrity Validator — Phase S")
+    print("\nMetrics Integrity Validator — Phase S")
     print(f"  metrics_integrity_score:    {r.metrics_integrity_score:.1f}/100")
     print(f"  metrics_continuity_score:   {r.metrics_continuity_score:.1f}/100")
     print(f"  observability_health_score: {r.observability_health_score:.1f}/100")
@@ -252,7 +252,7 @@ def main() -> None:
     if r.missing_metrics:
         print(f"  Missing: {r.missing_metrics[:5]}")
     if r.issues_summary:
-        print(f"\n  Issues:")
+        print("\n  Issues:")
         for iss in r.issues_summary:
             print(f"    - {iss}")
     print(f"\n  -> {r.recommendation}")

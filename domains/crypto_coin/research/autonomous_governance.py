@@ -37,12 +37,10 @@ from __future__ import annotations
 import argparse
 import json
 import time
-import statistics
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 EXPERIMENTS_DIR    = Path("data/experiments")
 GOVERNANCE_LOG     = Path("data/governance_history.jsonl")
@@ -50,11 +48,19 @@ GOVERNANCE_LOG     = Path("data/governance_history.jsonl")
 # Prometheus (optional)
 try:
     from api.metrics import (
-        market_survival_score      as _prom_survival,
-        systemic_risk_score        as _prom_systemic,
-        self_healing_score         as _prom_healing,
-        adaptive_risk_score        as _prom_risk,
-        adaptive_efficiency_score  as _prom_efficiency,
+        adaptive_efficiency_score as _prom_efficiency,
+    )
+    from api.metrics import (
+        adaptive_risk_score as _prom_risk,
+    )
+    from api.metrics import (
+        market_survival_score as _prom_survival,
+    )
+    from api.metrics import (
+        self_healing_score as _prom_healing,
+    )
+    from api.metrics import (
+        systemic_risk_score as _prom_systemic,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -163,7 +169,9 @@ class AutonomousGovernance:
         # ── FASE 5: Market Survival ────────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.market_survival_intelligence import MarketSurvivalIntelligence
+            from domains.crypto_coin.research.market_survival_intelligence import (
+                MarketSurvivalIntelligence,
+            )
             survival_report  = MarketSurvivalIntelligence(self.experiments_dir).analyze()
             market_survival  = survival_report.market_survival_score
             systemic_risk    = survival_report.systemic_risk_score
@@ -188,7 +196,9 @@ class AutonomousGovernance:
         # ── FASE 7: Self-Healing ───────────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.self_healing_intelligence import SelfHealingIntelligence
+            from domains.crypto_coin.research.self_healing_intelligence import (
+                SelfHealingIntelligence,
+            )
             healing_report = SelfHealingIntelligence(self.experiments_dir).diagnose(auto_heal=self.auto_heal)
             infra_health   = healing_report.infrastructure_health_score
             degraded_mode  = healing_report.degraded_mode
@@ -213,7 +223,9 @@ class AutonomousGovernance:
         # ── FASE 9: Adaptive Risk ──────────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.adaptive_risk_intelligence import AdaptiveRiskIntelligence
+            from domains.crypto_coin.research.adaptive_risk_intelligence import (
+                AdaptiveRiskIntelligence,
+            )
             risk_report   = AdaptiveRiskIntelligence(self.experiments_dir).analyze()
             adaptive_risk = risk_report.adaptive_risk_score
             phases.append(GovernancePhaseResult(
@@ -236,7 +248,9 @@ class AutonomousGovernance:
         # ── FASE 2: Strategy Activation ────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.strategy_activation_engine import StrategyActivationEngine
+            from domains.crypto_coin.research.strategy_activation_engine import (
+                StrategyActivationEngine,
+            )
             activation_engine = StrategyActivationEngine(self.experiments_dir)
             fleet_act = activation_engine.evaluate_fleet()
             strategies_active    = fleet_act.strategies_active
@@ -262,7 +276,9 @@ class AutonomousGovernance:
         # ── FASE 3: Exposure Control ───────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.autonomous_exposure_control import AutonomousExposureControl
+            from domains.crypto_coin.research.autonomous_exposure_control import (
+                AutonomousExposureControl,
+            )
             exposure_report = AutonomousExposureControl(
                 experiments_dir=self.experiments_dir,
                 current_regime=self.current_regime,
@@ -288,7 +304,9 @@ class AutonomousGovernance:
         # ── FASE 8: Execution Intelligence ────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.autonomous_execution_intelligence import AutonomousExecutionIntelligence
+            from domains.crypto_coin.research.autonomous_execution_intelligence import (
+                AutonomousExecutionIntelligence,
+            )
             exec_report = AutonomousExecutionIntelligence(
                 experiments_dir=self.experiments_dir,
                 current_regime=self.current_regime,
@@ -315,7 +333,9 @@ class AutonomousGovernance:
         # ── FASE 4: Portfolio Governance ───────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.adaptive_quant_intelligence import AutonomousPortfolioGovernor
+            from domains.crypto_coin.research.adaptive_quant_intelligence import (
+                AutonomousPortfolioGovernor,
+            )
             gov_report = AutonomousPortfolioGovernor(self.experiments_dir).govern(
                 strategy_ids=strategy_ids,
                 market_drift=market_drift,
@@ -342,7 +362,9 @@ class AutonomousGovernance:
         # ── FASE 6: Research Evolution ─────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.autonomous_research_loop import AutonomousResearchEvolution
+            from domains.crypto_coin.research.autonomous_research_loop import (
+                AutonomousResearchEvolution,
+            )
             evo_report = AutonomousResearchEvolution(self.experiments_dir).generate_plan(strategy_ids)
             phases.append(GovernancePhaseResult(
                 phase="research_evolution", status="ok",
@@ -363,7 +385,9 @@ class AutonomousGovernance:
         # ── FASE 10: Meta-Optimization ─────────────────────────────────────────
         t0 = time.time()
         try:
-            from domains.crypto_coin.research.meta_optimization_intelligence import MetaOptimizationIntelligence
+            from domains.crypto_coin.research.meta_optimization_intelligence import (
+                MetaOptimizationIntelligence,
+            )
             meta_report = MetaOptimizationIntelligence(self.experiments_dir).analyze()
             phases.append(GovernancePhaseResult(
                 phase="meta_optimization", status="ok",
@@ -557,22 +581,22 @@ def main() -> None:
     print(f"  Autonomous Governance  [cycle={report.cycle_id}]")
     print(f"{'='*60}")
     print(f"  {report.warning}")
-    print(f"\n  SCORES GLOBAIS")
+    print("\n  SCORES GLOBAIS")
     print(f"    governance_health:    {report.governance_health_score:.0f}/100")
     print(f"    autonomy_confidence:  {report.autonomy_confidence_score:.0f}/100")
     print(f"    system_resilience:    {report.system_resilience_score:.0f}/100")
-    print(f"\n  MERCADO")
+    print("\n  MERCADO")
     print(f"    market_drift:         {report.market_drift_score:.0f}/100")
     print(f"    market_survival:      {report.market_survival_score:.0f}/100")
     print(f"    systemic_risk:        {report.systemic_risk_score:.0f}/100")
     print(f"    adaptive_risk:        {report.adaptive_risk_score:.0f}/100")
     print(f"    infrastructure:       {report.infrastructure_health:.0f}/100")
-    print(f"\n  MODOS ATIVOS")
+    print("\n  MODOS ATIVOS")
     print(f"    survival_mode:        {'ATIVO' if report.survival_mode_active else 'inativo'}")
     print(f"    capital_preservation: {'ATIVO' if report.capital_preservation_active else 'inativo'}")
     print(f"    degraded_mode:        {'ATIVO' if report.degraded_mode_active else 'inativo'}")
     print(f"    auto_heal_applied:    {'SIM' if report.auto_heal_applied else 'nao'}")
-    print(f"\n  FROTA")
+    print("\n  FROTA")
     print(f"    strategies_evaluated: {report.strategies_evaluated}")
     print(f"    active/throttled/frozen: {report.strategies_active}/{report.strategies_throttled}/{report.strategies_frozen}")
     print(f"    fleet_health:         {report.fleet_health_avg:.0f}/100")

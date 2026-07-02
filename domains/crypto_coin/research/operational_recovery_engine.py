@@ -38,7 +38,7 @@ import json
 import os
 import time
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -66,9 +66,13 @@ ALL_ACTION_TYPES = [
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        recovery_success_rate    as _prom_success_rate,
+        recovery_duration_ms as _prom_duration,
+    )
+    from api.runtime_metrics import (
         recovery_integrity_score as _prom_integrity,
-        recovery_duration_ms     as _prom_duration,
+    )
+    from api.runtime_metrics import (
+        recovery_success_rate as _prom_success_rate,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -297,7 +301,7 @@ class OperationalRecoveryEngine:
             last = self._load_last(REPLAY_LOG)
             if last is None:
                 return True, "replay log empty"
-            return True, f"replay log accessible, last_entry found"
+            return True, "replay log accessible, last_entry found"
         except Exception as exc:
             return False, f"replay check error: {exc}"
 
@@ -325,7 +329,7 @@ class OperationalRecoveryEngine:
                 if last:
                     state = last.get("guardian_state", "NORMAL")
                     if state == "ROLLBACK":
-                        return False, f"guardian in ROLLBACK state"
+                        return False, "guardian in ROLLBACK state"
 
             # Check active incidents
             if INCIDENT_LOG.exists():
@@ -594,7 +598,7 @@ def main() -> None:
         return
 
     complete_str = "COMPLETE" if report.recovery_complete else "INCOMPLETE"
-    print(f"\nOperational Recovery Engine — Phase R R-7")
+    print("\nOperational Recovery Engine — Phase R R-7")
     print(f"  report_id:               {report.report_id}")
     print(f"  trigger_reason:          {report.trigger_reason}")
     print(f"  recovery_complete:       [{complete_str}]")

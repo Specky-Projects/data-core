@@ -30,10 +30,9 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
 
 INCIDENT_LOG          = Path("data/incident_log.jsonl")
 ACTIVE_INCIDENTS_PATH = Path("data/active_incidents.json")
@@ -41,11 +40,19 @@ ACTIVE_INCIDENTS_PATH = Path("data/active_incidents.json")
 # Prometheus (optional)
 try:
     from api.runtime_metrics import (
-        incident_severity_score    as _prom_severity,
-        incident_frequency_score   as _prom_frequency,
-        operational_risk_score     as _prom_op_risk,
-        incident_count_total       as _prom_count,
-        critical_incidents_total   as _prom_critical,
+        critical_incidents_total as _prom_critical,
+    )
+    from api.runtime_metrics import (
+        incident_count_total as _prom_count,
+    )
+    from api.runtime_metrics import (
+        incident_frequency_score as _prom_frequency,
+    )
+    from api.runtime_metrics import (
+        incident_severity_score as _prom_severity,
+    )
+    from api.runtime_metrics import (
+        operational_risk_score as _prom_op_risk,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -102,7 +109,7 @@ class Incident:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Incident":
+    def from_dict(cls, d: dict) -> Incident:
         return cls(
             incident_id            = d["incident_id"],
             subsystem              = d["subsystem"],
@@ -553,7 +560,7 @@ def main() -> None:
             if args.json:
                 print(json.dumps(inc.to_dict(), indent=2))
             else:
-                print(f"\nIncidente criado:")
+                print("\nIncidente criado:")
                 print(f"  incident_id:  {inc.incident_id}")
                 print(f"  subsystem:    {inc.subsystem}")
                 print(f"  severity:     {inc.severity} (level={inc.severity_level})")
@@ -590,7 +597,7 @@ def main() -> None:
         print(json.dumps(summary.to_dict(), indent=2))
         return
 
-    print(f"\nAutonomous Incident Manager — Phase R R-6")
+    print("\nAutonomous Incident Manager — Phase R R-6")
     print(f"  report_id:               {summary.report_id}")
     print(f"  operational_risk_score:  {summary.operational_risk_score:.1f}/100")
     print(f"  incident_severity_score: {summary.incident_severity_score:.1f}/100")
@@ -602,7 +609,7 @@ def main() -> None:
     print(f"  highest_severity:        {summary.highest_severity}")
 
     if summary.active_incidents:
-        print(f"\n  Incidentes ativos:")
+        print("\n  Incidentes ativos:")
         for inc in summary.active_incidents:
             age_str = _format_age(inc.opened_at)
             print(
@@ -611,7 +618,7 @@ def main() -> None:
                 f"age={age_str}  {inc.root_cause[:55]}"
             )
     else:
-        print(f"\n  Nenhum incidente ativo.")
+        print("\n  Nenhum incidente ativo.")
 
     print(f"\n  -> {summary.risk_assessment}")
     print(f"\n  evaluated_at: {summary.evaluated_at}")

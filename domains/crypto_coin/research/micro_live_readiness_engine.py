@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -356,7 +356,7 @@ def main() -> None:
         blocker = " [BLOCKING]" if g.blocking and not g.passed else ""
         print(f"    [{icon}] {g.gate:<35} {g.score:>5.0f}{blocker}")
     if report.approval_conditions:
-        print(f"\n  Condicoes pendentes:")
+        print("\n  Condicoes pendentes:")
         for cond in report.approval_conditions:
             print(f"    - {cond}")
     print(f"\n  -> {report.readiness_recommendation}")

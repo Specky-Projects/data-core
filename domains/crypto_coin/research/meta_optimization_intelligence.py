@@ -24,14 +24,11 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
-from domains.crypto_coin.research.strategy_degradation_intelligence import DegradationFleetAnalyzer
-from domains.crypto_coin.research.research_prioritizer import ResearchPrioritizer
 
 EXPERIMENTS_DIR     = Path("data/experiments")
 META_OPT_LOG        = Path("data/meta_optimization_log.jsonl")
@@ -444,7 +441,7 @@ def main() -> None:
         print(json.dumps(report.to_dict(), indent=2))
         return
 
-    print(f"\nMeta-Optimization Intelligence")
+    print("\nMeta-Optimization Intelligence")
     print(f"  optimization_efficiency: {report.optimization_efficiency_score:.0f}/100")
     print(f"  computational_priority:  {report.computational_priority_score:.0f}/100")
     print(f"  adaptive_efficiency:     {report.adaptive_efficiency_score:.0f}/100")

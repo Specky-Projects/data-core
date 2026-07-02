@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
-
+from typing import Any
 
 JsonDict = dict[str, Any]
 
@@ -33,9 +32,9 @@ class EntryContext:
     price: float
     confidence: int
     strategy_version: str = "v1.0"
-    regime: Optional[str] = None
-    mtf_bias: Optional[str] = None
-    strategy_return_pct: Optional[float] = None
+    regime: str | None = None
+    mtf_bias: str | None = None
+    strategy_return_pct: float | None = None
     context: JsonDict = field(default_factory=dict)
 
 
@@ -48,17 +47,17 @@ class TradeResult:
     price: float
     amount: float
     strategy_version: str = "v1.0"
-    cost: Optional[float] = None
-    order_id: Optional[str] = None
-    signal: Optional[str] = None
-    confidence: Optional[int] = None
-    pnl: Optional[float] = None
-    pnl_pct: Optional[float] = None
-    slippage: Optional[float] = None
-    mae: Optional[float] = None
-    mfe: Optional[float] = None
-    fee: Optional[float] = None
-    loss_type: Optional[str] = None
+    cost: float | None = None
+    order_id: str | None = None
+    signal: str | None = None
+    confidence: int | None = None
+    pnl: float | None = None
+    pnl_pct: float | None = None
+    slippage: float | None = None
+    mae: float | None = None
+    mfe: float | None = None
+    fee: float | None = None
+    loss_type: str | None = None
     paper: bool = True
     details: JsonDict = field(default_factory=dict)
 
@@ -70,12 +69,12 @@ class RegimeRecord:
     timestamp: datetime
     regime: str
     confidence: int
-    atr: Optional[float] = None
-    atr_pct: Optional[float] = None
-    hv: Optional[float] = None
-    adx: Optional[float] = None
-    volume_ratio: Optional[float] = None
-    breakout_score: Optional[float] = None
+    atr: float | None = None
+    atr_pct: float | None = None
+    hv: float | None = None
+    adx: float | None = None
+    volume_ratio: float | None = None
+    breakout_score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -86,8 +85,8 @@ class EquityPoint:
     equity: float
     quote_balance: float
     base_amount: float = 0.0
-    mark_price: Optional[float] = None
-    realized_pnl: Optional[float] = None
+    mark_price: float | None = None
+    realized_pnl: float | None = None
     paper: bool = True
 
 
@@ -97,16 +96,16 @@ class OpenPositionState:
     strategy_id: str
     timestamp: datetime
     in_position: bool
-    buy_price: Optional[float] = None
+    buy_price: float | None = None
     amount: float = 0.0
     entry_confidence: int = 0
-    position_low: Optional[float] = None
-    position_high: Optional[float] = None
-    trailing_stop_price: Optional[float] = None
-    trailing_highest_price: Optional[float] = None
+    position_low: float | None = None
+    position_high: float | None = None
+    trailing_stop_price: float | None = None
+    trailing_highest_price: float | None = None
     trailing_activated: bool = False
-    quote_balance: Optional[float] = None
-    base_amount: Optional[float] = None
+    quote_balance: float | None = None
+    base_amount: float | None = None
     paper: bool = True
     metadata: JsonDict = field(default_factory=dict)
 
@@ -116,9 +115,9 @@ class BotRun:
     run_id: str
     started_at: datetime
     status: str = "running"
-    stopped_at: Optional[datetime] = None
-    symbol: Optional[str] = None
-    timeframe: Optional[str] = None
+    stopped_at: datetime | None = None
+    symbol: str | None = None
+    timeframe: str | None = None
     paper: bool = True
     metadata: JsonDict = field(default_factory=dict)
 
@@ -136,11 +135,11 @@ class SignalDecision:
     price: float
     confidence: int
     strategy_version: str = "v1.0"
-    regime: Optional[str] = None
-    mtf_bias: Optional[str] = None
-    strategy_return_pct: Optional[float] = None
-    setup_score: Optional[float] = None
-    setup_quality: Optional[str] = None
+    regime: str | None = None
+    mtf_bias: str | None = None
+    strategy_return_pct: float | None = None
+    setup_score: float | None = None
+    setup_quality: str | None = None
     context: JsonDict = field(default_factory=dict)
 
 
@@ -157,15 +156,15 @@ class ShadowTrade:
     take_profit_price: float
     signal: str
     confidence: int
-    setup_score: Optional[float] = None
-    setup_quality: Optional[str] = None
-    regime: Optional[str] = None
-    mtf_bias: Optional[str] = None
+    setup_score: float | None = None
+    setup_quality: str | None = None
+    regime: str | None = None
+    mtf_bias: str | None = None
     status: str = "open"
-    exit_timestamp: Optional[datetime] = None
-    exit_price: Optional[float] = None
-    exit_reason: Optional[str] = None
-    pnl_pct: Optional[float] = None
+    exit_timestamp: datetime | None = None
+    exit_price: float | None = None
+    exit_reason: str | None = None
+    pnl_pct: float | None = None
     metadata: JsonDict = field(default_factory=dict)
 
 
@@ -175,6 +174,6 @@ class BotError:
     timestamp: datetime
     source: str
     message: str
-    error_type: Optional[str] = None
-    traceback: Optional[str] = None
+    error_type: str | None = None
+    traceback: str | None = None
     context: JsonDict = field(default_factory=dict)

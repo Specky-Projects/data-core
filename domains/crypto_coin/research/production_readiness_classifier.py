@@ -34,8 +34,8 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 READINESS_LOG = Path("data/production_readiness_log.jsonl")
@@ -732,7 +732,7 @@ def main() -> None:
     }
     icon = cls_icons.get(report.classification, " ?")
 
-    print(f"\nProduction Readiness Classifier — Phase R R-9")
+    print("\nProduction Readiness Classifier — Phase R R-9")
     print(f"  report_id:               {report.report_id}")
     print(f"  classification:          [{icon}] {report.classification}")
     print(f"  readiness_confidence:    {report.readiness_confidence:.1f}%")
@@ -748,11 +748,11 @@ def main() -> None:
             f"value={dim.value:>7.2f}  threshold={dim.threshold:>7.2f}"
         )
     if report.blocking_factors:
-        print(f"\n  Blocking factors:")
+        print("\n  Blocking factors:")
         for bf in report.blocking_factors:
             print(f"    - {bf}")
     if report.advancement_requirements:
-        print(f"\n  To advance one level:")
+        print("\n  To advance one level:")
         for req in report.advancement_requirements:
             print(f"    -> {req}")
     if report.classification_history:

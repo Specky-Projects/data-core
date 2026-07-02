@@ -25,15 +25,13 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import ccxt.async_support as ccxt
 import pandas as pd
 
-from domains.crypto_coin.config.settings import load_config, Config
 from domains.crypto_coin.autotune.optimizer import GeneticOptimizer, Individual, evaluate
+from domains.crypto_coin.config.settings import Config, load_config
 from domains.crypto_coin.infra.notifier import Notifier
-
 
 # ── Busca de dados históricos ─────────────────────────────────────────────────
 
@@ -106,7 +104,7 @@ def update_env(best: Individual, env_path: str = ".env"):
         "TRADE_SIZE_PCT":   str(int(best.trade_size_pct)),
     }
 
-    with open(env_path, "r", encoding="utf-8") as f:
+    with open(env_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     updated_keys = set()
@@ -186,7 +184,7 @@ class AutoTuner:
         self.min_val_return = min_val_return
         self.notifier = Notifier(cfg, logger)
 
-    async def run(self, update_env_file: bool = True) -> Optional[Individual]:
+    async def run(self, update_env_file: bool = True) -> Individual | None:
         total_days = self.train_days + self.val_days
         self.logger.info("=" * 60)
         self.logger.info("  🔬 AUTO-TUNER INICIADO")

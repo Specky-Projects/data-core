@@ -44,8 +44,8 @@ import argparse
 import json
 import math
 import uuid
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone, timedelta
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 BURNIN_LOG = Path("data/runtime_burnin_log.jsonl")
@@ -63,9 +63,13 @@ STABILITY_LOG          = Path("data/stability_log.jsonl")
 # Prometheus (optional)
 try:
     from api.burnin_metrics import (
-        burnin_stability_score       as _prom_burnin_stability,
-        runtime_burnin_score         as _prom_runtime_burnin,
+        burnin_stability_score as _prom_burnin_stability,
+    )
+    from api.burnin_metrics import (
         long_session_integrity_score as _prom_long_session,
+    )
+    from api.burnin_metrics import (
+        runtime_burnin_score as _prom_runtime_burnin,
     )
     _METRICS_AVAILABLE = True
 except ImportError:
@@ -536,7 +540,7 @@ def main() -> None:
     }
     icon = status_icons.get(report.burnin_status, "[??]")
 
-    print(f"\nRuntime Burn-In Engine — Phase S S-1")
+    print("\nRuntime Burn-In Engine — Phase S S-1")
     print(f"  report_id:                   {report.report_id}")
     print(f"  burnin_status:               {icon} {report.burnin_status}")
     print(f"  burnin_phase:                {report.burnin_phase}")

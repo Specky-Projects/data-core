@@ -29,10 +29,10 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -66,8 +66,8 @@ class ExperimentRecord:
     # Dados do dataset usado
     replay_dataset:  str = "db"   # "db" | "binance" | "csv"
     replay_days:     int = 90
-    replay_start:    Optional[str] = None
-    replay_end:      Optional[str] = None
+    replay_start:    str | None = None
+    replay_end:      str | None = None
     candles_count:   int = 0
 
     # Snapshots opcionais (pode ser omitido para economizar espaço)
@@ -81,14 +81,14 @@ class ExperimentRecord:
 
     # Phase K FASE 9 — Organization fields
     tags:          list[str] = field(default_factory=list)
-    group_id:      Optional[str] = None   # ex: "sweep-20260516-trend_following"
-    parent_run_id: Optional[str] = None   # lineage: gerou este experimento a partir de qual?
+    group_id:      str | None = None   # ex: "sweep-20260516-trend_following"
+    parent_run_id: str | None = None   # lineage: gerou este experimento a partir de qual?
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ExperimentRecord":
+    def from_dict(cls, data: dict) -> ExperimentRecord:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     # ── Convenience accessors ──────────────────────────────────────────────
