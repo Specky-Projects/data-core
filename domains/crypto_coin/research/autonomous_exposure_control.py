@@ -196,7 +196,7 @@ class AutonomousExposureControl:
             )
 
             justification = self._build_justification(
-                fleet_mode, control_mode, market_drift, fleet_health, act_state
+                fleet_control_mode, control_mode, market_drift, fleet_health, act_state
             )
 
             decision = ExposureControlDecision(
