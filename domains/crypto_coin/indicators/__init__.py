@@ -1,1 +1,1 @@
-from domains.crypto_coin.indicators.technical import compute_indicators, Indicators, MarketRegime
+from domains.crypto_coin.indicators.technical import Indicators, MarketRegime, compute_indicators

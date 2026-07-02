@@ -11,8 +11,8 @@ import asyncio
 import signal
 import sys
 
-from domains.crypto_coin.core.engine.trading_engine import TradingBot
 from domains.crypto_coin.config.settings import load_config
+from domains.crypto_coin.core.engine.trading_engine import TradingBot
 from domains.crypto_coin.infra.logger import setup_logger
 
 
