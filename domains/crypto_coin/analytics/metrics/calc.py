@@ -4,6 +4,7 @@ Usado pelo dashboard e pelo autotune (fitness function).
 """
 
 from __future__ import annotations
+
 import math
 
 

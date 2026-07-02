@@ -30,8 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .experiment_tracker import ExperimentTracker
-from .strategy_registry  import get_registry
-
+from .strategy_registry import get_registry
 
 # ── Pesos do score composto ───────────────────────────────────────────────────
 

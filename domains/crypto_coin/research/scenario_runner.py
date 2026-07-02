@@ -37,7 +37,7 @@ from __future__ import annotations
 import argparse
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -272,8 +272,8 @@ class ScenarioRunner:
         timeframe:   str,
         initial_balance: float,
     ) -> ScenarioResult:
-        from domains.crypto_coin.backtesting.db_replay import replay_from_db
         from domains.crypto_coin.analytics.metrics.calc import compute_all
+        from domains.crypto_coin.backtesting.db_replay import replay_from_db
         from domains.crypto_coin.research.strategy_registry import get_registry
 
         registry = get_registry()
@@ -318,8 +318,8 @@ class ScenarioRunner:
         result:   ScenarioResult,
         scenario: ScenarioDefinition,
     ) -> None:
-        from domains.crypto_coin.research.experiment_tracker import get_tracker, ExperimentRecord
         from api import metrics as prom_metrics
+        from domains.crypto_coin.research.experiment_tracker import ExperimentRecord, get_tracker
 
         tracker = get_tracker()
         record  = ExperimentRecord(

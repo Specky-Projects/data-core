@@ -14,15 +14,10 @@ Regras de alinhamento:
   Se neutro/indefinido → permite a operação (benefício da dúvida)
 """
 
-import asyncio
 import logging
-from typing import Optional, Tuple
 from enum import Enum
 
-import pandas as pd
-
-from domains.crypto_coin.indicators.technical import compute_indicators, MarketRegime
-
+from domains.crypto_coin.indicators.technical import MarketRegime, compute_indicators
 
 # Mapeamento: timeframe operacional → timeframe superior de confirmação
 HIGHER_TIMEFRAME = {

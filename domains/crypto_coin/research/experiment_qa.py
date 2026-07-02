@@ -30,9 +30,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
-from .experiment_tracker import ExperimentTracker, ExperimentRecord, EXPERIMENTS_DIR
-from .strategy_registry  import get_registry
-
+from .experiment_tracker import EXPERIMENTS_DIR, ExperimentRecord, ExperimentTracker
+from .strategy_registry import get_registry
 
 # ── Thresholds de plausibilidade ──────────────────────────────────────────────
 

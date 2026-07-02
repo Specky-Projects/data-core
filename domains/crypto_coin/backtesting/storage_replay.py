@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from domains.crypto_coin.analytics.metrics.calc import max_drawdown, profit_factor, sharpe_ratio
 from domains.crypto_coin.data.storage.repository import StorageRepository
 from domains.crypto_coin.indicators.technical import Indicators, MarketRegime
 from domains.crypto_coin.strategies.trend_following.strategy import Signal, get_signal
-from domains.crypto_coin.analytics.metrics.calc import max_drawdown, profit_factor, sharpe_ratio
 
 
 @dataclass(frozen=True)

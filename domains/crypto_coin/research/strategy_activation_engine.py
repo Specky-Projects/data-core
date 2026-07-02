@@ -35,16 +35,14 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
+from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 from domains.crypto_coin.research.strategy_degradation_intelligence import (
     StrategyDegradationIntelligence,
-    DegradationFleetAnalyzer,
 )
-from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 from domains.crypto_coin.research.strategy_lifecycle import StrategyLifecycleEngine
 
 EXPERIMENTS_DIR   = Path("data/experiments")
@@ -54,8 +52,10 @@ ACTIVATION_STATE  = Path("data/strategy_activation_state.json")
 # Prometheus (optional)
 try:
     from api.metrics import (
-        strategy_trust_score as _prom_trust,
         autonomous_strategy_switch_total as _prom_switch,
+    )
+    from api.metrics import (
+        strategy_trust_score as _prom_trust,
     )
     _METRICS_AVAILABLE = True
 except ImportError:

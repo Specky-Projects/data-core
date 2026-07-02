@@ -27,12 +27,10 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass, field
-from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .ohlcv_integrity import check_integrity, check_all_symbols, OHLCVIntegrityReport
-
+from .ohlcv_integrity import OHLCVIntegrityReport, check_all_symbols, check_integrity
 
 # ── Classification ────────────────────────────────────────────────────────────
 

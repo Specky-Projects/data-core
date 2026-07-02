@@ -21,7 +21,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Callable, Awaitable, Union
+from collections.abc import Awaitable, Callable
+from typing import Union
 
 from domains.crypto_coin.core.schemas import Event
 

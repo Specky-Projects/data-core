@@ -24,9 +24,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -106,8 +105,9 @@ class StrategyIntelligenceAnalyzer:
         symbol:      str | None = None,
         timeframe:   str | None = None,
     ) -> StrategyIntelligenceReport:
-        from .experiment_tracker import ExperimentTracker
         from datetime import datetime, timezone
+
+        from .experiment_tracker import ExperimentTracker
 
         tracker = ExperimentTracker()
         filters: dict[str, Any] = {"strategy_id": strategy_id}

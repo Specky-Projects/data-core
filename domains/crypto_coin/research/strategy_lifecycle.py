@@ -31,16 +31,14 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from domains.crypto_coin.research.experiment_tracker import ExperimentTracker
+from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 from domains.crypto_coin.research.strategy_degradation_intelligence import (
     StrategyDegradationIntelligence,
 )
-from domains.crypto_coin.research.fragility_intelligence import FragilityIntelligenceAnalyzer
 
 EXPERIMENTS_DIR    = Path("data/experiments")
 LIFECYCLE_FILE     = Path("data/strategy_lifecycle.jsonl")
@@ -49,6 +47,8 @@ LIFECYCLE_FILE     = Path("data/strategy_lifecycle.jsonl")
 try:
     from api.metrics import (
         strategy_promotions_total as _prom_promotions,
+    )
+    from api.metrics import (
         strategy_retirement_total as _prom_retirements,
     )
     _METRICS_AVAILABLE = True
