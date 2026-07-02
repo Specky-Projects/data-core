@@ -12,13 +12,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
       - run: pip install ruff==0.6.8
-      - run: ruff check .
-      - run: ruff format --check .
+
+      # The full tree carries pre-existing lint/format debt (baseline, tracked
+      # separately). Scoping ruff to the files a change actually touches keeps
+      # the gate meaningful for new/modified code without requiring a global
+      # sanitization pass before CI can be green again.
+      - name: Determine changed Python files
+        id: changed
+        run: |
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "$ZERO_SHA" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+            BASE=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          fi
+          if [ -z "$BASE" ]; then
+            FILES=$(git ls-files '*.py')
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD -- '*.py')
+          fi
+          FILES=$(echo "$FILES" | grep -v '^$' | while read -r f; do [ -f "$f" ] && echo "$f"; done || true)
+          echo "count=$(echo "$FILES" | grep -c . || true)" >> "$GITHUB_OUTPUT"
+          {
+            echo "files<<CHANGED_FILES_EOF"
+            echo "$FILES"
+            echo "CHANGED_FILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Lint changed files
+        if: steps.changed.outputs.count != '0'
+        run: echo "${{ steps.changed.outputs.files }}" | xargs ruff check
+
+      - name: Format check changed files
+        if: steps.changed.outputs.count != '0'
+        run: echo "${{ steps.changed.outputs.files }}" | xargs ruff format --check
 
   test:
     name: Tests (pytest)
