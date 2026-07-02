@@ -10,11 +10,19 @@ from app.universal_platform.adapters.affiliate_adapter import AffiliateAdapter
 from app.universal_platform.adapters.base import BaseAdapter
 from app.universal_platform.adapters.infrastructure_adapter import InfrastructureAdapter
 from app.universal_platform.adapters.poupi_baby_adapter import PoupiBabyAdapter
+from app.universal_platform.adapters.poupi_baby_opportunity_adapter import (
+    PoupiBabyOpportunityAdapter,
+)
+from app.universal_platform.adapters.research_opportunity_adapter import (
+    ResearchOpportunityAdapter,
+)
 from app.universal_platform.adapters.telegram_adapter import TelegramAdapter
 
 __all__ = [
     "BaseAdapter",
     "PoupiBabyAdapter",
+    "PoupiBabyOpportunityAdapter",
+    "ResearchOpportunityAdapter",
     "InfrastructureAdapter",
     "TelegramAdapter",
     "AffiliateAdapter",
