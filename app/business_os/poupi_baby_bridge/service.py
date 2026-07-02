@@ -7,7 +7,7 @@ read-only against Poupi Baby: no publish call, no flag change, no re-ranking.
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -23,7 +23,7 @@ from app.universal_platform.adapters.poupi_baby_opportunity_adapter import (
 
 
 def _utc_now() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _jsonable(value: Any) -> Any:
