@@ -11,9 +11,11 @@ The aggregate routes add NO business logic: they route through the existing
 
 Prefix: /universal-platform
 """
+
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel, Field
@@ -54,7 +56,7 @@ def status() -> dict:
 
 
 @router.get("/daily-brief", include_in_schema=False)
-def daily_brief(query: AggregateQuery | None = Body(default=None)) -> dict:
+def daily_brief(query: Annotated[AggregateQuery | None, Body()] = None) -> dict:
     """Read-only unified daily brief.
 
     Reuses ``DailyBriefBuilder.build()`` (via the ``daily_brief.generate``
@@ -76,7 +78,7 @@ def daily_brief(query: AggregateQuery | None = Body(default=None)) -> dict:
 
 
 @router.get("/alerts", include_in_schema=False)
-def alerts(query: AggregateQuery | None = Body(default=None)) -> dict:
+def alerts(query: Annotated[AggregateQuery | None, Body()] = None) -> dict:
     """Read-only correlated alerts.
 
     Reuses ``UnifiedAlertEngine.evaluate()`` (via the ``alert.evaluate``

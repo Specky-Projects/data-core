@@ -1,4 +1,5 @@
 """Tests for the Universal Platform status router — public, advisory-only."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI
